@@ -4,22 +4,28 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function CalendarPage() {
+  const router = useRouter();
+  
   const events = [
     {
+      id: "TR-001",
       title: "Aviation Safety Leadership",
       start: "2026-06-10",
       end: "2026-06-12",
       backgroundColor: "#F9A825", // PLANNING - Warning
     },
     {
+      id: "TR-002",
       title: "Customer Service Excellence",
       start: "2026-05-28",
       backgroundColor: "#1E88E5", // ONGOING - Sky Blue
     },
     {
+      id: "TR-003",
       title: "Basic Fire Fighting & Safety",
       start: "2026-05-15",
       backgroundColor: "#2E7D32", // COMPLETED - Success
@@ -58,6 +64,12 @@ export default function CalendarPage() {
             events={events}
             height="100%"
             dayMaxEvents={true}
+            eventClick={(info) => {
+              info.jsEvent.preventDefault();
+              if (info.event.id) {
+                router.push(`/training/${info.event.id}`);
+              }
+            }}
             eventTimeFormat={{
               hour: '2-digit',
               minute: '2-digit',

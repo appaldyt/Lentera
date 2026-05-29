@@ -1,6 +1,10 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, Plus, Download, FileSpreadsheet, MapPin, Calendar as CalendarIcon, Clock, Users, CornerDownRight, CheckSquare, Square, Link as LinkIcon, MoreHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,14 +40,66 @@ const trainingDetail = {
     { id: "P-104", activityName: "Monitoring penggunaan LMS", category: "Operasional", dueDate: "2026-06-05", priority: "Important", pic: "Andi", team: "IT", isCompleted: false, progress: "25%", linkOutput: "-" },
   ],
   participants: [
-    { id: "PAR-1", nik: "20260101", name: "Budi Santoso", department: "Operations", attendedHours: 0 },
-    { id: "PAR-2", nik: "20260104", name: "Andi Pratama", department: "Ground Handling", attendedHours: 0 },
-    { id: "PAR-3", nik: "20260105", name: "Siti Rahma", department: "Human Resources", attendedHours: 0 },
+    { id: "PAR-1", nik: "20260101", name: "Budi Santoso", department: "Operations", trainingDate: "2026-06-10", attendedHours: 0 },
+    { id: "PAR-2", nik: "20260104", name: "Andi Pratama", department: "Ground Handling", trainingDate: "2026-06-10", attendedHours: 0 },
   ]
 };
 
+// Mock Employee Data for Lookup
+const mockEmployees = [
+  { nik: "20260101", name: "Budi Santoso", department: "Operations" },
+  { nik: "20260102", name: "Siti Rahma", department: "Human Resources" },
+  { nik: "20260103", name: "Andi Pratama", department: "Ground Handling" },
+  { nik: "20260104", name: "Dewi Lestari", department: "Safety & Quality" },
+  { nik: "20260105", name: "Rina Wijaya", department: "Finance" },
+  { nik: "20260106", name: "Hendra Gunawan", department: "IT" },
+];
+
 export default function TrainingDetailPage({ params }: { params: { id: string } }) {
   // In a real app, we would fetch data based on params.id
+  const [participants, setParticipants] = useState(trainingDetail.participants);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Form states
+  const [searchNik, setSearchNik] = useState("");
+  const [foundEmployee, setFoundEmployee] = useState<{nik: string, name: string, department: string} | null>(null);
+  const [trainingDateInput, setTrainingDateInput] = useState(trainingDetail.startDate);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleSearchNik = (nik: string) => {
+    setSearchNik(nik);
+    setErrorMsg("");
+    if (nik.length >= 8) {
+      const emp = mockEmployees.find(e => e.nik === nik);
+      if (emp) {
+        setFoundEmployee(emp);
+      } else {
+        setFoundEmployee(null);
+        setErrorMsg("Karyawan tidak ditemukan.");
+      }
+    } else {
+      setFoundEmployee(null);
+    }
+  };
+
+  const handleAddParticipant = () => {
+    if (foundEmployee) {
+      setParticipants([
+        ...participants,
+        {
+          id: `PAR-${Date.now()}`,
+          nik: foundEmployee.nik,
+          name: foundEmployee.name,
+          department: foundEmployee.department,
+          trainingDate: trainingDateInput,
+          attendedHours: 0
+        }
+      ]);
+      setIsModalOpen(false);
+      setSearchNik("");
+      setFoundEmployee(null);
+    }
+  };
   
   return (
     <div className="space-y-6 pb-12">
@@ -192,7 +248,7 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
               <FileSpreadsheet className="h-4 w-4" />
               Import Excel
             </Button>
-            <Button className="gap-2 bg-navy hover:bg-navy/90 text-surface">
+            <Button className="gap-2 bg-navy hover:bg-navy/90 text-surface" onClick={() => setIsModalOpen(true)}>
               <Plus className="h-4 w-4" />
               Tambah Peserta
             </Button>
@@ -205,12 +261,13 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
                 <TableHead className="font-semibold text-navy">NIK</TableHead>
                 <TableHead className="font-semibold text-navy">Nama Karyawan</TableHead>
                 <TableHead className="font-semibold text-navy">Divisi</TableHead>
+                <TableHead className="font-semibold text-navy">Tanggal Training</TableHead>
                 <TableHead className="font-semibold text-navy">Jam Kehadiran</TableHead>
                 <TableHead className="text-right font-semibold text-navy">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {trainingDetail.participants.map((par) => (
+              {participants.map((par) => (
                 <TableRow key={par.id}>
                   <TableCell className="font-medium text-navy">{par.nik}</TableCell>
                   <TableCell>{par.name}</TableCell>
@@ -219,6 +276,7 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
                       {par.department}
                     </Badge>
                   </TableCell>
+                  <TableCell>{par.trainingDate}</TableCell>
                   <TableCell>{par.attendedHours} Jam</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary hover:text-danger hover:bg-danger/10">
@@ -227,9 +285,9 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
                   </TableCell>
                 </TableRow>
               ))}
-              {trainingDetail.participants.length === 0 && (
+              {participants.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     Belum ada peserta yang terdaftar.
                   </TableCell>
                 </TableRow>
@@ -239,6 +297,49 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
         </CardContent>
       </Card>
       
+      {/* Modal Tambah Peserta */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-surface w-full max-w-md p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-bold text-navy mb-4">Tambah Peserta Training</h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="nik">NIK Karyawan</Label>
+                <Input 
+                  id="nik" 
+                  placeholder="Masukkan NIK... (contoh: 20260105)" 
+                  value={searchNik} 
+                  onChange={(e) => handleSearchNik(e.target.value)} 
+                />
+                {errorMsg && <p className="text-xs text-danger">{errorMsg}</p>}
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Nama Karyawan</Label>
+                <Input value={foundEmployee ? foundEmployee.name : ""} disabled className="bg-muted/50 text-text-secondary" />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Divisi</Label>
+                <Input value={foundEmployee ? foundEmployee.department : ""} disabled className="bg-muted/50 text-text-secondary" />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tanggal Training</Label>
+                <Input type="date" value={trainingDateInput} onChange={(e) => setTrainingDateInput(e.target.value)} />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
+              <Button onClick={handleAddParticipant} disabled={!foundEmployee} className="bg-navy text-surface hover:bg-navy-light">
+                Tambahkan
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

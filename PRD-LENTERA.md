@@ -39,8 +39,9 @@
 
 - **Dashboard Admin** — ringkasan training berjalan, lisensi hampir expired, status anggaran, dan utilisasi ruangan.
 - **Manajemen Training** — input data training (nama, instruktur, durasi, biaya, ruangan, jadwal) beserta rincian aktivitas persiapan (identifikasi kebutuhan, pemilihan instruktur, pemesanan tempat).
-- **Calendar of Training** — visualisasi jadwal training dalam tampilan kalender bulanan/mingguan.
-- **Registrasi Peserta** — input peserta training berdasarkan NIK karyawan, alokasi jam training per peserta.
+- **Calendar of Training (Interaktif)** — visualisasi jadwal training dalam tampilan kalender bulanan/mingguan. Event pada kalender dapat diklik untuk langsung mengedit detail training.
+- **Learning Hours** — dasbor pelaporan rekapitulasi yang secara otomatis mengagregasi total jam belajar (*attendedHours*) per karyawan, dilengkapi visualisasi *progress bar* terhadap target jam tahunan.
+- **Registrasi Peserta** — input peserta training berdasarkan NIK karyawan (dengan integrasi *auto-fill* nama dan divisi dari *database* karyawan), penetapan tanggal training, dan alokasi jam training per peserta.
 - **Monitoring Lisensi** — pencatatan jenis lisensi (perusahaan/individu), masa berlaku, dan notifikasi otomatis.
 - **Monitoring Anggaran & Pembayaran** — pencatatan budget per training, realisasi pembayaran, status (lunas/jatuh tempo/belum dibayar).
 - **Manajemen Ruangan** — daftar ruangan dengan kapasitas, fasilitas, kepemilikan, dan ketersediaan jadwal.
@@ -75,8 +76,9 @@
 5. Admin melakukan **registrasi peserta** dengan input NIK karyawan dan jam training (manual atau import Excel).
 6. Selama training berjalan, admin mencatat **pembayaran** yang dilakukan.
 7. Admin secara berkala mengecek **Monitoring Lisensi** dan menerima notifikasi lisensi yang akan expired.
-8. Admin melihat **Calendar of Training** untuk memastikan tidak ada jadwal yang bentrok.
-9. Setelah training selesai, admin menandai status training sebagai *completed* dan mengunduh laporan.
+8. Admin melihat **Calendar of Training** untuk memastikan tidak ada jadwal yang bentrok, dan dapat mengklik event kalender untuk melakukan pengeditan secara cepat.
+9. HR/Manajemen memonitor KPI dan produktivitas melalui fitur **Learning Hours** (yang dapat difilter per tahun).
+10. Setelah training selesai, admin menandai status training sebagai *completed* dan mengunduh laporan.
 
 ---
 
@@ -211,6 +213,7 @@ Berikut tabel utama yang dibutuhkan beserta kolomnya:
 - `id` (String, PK)
 - `trainingId` (FK → Training)
 - `employeeId` (FK → Employee)
+- `trainingDate` (DateTime) — tanggal pelaksanaan
 - `attendedHours` (Int) — jam training yang diikuti
 
 ### `License` — lisensi/sertifikasi
@@ -309,6 +312,7 @@ erDiagram
         string id PK
         string trainingId FK
         string employeeId FK
+        datetime trainingDate
         int attendedHours
     }
     LICENSE {
