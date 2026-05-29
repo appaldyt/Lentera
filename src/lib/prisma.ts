@@ -1,7 +1,7 @@
 import { PrismaClient } from '@/generated/prisma/client'
 
 const prismaClientSingleton = () => {
-  // @ts-ignore
+  // @ts-expect-error PrismaClient is not fully resolved during some lint stages
   return new PrismaClient()
 }
 

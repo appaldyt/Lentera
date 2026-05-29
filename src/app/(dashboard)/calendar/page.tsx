@@ -80,6 +80,7 @@ export default function CalendarPage() {
   const mandatoryEvents = events.filter(e => e.type === "MANDATORY");
   const nonMandatoryEvents = events.filter(e => e.type === "NON_MANDATORY");
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderGridRow = (event: any, idx: number) => {
     const startDate = new Date(event.start);
     const startMonth = startDate.getMonth();
