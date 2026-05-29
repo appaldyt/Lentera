@@ -1,6 +1,6 @@
-import { LayoutDashboard, BookOpen, Calendar, Badge, CircleDollarSign, Building, Settings, Plane, Bell, Search, User } from "lucide-react";
-import Link from "next/link";
+import { Plane, Bell, Search, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { SidebarNav } from "@/components/sidebar-nav";
 
 export default function DashboardLayout({
   children,
@@ -17,19 +17,7 @@ export default function DashboardLayout({
             <span className="text-xl font-bold tracking-wider text-surface">LENTERA</span>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto py-4">
-          <nav className="space-y-1 px-4">
-            <SidebarItem href="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" active />
-            <SidebarItem href="/training" icon={<BookOpen size={20} />} label="Training" />
-            <SidebarItem href="/calendar" icon={<Calendar size={20} />} label="Calendar" />
-            <SidebarItem href="/licenses" icon={<Badge size={20} />} label="Lisensi" />
-            <SidebarItem href="/finance" icon={<CircleDollarSign size={20} />} label="Anggaran" />
-            <SidebarItem href="/rooms" icon={<Building size={20} />} label="Ruangan" />
-          </nav>
-        </div>
-        <div className="border-t border-navy-dark p-4">
-          <SidebarItem href="/settings" icon={<Settings size={20} />} label="Pengaturan" />
-        </div>
+        <SidebarNav />
       </aside>
 
       {/* Main Content */}
@@ -63,31 +51,5 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
-  );
-}
-
-function SidebarItem({
-  icon,
-  label,
-  href,
-  active,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  href: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-        active
-          ? "bg-sky text-surface"
-          : "text-surface/70 hover:bg-navy-dark hover:text-surface"
-      }`}
-    >
-      {icon}
-      {label}
-    </Link>
   );
 }

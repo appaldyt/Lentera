@@ -197,8 +197,14 @@ Berikut tabel utama yang dibutuhkan beserta kolomnya:
 - `id` (String, PK)
 - `trainingId` (FK → Training)
 - `activityName` (String) — mis. "Pemilihan Instruktur"
-- `isCompleted` (Boolean)
+- `category` (String) — mis. "Sosialisasi", "Administrasi"
 - `dueDate` (DateTime)
+- `priority` (Enum: URGENT, IMPORTANT, NORMAL)
+- `pic` (String) — penanggung jawab
+- `team` (String) — divisi terkait
+- `isCompleted` (Boolean)
+- `progress` (String/Int) — persentase progres
+- `linkOutput` (String) — link dokumen output
 - `notes` (Text)
 
 ### `TrainingParticipant` — peserta training
@@ -206,7 +212,6 @@ Berikut tabel utama yang dibutuhkan beserta kolomnya:
 - `trainingId` (FK → Training)
 - `employeeId` (FK → Employee)
 - `attendedHours` (Int) — jam training yang diikuti
-- `status` (Enum: REGISTERED, ATTENDED, ABSENT)
 
 ### `License` — lisensi/sertifikasi
 - `id` (String, PK)
@@ -291,15 +296,20 @@ erDiagram
         string id PK
         string trainingId FK
         string activityName
-        boolean isCompleted
+        string category
         datetime dueDate
+        string priority
+        string pic
+        string team
+        boolean isCompleted
+        string progress
+        string linkOutput
     }
     TRAINING_PARTICIPANT {
         string id PK
         string trainingId FK
         string employeeId FK
         int attendedHours
-        string status
     }
     LICENSE {
         string id PK
