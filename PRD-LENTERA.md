@@ -31,7 +31,7 @@
 - **Fitur Import Data (Excel/CSV)** tersedia di setiap menu utama dengan template yang dapat diunduh.
 - Pelaporan/export data ke format umum (PDF/Excel) untuk dokumentasi.
 - Database relasional yang terstruktur dan scalable menggunakan Prisma ORM.
-- UI yang clean, modern, dan mudah dipahami oleh staf non-teknis.
+- UI yang clean, modern, dan professional mengadopsi gaya **corporate aviation** (referensi: ias.id).
 
 ---
 
@@ -80,7 +80,55 @@
 
 ---
 
-## 5. Architecture
+## 5. Design System & Branding
+
+Style visual aplikasi LENTERA mengadopsi tampilan **corporate professional** seperti website **ias.id** (PT Integrasi Aviasi Solusi) — bersih, modern, dan memberi kesan terpercaya khas korporat aviasi.
+
+### 🎨 Palet Warna Utama
+
+| Token | Hex | Penggunaan |
+|---|---|---|
+| **Primary / Navy** | `#0B2A4A` | Background sidebar, header, tombol utama, judul section |
+| **Primary Dark** | `#061A2E` | Hover state navy, footer |
+| **Accent / Sky Blue** | `#1E88E5` | Tombol aksi sekunder, link, highlight, ikon aktif |
+| **Accent Light** | `#64B5F6` | Hover state biru, badge informasi |
+| **Background** | `#F5F7FA` | Background utama halaman |
+| **Surface / Card** | `#FFFFFF` | Kartu, modal, form container |
+| **Border / Divider** | `#E0E6ED` | Garis pemisah, border input |
+| **Text Primary** | `#1A2332` | Teks utama, heading |
+| **Text Secondary** | `#5A6B7C` | Teks pendukung, label, placeholder |
+| **Success** | `#2E7D32` | Status lunas, training selesai, lisensi aktif |
+| **Warning** | `#F9A825` | Lisensi mendekati expired, pembayaran pending |
+| **Danger** | `#C62828` | Lisensi expired, pembayaran overdue, error |
+
+### 🖋️ Typography
+- **Font Family:** `Inter` atau `Plus Jakarta Sans` (Google Fonts) — modern sans-serif, mudah dibaca.
+- **Heading:** Bold, warna Navy (`#0B2A4A`).
+- **Body:** Regular 14–16px, warna Text Primary.
+- **Hierarchy jelas:** H1 (28px) → H2 (22px) → H3 (18px) → Body (14–16px).
+
+### 🧩 Komponen UI
+- **Sidebar:** Background Navy (`#0B2A4A`), ikon & teks putih, active state Sky Blue.
+- **Header / Topbar:** Background putih, border bawah tipis, logo LENTERA di kiri, profil user di kanan.
+- **Card:** Background putih, border `#E0E6ED`, shadow halus (`shadow-sm`), border-radius 8–12px.
+- **Tombol Primary:** Background Navy, teks putih, hover → Primary Dark.
+- **Tombol Secondary:** Outline Sky Blue, teks Sky Blue, hover → background Sky Blue + teks putih.
+- **Input/Form:** Border tipis `#E0E6ED`, focus ring Sky Blue.
+- **Badge Status:** Pakai warna semantik (Success/Warning/Danger) dengan background pucat & teks gelap.
+- **Tabel:** Header background `#F5F7FA`, baris hover `#F0F4F8`, garis pemisah halus.
+- **Chart (Recharts):** Skema warna Navy + Sky Blue + Accent Light + Success/Warning untuk kontras.
+
+### 🎯 Prinsip Desain
+- **Clean & spacious** — banyak white space, hindari elemen padat.
+- **Professional** — minim dekorasi, fokus pada keterbacaan data.
+- **Consistent** — semua tombol, card, dan form mengikuti token warna yang sama.
+- **Accessible** — kontras teks vs background memenuhi WCAG AA.
+
+> Konfigurasi warna di-implementasikan via **Tailwind CSS theme extension** (`tailwind.config.ts`) dan **shadcn/ui CSS variables** agar konsisten di seluruh aplikasi serta mendukung dark mode di masa depan.
+
+---
+
+## 6. Architecture
 
 Aplikasi menggunakan arsitektur **monolith full-stack** dengan Next.js (App Router) sebagai frontend sekaligus backend (API Routes/Server Actions), dan Prisma sebagai jembatan ke database.
 
@@ -99,7 +147,7 @@ flowchart TD
     N --> O[Parser Excel/CSV - SheetJS]
     O --> P[Validator + Error Report]
     P --> F
-    B --> K[UI: Tailwind + shadcn/ui]
+    B --> K[UI: Tailwind + shadcn/ui - Theme ias.id]
     B --> L[Calendar View Component]
     B --> M[Dashboard & Charts]
 ```
@@ -110,10 +158,11 @@ flowchart TD
 - **Notification Service** berjalan via cron job untuk memeriksa lisensi yang akan expired dan mengirim notifikasi.
 - **Import Service** memproses file Excel/CSV via SheetJS, melakukan validasi per baris, lalu meneruskan data valid ke Prisma. Baris gagal dikembalikan sebagai error report.
 - **Better Auth** menangani autentikasi dan otorisasi berbasis role.
+- **UI Theme** mengikuti design system bergaya ias.id (navy + sky blue corporate).
 
 ---
 
-## 6. Database Schema
+## 7. Database Schema
 
 Berikut tabel utama yang dibutuhkan beserta kolomnya:
 
@@ -295,18 +344,19 @@ erDiagram
 
 ---
 
-## 7. Tech Stack
+## 8. Tech Stack
 
 | Kategori | Teknologi | Alasan |
 |---|---|---|
 | **Framework** | Next.js (App Router) | Full-stack React framework, SSR, server actions |
-| **Styling** | Tailwind CSS | Utility-first CSS yang cepat & konsisten |
-| **UI Components** | shadcn/ui | Komponen modern, accessible, mudah dikustomisasi |
+| **Styling** | Tailwind CSS (custom theme ias.id) | Utility-first CSS dengan token warna corporate navy + sky blue |
+| **UI Components** | shadcn/ui | Komponen modern, accessible, mudah dikustomisasi sesuai brand |
+| **Font** | Inter / Plus Jakarta Sans | Modern sans-serif untuk tampilan profesional |
 | **ORM** | **Prisma** | Type-safe ORM, migration mudah, sesuai permintaan |
 | **Database** | PostgreSQL (production) / SQLite (development) | Relasional, scalable, didukung penuh Prisma |
 | **Authentication** | Better Auth | Auth modern dengan dukungan role-based access |
 | **Calendar UI** | FullCalendar / react-big-calendar | Komponen kalender siap pakai untuk jadwal training |
-| **Charts** | Recharts | Visualisasi data anggaran & ringkasan dashboard |
+| **Charts** | Recharts | Visualisasi data anggaran & ringkasan dashboard (skema navy + sky blue) |
 | **Notifikasi** | Resend / Nodemailer + Cron (node-cron) | Pengingat lisensi expired via email |
 | **Import Excel/CSV** | **SheetJS (xlsx) + Zod** | Parsing file Excel/CSV + validasi skema per baris |
 | **Deployment** | Vercel / Self-hosted (Docker) | Sesuaikan kebutuhan internal perusahaan |
