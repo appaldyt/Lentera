@@ -39,7 +39,7 @@
 
 - **Dashboard Admin** — ringkasan training berjalan, lisensi hampir expired, status anggaran, dan utilisasi ruangan.
 - **Manajemen Training** — input data training (nama, instruktur, durasi, biaya, ruangan, jadwal) beserta rincian aktivitas persiapan (identifikasi kebutuhan, pemilihan instruktur, pemesanan tempat).
-- **Calendar of Training (Interaktif)** — visualisasi jadwal training dalam tampilan kalender bulanan/mingguan. Event pada kalender dapat diklik untuk langsung mengedit detail training.
+- **Calendar of Training (Interaktif & Timeline)** — visualisasi jadwal training dalam tampilan kalender grid bulanan/mingguan, serta tampilan *Timeline Program (Gantt Chart)* tahunan yang dikelompokkan berdasarkan *Jenis Training* (Mandatori & Non-Mandatori). Event pada kalender dapat diklik untuk langsung mengedit detail training.
 - **Learning Hours** — dasbor pelaporan rekapitulasi yang secara otomatis mengagregasi total jam belajar (*attendedHours*) per karyawan, dilengkapi visualisasi *progress bar* terhadap target jam tahunan.
 - **Registrasi Peserta** — input peserta training berdasarkan NIK karyawan (dengan integrasi *auto-fill* nama dan divisi dari *database* karyawan), penetapan tanggal training, dan alokasi jam training per peserta.
 - **Monitoring Lisensi** — pencatatan jenis lisensi (perusahaan/individu), masa berlaku, dan notifikasi otomatis.
@@ -188,6 +188,7 @@ Berikut tabel utama yang dibutuhkan beserta kolomnya:
 - `id` (String, PK)
 - `name` (String) — nama training
 - `description` (Text)
+- `trainingType` (Enum: MANDATORY, NON_MANDATORY) — jenis training
 - `instructor` (String)
 - `startDate`, `endDate` (DateTime)
 - `durationHours` (Int)

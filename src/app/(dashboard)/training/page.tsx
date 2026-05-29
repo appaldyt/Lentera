@@ -20,6 +20,7 @@ const mockTrainings = [
   {
     id: "TR-001",
     name: "Aviation Safety Leadership",
+    trainingType: "MANDATORY",
     instructor: "Capt. Budi Santoso",
     room: "Auditorium A",
     startDate: "2026-06-10",
@@ -80,6 +81,7 @@ const mockTrainings = [
   {
     id: "TR-002",
     name: "Customer Service Excellence",
+    trainingType: "NON_MANDATORY",
     instructor: "Rina Wijaya",
     room: "Meeting Room 2",
     startDate: "2026-05-28",
@@ -128,6 +130,7 @@ const mockTrainings = [
   {
     id: "TR-003",
     name: "Basic Fire Fighting & Safety",
+    trainingType: "MANDATORY",
     instructor: "Hendra Gunawan",
     room: "Training Center B",
     startDate: "2026-05-15",
@@ -176,6 +179,13 @@ function getStatusBadge(status: string) {
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
+}
+
+function getTypeBadge(type: string) {
+  if (type === "MANDATORY") {
+    return <Badge variant="default" className="bg-navy text-surface">Mandatori</Badge>;
+  }
+  return <Badge variant="outline" className="text-text-secondary border-text-secondary">Non-Mandatori</Badge>;
 }
 
 function getPriorityBadge(priority: string) {
@@ -235,8 +245,9 @@ export default function TrainingPage() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
-              <TableHead className="w-12"></TableHead>
+              <TableHead className="w-12 text-navy"></TableHead>
               <TableHead className="font-semibold text-navy">Nama Training</TableHead>
+              <TableHead className="font-semibold text-navy">Jenis</TableHead>
               <TableHead className="font-semibold text-navy">Instruktur</TableHead>
               <TableHead className="font-semibold text-navy">Ruangan</TableHead>
               <TableHead className="font-semibold text-navy">Tanggal</TableHead>
@@ -266,6 +277,7 @@ export default function TrainingPage() {
                     <TableCell className="font-medium text-navy">
                       {training.name}
                     </TableCell>
+                    <TableCell>{getTypeBadge(training.trainingType)}</TableCell>
                     <TableCell>{training.instructor}</TableCell>
                     <TableCell>{training.room}</TableCell>
                     <TableCell>{training.startDate}</TableCell>
@@ -284,8 +296,8 @@ export default function TrainingPage() {
                   {/* Sub-Table for Activities */}
                   {isExpanded && (
                     <TableRow className="bg-sky-light/5 hover:bg-sky-light/5 border-b">
-                      <TableCell colSpan={9} className="p-0 pb-4">
-                        <div className="mx-12 border rounded-md shadow-sm overflow-hidden bg-background">
+                      <TableCell colSpan={10} className="p-0 border-b">
+                        <div className="bg-background p-4 pl-14">
                           <Table>
                             <TableHeader className="bg-navy text-surface">
                               <TableRow className="hover:bg-navy">
