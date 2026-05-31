@@ -5,28 +5,17 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Plus, Download, FileSpreadsheet, MapPin, Calendar as CalendarIcon, Clock, Users, CornerDownRight, CheckSquare, Square, Link as LinkIcon, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Plus, FileSpreadsheet, MapPin, Calendar as CalendarIcon, Clock, Users, Search, Filter, MoreHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import TrainingPreparationsTable from "@/components/training/TrainingPreparationsTable";
 
-function getPriorityBadge(priority: string) {
-  switch (priority) {
-    case "Urgent":
-      return <Badge variant="danger" className="text-[10px] py-0">{priority}</Badge>;
-    case "Important":
-      return <Badge variant="warning" className="text-[10px] py-0">{priority}</Badge>;
-    default:
-      return <Badge variant="outline" className="text-[10px] py-0 text-text-secondary">{priority}</Badge>;
-  }
-}
-
-// Mock Data for the specific training
 const trainingDetail = {
   id: "TR-001",
   name: "Aviation Safety Leadership",
-  instructor: "Capt. Budi Santoso",
+  jobFamilies: ["Safety & Quality", "Leadership"],
+  organizer: "Capt. Budi Santoso",
   room: "Auditorium A",
   startDate: "2026-06-10",
   duration: "16 Jam",
@@ -57,7 +46,8 @@ const mockEmployees = [
 
 export default function TrainingDetailPage({ params }: { params: { id: string } }) {
   // In a real app, we would fetch data based on params.id
-  const [participants, setParticipants] = useState(trainingDetail.participants);
+  const [training, setTraining] = useState(trainingDetail);
+  const [participants, setParticipants] = useState(training.participants);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Form states
@@ -112,10 +102,17 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
         </Link>
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold tracking-tight text-navy">{trainingDetail.name}</h2>
-            <Badge variant="warning">{trainingDetail.status}</Badge>
+            <h2 className="text-2xl font-bold tracking-tight text-navy">{training.name}</h2>
+            <Badge variant="warning">{training.status}</Badge>
           </div>
-          <p className="text-sm text-text-secondary">ID: {trainingDetail.id} • {trainingDetail.description}</p>
+          <p className="text-sm text-text-secondary">ID: {training.id} • {training.description}</p>
+          <div className="flex flex-wrap gap-1 mt-2">
+            {training.jobFamilies?.map((jf, idx) => (
+              <Badge key={idx} variant="outline" className="text-xs px-2 py-0.5 bg-muted/30 text-text-secondary border-border/50">
+                {jf}
+              </Badge>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -127,8 +124,8 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
               <Users className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs text-text-secondary">Instruktur</p>
-              <p className="font-semibold text-navy">{trainingDetail.instructor}</p>
+              <p className="text-xs text-text-secondary">Penyelenggara</p>
+              <p className="font-semibold text-navy">{training.organizer}</p>
             </div>
           </CardContent>
         </Card>
@@ -139,7 +136,7 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
             </div>
             <div>
               <p className="text-xs text-text-secondary">Tanggal Mulai</p>
-              <p className="font-semibold text-navy">{trainingDetail.startDate}</p>
+              <p className="font-semibold text-navy">{training.startDate}</p>
             </div>
           </CardContent>
         </Card>
@@ -150,7 +147,7 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
             </div>
             <div>
               <p className="text-xs text-text-secondary">Durasi</p>
-              <p className="font-semibold text-navy">{trainingDetail.duration}</p>
+              <p className="font-semibold text-navy">{training.duration}</p>
             </div>
           </CardContent>
         </Card>
@@ -161,7 +158,7 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
             </div>
             <div>
               <p className="text-xs text-text-secondary">Ruangan</p>
-              <p className="font-semibold text-navy">{trainingDetail.room}</p>
+              <p className="font-semibold text-navy">{training.room}</p>
             </div>
           </CardContent>
         </Card>
@@ -174,65 +171,14 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
             <CardTitle className="text-lg text-navy">Aktivitas Persiapan</CardTitle>
             <CardDescription>Checklist *task* yang harus diselesaikan sebelum training dimulai.</CardDescription>
           </div>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Plus className="h-4 w-4" /> Tambah Sub-task
-          </Button>
         </CardHeader>
-        <CardContent>
-          <div className="border rounded-md overflow-hidden">
-            <Table>
-              <TableHeader className="bg-navy text-surface">
-                <TableRow className="hover:bg-navy">
-                  <TableHead className="w-12 text-surface text-center">No</TableHead>
-                  <TableHead className="text-surface font-semibold">Task / Sub-task Name</TableHead>
-                  <TableHead className="text-surface font-semibold">Category</TableHead>
-                  <TableHead className="text-surface font-semibold">Due Date</TableHead>
-                  <TableHead className="text-surface font-semibold">Priority</TableHead>
-                  <TableHead className="text-surface font-semibold">PIC</TableHead>
-                  <TableHead className="text-surface font-semibold">Team</TableHead>
-                  <TableHead className="text-surface font-semibold text-center">✓</TableHead>
-                  <TableHead className="text-surface font-semibold">Progress</TableHead>
-                  <TableHead className="text-surface font-semibold">Link Output</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {trainingDetail.preparations.map((prep, index) => (
-                  <TableRow key={prep.id} className="hover:bg-muted/30">
-                    <TableCell className="text-center text-text-secondary">
-                      {index + 1}
-                    </TableCell>
-                    <TableCell className={cn("font-medium", prep.isCompleted ? "text-text-secondary line-through" : "text-navy")}>
-                      {prep.activityName}
-                    </TableCell>
-                    <TableCell className="text-text-secondary text-sm">{prep.category}</TableCell>
-                    <TableCell className="text-text-secondary text-sm">{prep.dueDate}</TableCell>
-                    <TableCell>{getPriorityBadge(prep.priority)}</TableCell>
-                    <TableCell className="text-sm font-medium">{prep.pic}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[10px] py-0 bg-background">{prep.team}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {prep.isCompleted ? (
-                        <CheckSquare className="h-5 w-5 text-success mx-auto" />
-                      ) : (
-                        <Square className="h-5 w-5 text-text-secondary mx-auto" />
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">{prep.progress}</TableCell>
-                    <TableCell>
-                      {prep.linkOutput !== "-" ? (
-                        <a href="#" className="flex items-center gap-1 text-sky hover:underline text-xs">
-                          <LinkIcon className="h-3 w-3" /> Output
-                        </a>
-                      ) : (
-                        <span className="text-text-secondary">-</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+        <CardContent className="p-0 sm:p-6 sm:pt-0">
+          <TrainingPreparationsTable 
+            trainingId={training.id} 
+            preparations={training.preparations} 
+            onChange={(newPrep) => setTraining({ ...training, preparations: newPrep })} 
+            isNestedView={false} 
+          />
         </CardContent>
       </Card>
 

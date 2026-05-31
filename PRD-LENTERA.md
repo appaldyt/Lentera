@@ -37,17 +37,20 @@
 
 ## 3. Core Features
 
-- **Dashboard Admin** — ringkasan training berjalan, lisensi hampir expired, status anggaran, dan utilisasi ruangan.
-- **Manajemen Training** — input data training (nama, instruktur, durasi, biaya, ruangan, jadwal) beserta rincian aktivitas persiapan (identifikasi kebutuhan, pemilihan instruktur, pemesanan tempat).
-- **Calendar of Training (Interaktif & Timeline)** — visualisasi jadwal training dalam tampilan kalender grid bulanan/mingguan, serta tampilan *Timeline Program (Gantt Chart)* tahunan yang dikelompokkan berdasarkan *Jenis Training* (Mandatori & Non-Mandatori). Event pada kalender dapat diklik untuk langsung mengedit detail training.
-- **Learning Hours** — dasbor pelaporan rekapitulasi yang secara otomatis mengagregasi total jam belajar (*attendedHours*) per karyawan, dilengkapi visualisasi *progress bar* terhadap target jam tahunan.
+- **Dashboard Admin** — ringkasan training berjalan, lisensi hampir expired, status anggaran, dan utilisasi ruangan. Dilengkapi dengan filter interaktif berdasarkan **Bulan** dan **Tahun**.
+- **Manajemen Training** — input data training (nama, deskripsi, penyelenggara, job families, durasi, biaya, ruangan, rentang jadwal mulai dan selesai) beserta rincian aktivitas persiapan (berupa checklist sub-task yang interaktif, mencakup persentase progres, link output, dan note). Dilengkapi dengan fitur **Export** tabel data serta filter tabel interaktif berdasarkan **Bulan** dan **Tahun**.
+- **Calendar of Training (Interaktif & Timeline)** — visualisasi jadwal training dalam tampilan kalender grid bulanan/mingguan, serta tampilan *Timeline Program (Gantt Chart)* tahunan yang dikelompokkan berdasarkan *Jenis Training* (Mandatori & Non-Mandatori). Rentang durasi jadwal secara otomatis membaca rentang waktu dari *Tanggal Mulai* hingga *Tanggal Selesai*. Event pada kalender dapat diklik untuk langsung mengedit detail training.
+- **Learning Hours** — dasbor pelaporan rekapitulasi yang secara otomatis mengagregasi total jam belajar (*attendedHours*) per karyawan, dilengkapi visualisasi *progress bar* terhadap target jam tahunan. Terintegrasi dengan fitur **Filter Tahun** yang secara real-time menyaring data yang ditampilkan.
 - **Registrasi Peserta** — input peserta training berdasarkan NIK karyawan (dengan integrasi *auto-fill* nama dan divisi dari *database* karyawan), penetapan tanggal training, dan alokasi jam training per peserta.
-- **Monitoring Lisensi** — pencatatan jenis lisensi (perusahaan/individu), masa berlaku, dan notifikasi otomatis.
+- **Monitoring Lisensi & Sertifikasi** — modul pencatatan lisensi karyawan yang komprehensif, dilengkapi dengan:
+  - **Dashboard Analitik Terpusat**: Visualisasi data lisensi melalui *Bar Chart* (Proyeksi Kadaluwarsa 6 bulan ke depan), *Pie Chart* (Distribusi Kategori Akademik vs Operasional & Distribusi Line of Business), *Horizontal Bar Chart* (Top 5 Nama Lisensi Terpopuler), *Scrollable Vertical Bar Chart* (Distribusi 44+ Stasiun/Lokasi Kerja), dan indikator *Pill Badges* (Rincian peringatan kadaluwarsa <1, <3, <5 bulan).
+  - **Tabel Data Interaktif**: Menampilkan data detail dengan kolom lengkap, *filter tab* (Semua, Akademik, Operasional) dan *search bar*.
+  - **Fitur CRUD & Auto-Fill**: Manajemen penambahan, pengeditan, dan penghapusan lisensi menggunakan *Custom Modal Dialog*. Formulir input terintegrasi dengan sistem *Auto-Fill* (memasukkan NIK akan otomatis menarik data Nama, Jabatan, Lokasi, Status Karyawan, dan Line of Business dari *master data* Manajemen Karyawan secara *read-only*).
 - **Monitoring Anggaran & Pembayaran** — pencatatan budget per training, realisasi pembayaran, status (lunas/jatuh tempo/belum dibayar).
 - **Manajemen Ruangan** — daftar ruangan dengan kapasitas, fasilitas, kepemilikan, dan ketersediaan jadwal.
-- **Import Data Massal** — fitur import Excel/CSV di setiap menu utama:
+- **Import Data Massal** — fitur import Excel/CSV di beberapa menu utama:
   - Import data **Karyawan** (NIK, nama, departemen, posisi, email).
-  - Import data **Training** (nama, instruktur, jadwal, biaya, ruangan).
+  - Khusus menu **Manajemen Training** dan **Learning Hours**, fitur utamanya adalah **Export Excel** untuk mengunduh rekap.
   - Import data **Peserta Training** (training, NIK karyawan, jam training).
   - Import data **Lisensi** (nama, jenis, kategori, tanggal terbit, tanggal expired, pemilik).
   - Import data **Anggaran & Pembayaran** (training, planned amount, actual, status).
@@ -182,14 +185,18 @@ Berikut tabel utama yang dibutuhkan beserta kolomnya:
 - `name` (String)
 - `department` (String)
 - `position` (String)
+- `workLocation` (String) — lokasi kerja (mis. CGK, SUB, KNO)
+- `employeeStatus` (Enum/String: TETAP, KONTRAK, OUTSOURCE) — status karyawan
+- `lob` (String) — Line of Business (mis. Cargo & Logistik, Ground Handling)
 - `email` (String)
 
 ### `Training` — data training
 - `id` (String, PK)
 - `name` (String) — nama training
+- `jobFamilies` (Array of Strings) — mis. ["People Management", "Aviation Security"]
 - `description` (Text)
 - `trainingType` (Enum: MANDATORY, NON_MANDATORY) — jenis training
-- `instructor` (String)
+- `organizer` (String) — penyelenggara training
 - `startDate`, `endDate` (DateTime)
 - `durationHours` (Int)
 - `cost` (Decimal) — biaya training

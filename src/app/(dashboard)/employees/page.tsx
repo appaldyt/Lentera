@@ -20,6 +20,9 @@ const mockEmployees = [
     position: "Senior Manager",
     email: "budi.s@ias.id",
     phone: "0812-3456-7890",
+    workLocation: "CGK",
+    employeeStatus: "TETAP",
+    lob: "Ground Handling",
   },
   {
     id: "EMP-002",
@@ -29,6 +32,9 @@ const mockEmployees = [
     position: "Finance Officer",
     email: "rina.w@ias.id",
     phone: "0813-2233-4455",
+    workLocation: "SUB",
+    employeeStatus: "KONTRAK",
+    lob: "Food",
   },
   {
     id: "EMP-003",
@@ -38,6 +44,9 @@ const mockEmployees = [
     position: "Chief Engineer",
     email: "hendra.g@ias.id",
     phone: "0811-9988-7766",
+    workLocation: "DPS",
+    employeeStatus: "TETAP",
+    lob: "Cargo & Logistik",
   },
   {
     id: "EMP-004",
@@ -47,6 +56,9 @@ const mockEmployees = [
     position: "Supervisor",
     email: "andi.p@ias.id",
     phone: "0856-1234-5678",
+    workLocation: "CGK",
+    employeeStatus: "TETAP",
+    lob: "Ground Handling",
   },
   {
     id: "EMP-005",
@@ -56,6 +68,9 @@ const mockEmployees = [
     position: "HR Specialist",
     email: "siti.r@ias.id",
     phone: "0821-4455-6677",
+    workLocation: "KNO",
+    employeeStatus: "KONTRAK",
+    lob: "Aviation Security",
   },
 ];
 
@@ -102,6 +117,9 @@ export default function EmployeesPage() {
             <TableHead>Jabatan</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>No. Telepon</TableHead>
+            <TableHead>Lokasi Kerja</TableHead>
+            <TableHead>LOB</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="text-right">Aksi</TableHead>
           </TableRow>
         </TableHeader>
@@ -118,6 +136,13 @@ export default function EmployeesPage() {
               <TableCell>{emp.position}</TableCell>
               <TableCell>{emp.email}</TableCell>
               <TableCell>{emp.phone}</TableCell>
+              <TableCell className="text-text-secondary">{emp.workLocation}</TableCell>
+              <TableCell className="text-text-secondary">{emp.lob}</TableCell>
+              <TableCell>
+                <Badge variant="outline" className="font-normal bg-background">
+                  {emp.employeeStatus}
+                </Badge>
+              </TableCell>
               <TableCell className="text-right">
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary">
                   <MoreHorizontal className="h-4 w-4" />
@@ -127,7 +152,7 @@ export default function EmployeesPage() {
           ))}
           {mockEmployees.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center">
+              <TableCell colSpan={10} className="h-24 text-center">
                 Tidak ada data karyawan.
               </TableCell>
             </TableRow>

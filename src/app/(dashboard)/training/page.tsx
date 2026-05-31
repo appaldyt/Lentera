@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, MoreHorizontal, ChevronDown, ChevronRight, CornerDownRight, CheckSquare, Square, Link as LinkIcon } from "lucide-react";
+import { Plus, Search, Filter, ChevronDown, ChevronRight, X, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -15,15 +15,19 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import TrainingPreparationsTable from "@/components/training/TrainingPreparationsTable";
 
 const mockTrainings = [
   {
     id: "TR-001",
     name: "Aviation Safety Leadership",
+    description: "Pelatihan kepemimpinan dengan fokus pada budaya keselamatan penerbangan dan mitigasi risiko operasional.",
+    jobFamilies: ["Safety & Quality", "Leadership"],
     trainingType: "MANDATORY",
-    instructor: "Capt. Budi Santoso",
+    organizer: "Capt. Budi Santoso",
     room: "Auditorium A",
     startDate: "2026-06-10",
+    endDate: "2026-06-12",
     duration: "16 Jam",
     cost: "Rp 15.000.000",
     status: "PLANNING",
@@ -38,7 +42,8 @@ const mockTrainings = [
         team: "PM", 
         isCompleted: true, 
         progress: "100%", 
-        linkOutput: "doc/sosialisasi.pdf" 
+        linkOutput: "doc/sosialisasi.pdf",
+        note: ""
       },
       { 
         id: "P-102", 
@@ -81,10 +86,13 @@ const mockTrainings = [
   {
     id: "TR-002",
     name: "Customer Service Excellence",
+    description: "Pelatihan untuk meningkatkan kualitas pelayanan kepada pelanggan.",
+    jobFamilies: ["Commercial", "Frontline"],
     trainingType: "NON_MANDATORY",
-    instructor: "Rina Wijaya",
+    organizer: "Rina Wijaya",
     room: "Meeting Room 2",
     startDate: "2026-05-28",
+    endDate: "2026-05-28",
     duration: "8 Jam",
     cost: "Rp 5.000.000",
     status: "ONGOING",
@@ -130,10 +138,13 @@ const mockTrainings = [
   {
     id: "TR-003",
     name: "Basic Fire Fighting & Safety",
+    description: "Pelatihan dasar pemadaman kebakaran dan keselamatan kerja.",
+    jobFamilies: ["Aviation Security", "Operations"],
     trainingType: "MANDATORY",
-    instructor: "Hendra Gunawan",
+    organizer: "Hendra Gunawan",
     room: "Training Center B",
     startDate: "2026-05-15",
+    endDate: "2026-05-15",
     duration: "8 Jam",
     cost: "Rp 7.500.000",
     status: "COMPLETED",
@@ -199,8 +210,105 @@ function getPriorityBadge(priority: string) {
   }
 }
 
-export default function TrainingPage() {
+export default function TrainingManagementPage() {
+  const [trainings, setTrainings] = useState(mockTrainings);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  
+  // Filter State
+  const [filterMonth, setFilterMonth] = useState<string>("all");
+  const [filterYear, setFilterYear] = useState<string>("all");
+
+  // Form State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"add" | "edit" | "delete">("add");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    jobFamilies: "",
+    trainingType: "MANDATORY",
+    organizer: "",
+    room: "",
+    startDate: "",
+    endDate: "",
+    duration: "",
+    cost: "",
+    status: "PLANNING"
+  });
+
+  const updateTrainingPreparations = (trainingId: string, newPreparations: typeof mockTrainings[0]["preparations"]) => {
+    setTrainings(trainings.map(t => t.id === trainingId ? { ...t, preparations: newPreparations } : t));
+  };
+
+  const handleOpenModal = (mode: "add" | "edit" | "delete", training: typeof mockTrainings[0] | null = null) => {
+    setModalMode(mode);
+    if (training) {
+      setEditingId(training.id);
+      setFormData({
+        name: training.name,
+        description: training.description || "",
+        jobFamilies: training.jobFamilies ? training.jobFamilies.join(", ") : "",
+        trainingType: training.trainingType,
+        organizer: training.organizer,
+        room: training.room,
+        startDate: training.startDate,
+        endDate: training.endDate || "",
+        duration: training.duration,
+        cost: training.cost,
+        status: training.status
+      });
+    } else {
+      setEditingId(null);
+      setFormData({ name: "", description: "", jobFamilies: "", trainingType: "MANDATORY", organizer: "", room: "", startDate: "", endDate: "", duration: "", cost: "", status: "PLANNING" });
+    }
+    setIsModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (editingId) {
+      setTrainings(trainings.filter(t => t.id !== editingId));
+      setIsModalOpen(false);
+      setEditingId(null);
+    }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (modalMode === "add") {
+      const newTraining = {
+        id: `TR-00${trainings.length + 1}`,
+        name: formData.name,
+        description: formData.description,
+        jobFamilies: formData.jobFamilies.split(",").map(s => s.trim()).filter(s => s !== ""),
+        trainingType: formData.trainingType,
+        organizer: formData.organizer,
+        room: formData.room,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        duration: formData.duration,
+        cost: formData.cost,
+        status: formData.status,
+        preparations: []
+      };
+      setTrainings([newTraining, ...trainings]);
+    } else if (modalMode === "edit") {
+      setTrainings(trainings.map(t => t.id === editingId ? {
+        ...t,
+        name: formData.name,
+        description: formData.description,
+        jobFamilies: formData.jobFamilies.split(",").map(s => s.trim()).filter(s => s !== ""),
+        trainingType: formData.trainingType,
+        organizer: formData.organizer,
+        room: formData.room,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        duration: formData.duration,
+        cost: formData.cost,
+        status: formData.status,
+      } : t));
+    }
+    setIsModalOpen(false);
+  };
 
   const toggleRow = (id: string) => {
     setExpandedRows((prev) => ({
@@ -208,6 +316,23 @@ export default function TrainingPage() {
       [id]: !prev[id],
     }));
   };
+
+  const filteredTrainings = trainings.filter(training => {
+    if (filterMonth === "all" && filterYear === "all") return true;
+    
+    // startDate format: "2026-06-10"
+    const dateParts = training.startDate.split("-");
+    if (dateParts.length >= 2) {
+      const year = dateParts[0];
+      const month = dateParts[1];
+      
+      const monthMatch = filterMonth === "all" || month === filterMonth;
+      const yearMatch = filterYear === "all" || year === filterYear;
+      
+      return monthMatch && yearMatch;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -219,9 +344,9 @@ export default function TrainingPage() {
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="gap-2">
-            Import Excel
+            Export
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => handleOpenModal("add")}>
             <Plus className="h-4 w-4" />
             Tambah Training
           </Button>
@@ -229,15 +354,46 @@ export default function TrainingPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 py-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-text-secondary" />
-          <Input placeholder="Cari nama training atau instruktur..." className="pl-9" />
+          <Input placeholder="Cari nama training atau penyelenggara..." className="pl-9" />
         </div>
-        <Button variant="outline" className="gap-2 w-full sm:w-auto">
-          <Filter className="h-4 w-4" />
-          Filter
-        </Button>
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <select 
+            className="flex h-9 rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+          >
+            <option value="all">Semua Bulan</option>
+            <option value="01">Januari</option>
+            <option value="02">Februari</option>
+            <option value="03">Maret</option>
+            <option value="04">April</option>
+            <option value="05">Mei</option>
+            <option value="06">Juni</option>
+            <option value="07">Juli</option>
+            <option value="08">Agustus</option>
+            <option value="09">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Desember</option>
+          </select>
+          <select 
+            className="flex h-9 rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+            value={filterYear}
+            onChange={(e) => setFilterYear(e.target.value)}
+          >
+            <option value="all">Semua Tahun</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+            <option value="2027">2027</option>
+          </select>
+          <Button variant="outline" className="gap-2">
+            <Filter className="h-4 w-4" />
+            Filter
+          </Button>
+        </div>
       </div>
 
       {/* Data Table */}
@@ -248,7 +404,7 @@ export default function TrainingPage() {
               <TableHead className="w-12 text-navy"></TableHead>
               <TableHead className="font-semibold text-navy">Nama Training</TableHead>
               <TableHead className="font-semibold text-navy">Jenis</TableHead>
-              <TableHead className="font-semibold text-navy">Instruktur</TableHead>
+              <TableHead className="font-semibold text-navy">Penyelenggara</TableHead>
               <TableHead className="font-semibold text-navy">Ruangan</TableHead>
               <TableHead className="font-semibold text-navy">Tanggal</TableHead>
               <TableHead className="font-semibold text-navy">Durasi</TableHead>
@@ -258,38 +414,64 @@ export default function TrainingPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockTrainings.map((training) => {
+            {filteredTrainings.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center py-8 text-text-secondary">
+                  Tidak ada data training yang sesuai dengan filter.
+                </TableCell>
+              </TableRow>
+            ) : filteredTrainings.map((training) => {
               const isExpanded = expandedRows[training.id];
               return (
                 <React.Fragment key={training.id}>
                   {/* Parent Row */}
                   <TableRow className={cn(isExpanded && "bg-sky-light/5 border-b-0")}>
                     <TableCell className="p-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => toggleRow(training.id)}
-                        className="h-8 w-8 hover:bg-sky-light/20 text-navy"
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleRow(training.id);
+                        }}
+                        className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-sky-light/20 text-navy cursor-pointer transition-colors"
                       >
                         {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                      </Button>
+                      </button>
                     </TableCell>
                     <TableCell className="font-medium text-navy">
-                      {training.name}
+                      <div className="flex flex-col gap-1">
+                        <span>{training.name}</span>
+                        <div className="flex flex-wrap gap-1">
+                          {training.jobFamilies?.map((jf, idx) => (
+                            <Badge key={idx} variant="outline" className="text-[10px] px-1 py-0 bg-muted/30 text-text-secondary border-border/50">
+                              {jf}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>{getTypeBadge(training.trainingType)}</TableCell>
-                    <TableCell>{training.instructor}</TableCell>
+                    <TableCell>{training.organizer}</TableCell>
                     <TableCell>{training.room}</TableCell>
                     <TableCell>{training.startDate}</TableCell>
                     <TableCell>{training.duration}</TableCell>
                     <TableCell>{training.cost}</TableCell>
                     <TableCell>{getStatusBadge(training.status)}</TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/training/${training.id}`}>
-                        <Button variant="ghost" size="sm" className="text-sky hover:bg-sky-light/10">
-                          Lihat Detail
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-sky hover:bg-sky-light/10" onClick={() => handleOpenModal("edit", training)}>
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                      </Link>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-danger hover:bg-danger/10" onClick={() => handleOpenModal("delete", training)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Link href={`/training/${training.id}`}>
+                          <Button variant="ghost" size="sm" className="text-sky hover:bg-sky-light/10 ml-1">
+                            Detail
+                          </Button>
+                        </Link>
+                      </div>
                     </TableCell>
                   </TableRow>
 
@@ -297,74 +479,13 @@ export default function TrainingPage() {
                   {isExpanded && (
                     <TableRow className="bg-sky-light/5 hover:bg-sky-light/5 border-b">
                       <TableCell colSpan={10} className="p-0 border-b">
-                        <div className="bg-background p-4 pl-14">
-                          <Table>
-                            <TableHeader className="bg-navy text-surface">
-                              <TableRow className="hover:bg-navy">
-                                <TableHead className="w-12 text-surface text-center">No</TableHead>
-                                <TableHead className="text-surface font-semibold">Task / Sub-task Name</TableHead>
-                                <TableHead className="text-surface font-semibold">Category</TableHead>
-                                <TableHead className="text-surface font-semibold">Due Date</TableHead>
-                                <TableHead className="text-surface font-semibold">Priority</TableHead>
-                                <TableHead className="text-surface font-semibold">PIC</TableHead>
-                                <TableHead className="text-surface font-semibold">Team</TableHead>
-                                <TableHead className="text-surface font-semibold text-center">✓</TableHead>
-                                <TableHead className="text-surface font-semibold">Progress</TableHead>
-                                <TableHead className="text-surface font-semibold">Link Output</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {training.preparations.map((prep, index) => (
-                                <TableRow key={prep.id} className="hover:bg-muted/30">
-                                  <TableCell className="text-center text-text-secondary">
-                                    <CornerDownRight className="h-4 w-4 mx-auto" />
-                                  </TableCell>
-                                  <TableCell className={cn("font-medium", prep.isCompleted ? "text-text-secondary line-through" : "text-navy")}>
-                                    {prep.activityName}
-                                  </TableCell>
-                                  <TableCell className="text-text-secondary text-sm">{prep.category}</TableCell>
-                                  <TableCell className="text-text-secondary text-sm">{prep.dueDate}</TableCell>
-                                  <TableCell>{getPriorityBadge(prep.priority)}</TableCell>
-                                  <TableCell className="text-sm font-medium">{prep.pic}</TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline" className="text-[10px] py-0 bg-background">{prep.team}</Badge>
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {prep.isCompleted ? (
-                                      <CheckSquare className="h-5 w-5 text-success mx-auto" />
-                                    ) : (
-                                      <Square className="h-5 w-5 text-text-secondary mx-auto" />
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-sm">{prep.progress}</TableCell>
-                                  <TableCell>
-                                    {prep.linkOutput !== "-" ? (
-                                      <a href="#" className="flex items-center gap-1 text-sky hover:underline text-xs">
-                                        <LinkIcon className="h-3 w-3" /> Output
-                                      </a>
-                                    ) : (
-                                      <span className="text-text-secondary">-</span>
-                                    )}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                              {training.preparations.length === 0 && (
-                                <TableRow>
-                                  <TableCell colSpan={10} className="text-center py-4 text-text-secondary">
-                                    Belum ada aktivitas persiapan.
-                                  </TableCell>
-                                </TableRow>
-                              )}
-                              <TableRow className="hover:bg-transparent">
-                                <TableCell colSpan={10} className="p-2">
-                                  <Button variant="ghost" size="sm" className="w-full text-sky hover:text-sky hover:bg-sky-light/10 justify-start border border-dashed border-sky-light/30">
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Tambah Sub-task Baru
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            </TableBody>
-                          </Table>
+                        <div className="bg-background">
+                          <TrainingPreparationsTable 
+                            trainingId={training.id} 
+                            preparations={training.preparations} 
+                            onChange={(newPrep) => updateTrainingPreparations(training.id, newPrep)} 
+                            isNestedView={true} 
+                          />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -373,7 +494,7 @@ export default function TrainingPage() {
               );
             })}
             
-            {mockTrainings.length === 0 && (
+            {trainings.length === 0 && (
               <TableRow>
                 <TableCell colSpan={9} className="h-24 text-center">
                   Tidak ada data training.
@@ -383,6 +504,123 @@ export default function TrainingPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Modal Dialog */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-background w-full max-w-2xl rounded-xl shadow-lg border border-border p-6 overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-navy">
+                {modalMode === "add" ? "Tambah Training Baru" : modalMode === "edit" ? "Edit Data Training" : "Hapus Training"}
+              </h3>
+              <Button variant="ghost" size="icon" onClick={() => setIsModalOpen(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            
+            {modalMode === "delete" ? (
+              <div className="space-y-6">
+                <p className="text-text-secondary">
+                  Apakah Anda yakin ingin menghapus data training <strong>{formData.name}</strong>? Tindakan ini tidak dapat dibatalkan.
+                </p>
+                <div className="flex justify-end gap-3 mt-8">
+                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
+                  <Button type="button" onClick={confirmDelete} className="bg-danger hover:bg-danger/90 text-white">
+                    Hapus Data
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSave} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2 col-span-1 sm:col-span-2">
+                  <label className="text-sm font-medium text-text-secondary">Nama Training</label>
+                  <Input required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="Contoh: Aviation Safety Leadership" />
+                </div>
+
+                <div className="space-y-2 col-span-1 sm:col-span-2">
+                  <label className="text-sm font-medium text-text-secondary">Keterangan / Deskripsi</label>
+                  <textarea 
+                    className="flex min-h-[80px] w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                    value={formData.description} 
+                    onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                    placeholder="Tuliskan keterangan singkat mengenai training ini..."
+                  />
+                </div>
+                
+                <div className="space-y-2 col-span-1 sm:col-span-2">
+                  <label className="text-sm font-medium text-text-secondary">Job Family (Bisa lebih dari satu, pisahkan dengan koma)</label>
+                  <Input value={formData.jobFamilies} onChange={(e) => setFormData({...formData, jobFamilies: e.target.value})} placeholder="Contoh: People Management, Aviation Security" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Jenis Training</label>
+                  <select 
+                    className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                    value={formData.trainingType} 
+                    onChange={(e) => setFormData({...formData, trainingType: e.target.value})}
+                  >
+                    <option value="MANDATORY">Mandatori</option>
+                    <option value="NON_MANDATORY">Non-Mandatori</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Penyelenggara</label>
+                  <Input required value={formData.organizer} onChange={(e) => setFormData({...formData, organizer: e.target.value})} placeholder="Nama Penyelenggara" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Ruangan / Lokasi</label>
+                  <Input required value={formData.room} onChange={(e) => setFormData({...formData, room: e.target.value})} placeholder="Nama Ruangan" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Tanggal Mulai</label>
+                  <Input required type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Tanggal Selesai</label>
+                  <Input required type="date" value={formData.endDate} onChange={(e) => setFormData({...formData, endDate: e.target.value})} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Durasi</label>
+                  <Input required value={formData.duration} onChange={(e) => setFormData({...formData, duration: e.target.value})} placeholder="Contoh: 16 Jam" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Biaya</label>
+                  <Input required value={formData.cost} onChange={(e) => setFormData({...formData, cost: e.target.value})} placeholder="Contoh: Rp 15.000.000" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Status Training</label>
+                  <select 
+                    className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                    value={formData.status} 
+                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                  >
+                    <option value="PLANNING">Planning</option>
+                    <option value="ONGOING">Ongoing</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-8">
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
+                <Button type="submit" className="bg-sky hover:bg-sky/90 text-surface">
+                  {modalMode === "add" ? "Simpan Data" : "Update Data"}
+                </Button>
+              </div>
+            </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

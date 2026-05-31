@@ -22,23 +22,25 @@ import { cn } from "@/lib/utils";
 // SELECT e.nik, e.name, e.department, SUM(tp.attendedHours) as totalHours 
 // FROM Employee e JOIN TrainingParticipant tp ON e.id = tp.employeeId GROUP BY e.id
 const learningHoursData = [
-  { id: "EMP-001", nik: "20260101", name: "Budi Santoso", department: "Operations", totalHours: 42 },
-  { id: "EMP-002", nik: "20260102", name: "Siti Rahma", department: "Human Resources", totalHours: 24 },
-  { id: "EMP-003", nik: "20260103", name: "Andi Pratama", department: "Ground Handling", totalHours: 48 },
-  { id: "EMP-004", nik: "20260104", name: "Dewi Lestari", department: "Safety & Quality", totalHours: 16 },
-  { id: "EMP-005", nik: "20260105", name: "Rina Wijaya", department: "Finance", totalHours: 35 },
-  { id: "EMP-006", nik: "20260106", name: "Hendra Gunawan", department: "IT", totalHours: 8 },
+  { id: "EMP-001", nik: "20260101", name: "Budi Santoso", department: "Operations", totalHours: 42, year: "2026" },
+  { id: "EMP-002", nik: "20260102", name: "Siti Rahma", department: "Human Resources", totalHours: 24, year: "2026" },
+  { id: "EMP-003", nik: "20260103", name: "Andi Pratama", department: "Ground Handling", totalHours: 48, year: "2026" },
+  { id: "EMP-004", nik: "20260104", name: "Dewi Lestari", department: "Safety & Quality", totalHours: 16, year: "2025" },
+  { id: "EMP-005", nik: "20260105", name: "Rina Wijaya", department: "Finance", totalHours: 35, year: "2026" },
+  { id: "EMP-006", nik: "20260106", name: "Hendra Gunawan", department: "IT", totalHours: 8, year: "2025" },
 ];
 
 export default function LearningHoursPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterYear, setFilterYear] = useState("all");
 
-  const filteredData = learningHoursData.filter(
-    (emp) =>
-      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.nik.includes(searchQuery) ||
-      emp.department.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredData = learningHoursData.filter((emp) => {
+    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          emp.nik.includes(searchQuery) ||
+                          emp.department.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesYear = filterYear === "all" || emp.year === filterYear;
+    return matchesSearch && matchesYear;
+  });
 
   return (
     <div className="space-y-6">
@@ -94,7 +96,7 @@ export default function LearningHoursPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 py-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-text-secondary" />
           <Input 
@@ -104,10 +106,22 @@ export default function LearningHoursPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="gap-2 w-full sm:w-auto">
-          <Filter className="h-4 w-4" />
-          Filter Tahun
-        </Button>
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <select 
+            className="flex h-9 rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+            value={filterYear}
+            onChange={(e) => setFilterYear(e.target.value)}
+          >
+            <option value="all">Semua Tahun</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+            <option value="2027">2027</option>
+          </select>
+          <Button variant="outline" className="gap-2 bg-navy text-surface hover:bg-navy/90 hover:text-surface">
+            <Filter className="h-4 w-4" />
+            Terapkan
+          </Button>
+        </div>
       </div>
 
       {/* Data Table */}
