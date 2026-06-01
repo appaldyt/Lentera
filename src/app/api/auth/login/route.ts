@@ -30,6 +30,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (user.status === "NONAKTIF") {
+    return NextResponse.json(
+      { error: "Akun Anda telah dinonaktifkan. Hubungi Super Admin." },
+      { status: 403 }
+    );
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLogin: new Date() },
+  });
+
   const token = await createToken({
     id: user.id,
     email: user.email,

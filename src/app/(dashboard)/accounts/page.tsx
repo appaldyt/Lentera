@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Filter, MoreHorizontal, X, Pencil, Trash2, ShieldCheck, User, UserCog, Eye, EyeOff, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -28,62 +28,6 @@ interface Account {
   createdAt: string;
 }
 
-const mockAccounts: Account[] = [
-  {
-    id: "ACC-001",
-    name: "Super Admin",
-    email: "superadmin@ias.id",
-    role: "SUPER_ADMIN",
-    status: "AKTIF",
-    lastLogin: "2026-06-01 09:00",
-    createdAt: "2026-01-01",
-  },
-  {
-    id: "ACC-002",
-    name: "Admin HR LENTERA",
-    email: "admin@ias.id",
-    role: "ADMIN",
-    status: "AKTIF",
-    lastLogin: "2026-06-01 08:32",
-    createdAt: "2026-01-01",
-  },
-  {
-    id: "ACC-003",
-    name: "Budi Santoso",
-    email: "budi.s@ias.id",
-    role: "USER",
-    status: "AKTIF",
-    lastLogin: "2026-05-31 14:10",
-    createdAt: "2026-01-15",
-  },
-  {
-    id: "ACC-004",
-    name: "Rina Wijaya",
-    email: "rina.w@ias.id",
-    role: "USER",
-    status: "AKTIF",
-    lastLogin: "2026-05-30 09:45",
-    createdAt: "2026-02-01",
-  },
-  {
-    id: "ACC-005",
-    name: "Hendra Gunawan",
-    email: "hendra.g@ias.id",
-    role: "USER",
-    status: "NONAKTIF",
-    lastLogin: "2026-04-20 11:00",
-    createdAt: "2026-02-10",
-  },
-  {
-    id: "ACC-006",
-    name: "Siti Rahma",
-    email: "siti.r@ias.id",
-    role: "USER",
-    status: "AKTIF",
-    lastLogin: "2026-06-01 07:55",
-    createdAt: "2026-03-01",
-  },
-];
 
 const ROLE_BADGE: Record<UserRole, { className: string; icon: React.ReactNode; label: string }> = {
   SUPER_ADMIN: {
@@ -140,7 +84,9 @@ export default function AccountsPage() {
 }
 
 function AccountsContent() {
-  const [accounts, setAccounts] = useState<Account[]>(mockAccounts);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterRole, setFilterRole] = useState("ALL");
@@ -155,6 +101,14 @@ function AccountsContent() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formError, setFormError] = useState("");
   const [formData, setFormData] = useState({ ...emptyForm });
+
+  useEffect(() => {
+    fetch("/api/accounts")
+      .then((r) => r.json())
+      .then((json) => setAccounts(json.accounts ?? []))
+      .catch(() => setAccounts([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const openAddModal = () => {
     setEditId(null);
@@ -182,7 +136,7 @@ function AccountsContent() {
     setOpenActionId(null);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
 
@@ -200,27 +154,44 @@ function AccountsContent() {
       return;
     }
 
-    if (editId) {
-      setAccounts(accounts.map((acc) =>
-        acc.id === editId
-          ? { ...acc, name: formData.name, email: formData.email, role: formData.role, status: formData.status }
-          : acc
-      ));
-    } else {
-      const newAccount: Account = {
-        id: `ACC-00${accounts.length + 1}`,
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        status: formData.status,
-        lastLogin: "-",
-        createdAt: new Date().toISOString().slice(0, 10),
-      };
-      setAccounts([newAccount, ...accounts]);
+    setSaving(true);
+    try {
+      if (editId) {
+        const res = await fetch(`/api/accounts/${editId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            email: formData.email,
+            password: formData.password || undefined,
+            role: formData.role,
+            status: formData.status,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) { setFormError(json.error ?? "Gagal menyimpan perubahan."); return; }
+        setAccounts((prev) => prev.map((acc) => (acc.id === editId ? json.account : acc)));
+      } else {
+        const res = await fetch("/api/accounts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            role: formData.role,
+            status: formData.status,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) { setFormError(json.error ?? "Gagal membuat akun."); return; }
+        setAccounts((prev) => [json.account, ...prev]);
+      }
+      setIsModalOpen(false);
+      setFormData({ ...emptyForm });
+    } finally {
+      setSaving(false);
     }
-
-    setIsModalOpen(false);
-    setFormData({ ...emptyForm });
   };
 
   const promptDelete = (acc: Account) => {
@@ -229,11 +200,16 @@ function AccountsContent() {
     setOpenActionId(null);
   };
 
-  const confirmDelete = () => {
-    if (accountToDelete) {
-      setAccounts(accounts.filter((acc) => acc.id !== accountToDelete.id));
+  const confirmDelete = async () => {
+    if (!accountToDelete) return;
+    setSaving(true);
+    try {
+      await fetch(`/api/accounts/${accountToDelete.id}`, { method: "DELETE" });
+      setAccounts((prev) => prev.filter((acc) => acc.id !== accountToDelete.id));
       setIsDeleteModalOpen(false);
       setAccountToDelete(null);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -380,7 +356,13 @@ function AccountsContent() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredAccounts.length === 0 ? (
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center py-10 text-text-secondary">
+                Memuat data...
+              </TableCell>
+            </TableRow>
+          ) : filteredAccounts.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7} className="text-center py-10 text-text-secondary">
                 Tidak ada akun yang ditemukan.
@@ -578,9 +560,9 @@ function AccountsContent() {
               )}
 
               <div className="flex justify-end gap-3 mt-6">
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
-                <Button type="submit" className="bg-sky hover:bg-sky/90 text-white">
-                  {editId ? "Simpan Perubahan" : "Buat Akun"}
+                <Button type="button" variant="outline" disabled={saving} onClick={() => setIsModalOpen(false)}>Batal</Button>
+                <Button type="submit" disabled={saving} className="bg-sky hover:bg-sky/90 text-white">
+                  {saving ? "Menyimpan..." : editId ? "Simpan Perubahan" : "Buat Akun"}
                 </Button>
               </div>
             </form>
@@ -604,11 +586,11 @@ function AccountsContent() {
                 </p>
               </div>
               <div className="flex justify-center gap-3 w-full mt-4">
-                <Button variant="outline" className="flex-1" onClick={() => setIsDeleteModalOpen(false)}>
+                <Button variant="outline" className="flex-1" disabled={saving} onClick={() => setIsDeleteModalOpen(false)}>
                   Batal
                 </Button>
-                <Button className="flex-1 bg-danger hover:bg-danger/90 text-white" onClick={confirmDelete}>
-                  Hapus Akun
+                <Button className="flex-1 bg-danger hover:bg-danger/90 text-white" disabled={saving} onClick={confirmDelete}>
+                  {saving ? "Menghapus..." : "Hapus Akun"}
                 </Button>
               </div>
             </div>
