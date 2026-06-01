@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, GraduationCap, AlertTriangle, CreditCard, ShieldAlert, ShieldCheck, BadgeInfo, FileX, Clock, Wallet, TrendingUp, BookOpen, Bookmark } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, GraduationCap, AlertTriangle, CreditCard, ShieldAlert, ShieldCheck, BadgeInfo, FileX, Clock, Wallet, TrendingUp, BookOpen, Bookmark, Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart,
@@ -100,65 +102,98 @@ const masaBerlakuData = [
 ];
 
 const COLORS = ['#0B2A4A', '#1E88E5', '#38BDF8', '#7DD3FC', '#E0E6ED'];
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Filter } from "lucide-react";
+
+interface TrainingItem {
+  id: string;
+  name: string;
+  trainingType: string;
+  status: string;
+  startDate: string | null;
+  jobFamilies: string[];
+}
+
+interface LearningHourItem {
+  nik: string;
+  name: string;
+  year: string;
+  totalHours: number;
+}
+
+interface BudgetItem {
+  budgetYear: number;
+  budgetMonth: number;
+  plannedAmount: number;
+  actualAmount: number;
+}
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("training");
   const [filterMonth, setFilterMonth] = useState("all");
   const [filterYear, setFilterYear] = useState("all");
 
-  // Aligned mock data from Manajemen Training & Learning Hours
-  const mockTrainings = [
-    { status: "PLANNING", trainingType: "MANDATORY", month: "06", year: "2026" },
-    { status: "ONGOING", trainingType: "NON_MANDATORY", month: "05", year: "2026" },
-    { status: "ONGOING", trainingType: "MANDATORY", month: "04", year: "2026" },
-    { status: "ONGOING", trainingType: "MANDATORY", month: "05", year: "2026" },
-  ];
+  const [trainings, setTrainings] = useState<TrainingItem[]>([]);
+  const [learningHours, setLearningHours] = useState<LearningHourItem[]>([]);
+  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const mockBudgets = [
-    { actualAmount: 15.0, plannedAmount: 15.0, month: "05", year: "2026" },
-    { actualAmount: 0.0, plannedAmount: 5.0, month: "06", year: "2026" },
-    { actualAmount: 7.5, plannedAmount: 7.5, month: "04", year: "2026" },
-    { actualAmount: 10.0, plannedAmount: 25.0, month: "05", year: "2026" },
-  ];
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/trainings").then((r) => r.json()),
+      fetch("/api/learning-hours").then((r) => r.json()),
+      fetch("/api/finance").then((r) => r.json()),
+    ])
+      .then(([tJson, lhJson, fJson]) => {
+        setTrainings(tJson.trainings ?? []);
+        setLearningHours(lhJson.data ?? []);
+        setBudgets(fJson.budgets ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
-  const learningHoursData = [
-    { totalHours: 42, month: "06", year: "2026" },
-    { totalHours: 24, month: "05", year: "2026" },
-    { totalHours: 48, month: "04", year: "2026" },
-    { totalHours: 16, month: "10", year: "2025" },
-    { totalHours: 35, month: "05", year: "2026" },
-    { totalHours: 8, month: "12", year: "2025" },
-  ];
-
-  const filteredTrainings = mockTrainings.filter(t => {
-    const mYear = filterYear === "all" || t.year === filterYear;
-    const mMonth = filterMonth === "all" || t.month === filterMonth;
-    return mYear && mMonth;
+  const filteredTrainings = trainings.filter((t) => {
+    const yr = t.startDate?.slice(0, 4);
+    const mo = t.startDate?.slice(5, 7);
+    return (filterYear === "all" || yr === filterYear) && (filterMonth === "all" || mo === filterMonth);
   });
 
-  const filteredBudgets = mockBudgets.filter(b => {
-    const mYear = filterYear === "all" || b.year === filterYear;
-    const mMonth = filterMonth === "all" || b.month === filterMonth;
-    return mYear && mMonth;
-  });
+  const filteredLH = learningHours.filter((lh) => filterYear === "all" || lh.year === filterYear);
 
-  const filteredParticipants = learningHoursData.filter(p => {
-    const mYear = filterYear === "all" || p.year === filterYear;
-    const mMonth = filterMonth === "all" || p.month === filterMonth;
-    return mYear && mMonth;
-  });
+  const filteredBudgets = budgets.filter(
+    (b) =>
+      (filterYear === "all" || b.budgetYear.toString() === filterYear) &&
+      (filterMonth === "all" || b.budgetMonth.toString().padStart(2, "0") === filterMonth)
+  );
 
-  const trainingBerjalan = filteredTrainings.filter(t => t.status === "ONGOING").length;
-  const totalMandatori = filteredTrainings.filter(t => t.trainingType === "MANDATORY").length;
-  const nonMandatori = filteredTrainings.filter(t => t.trainingType === "NON_MANDATORY").length;
-  const anggaranTerpakai = filteredBudgets.reduce((sum, b) => sum + b.actualAmount, 0).toFixed(1);
-  const totalAnggaran = filteredBudgets.reduce((sum, b) => sum + b.plannedAmount, 0).toFixed(1);
-  const pesertaTerdaftar = filteredParticipants.length;
-  const totalLearningHours = filteredParticipants.reduce((sum, p) => sum + p.totalHours, 0);
+  const trainingBerjalan = filteredTrainings.filter((t) => t.status === "ONGOING").length;
+  const totalMandatori = filteredTrainings.filter((t) => t.trainingType === "MANDATORY").length;
+  const nonMandatori = filteredTrainings.filter((t) => t.trainingType === "NON_MANDATORY").length;
+  const totalAnggaran = (filteredBudgets.reduce((s, b) => s + b.plannedAmount, 0) / 1_000_000).toFixed(1);
+  const anggaranTerpakai = (filteredBudgets.reduce((s, b) => s + b.actualAmount, 0) / 1_000_000).toFixed(1);
+  const pesertaTerdaftar = filteredLH.length;
+  const totalLearningHours = filteredLH.reduce((s, lh) => s + lh.totalHours, 0);
   const rataRataJamBelajar = pesertaTerdaftar > 0 ? (totalLearningHours / pesertaTerdaftar).toFixed(1) : "0.0";
+
+  // Chart: total training per bulan (year-filtered, all months shown)
+  const yearTrainings = filterYear === "all" ? trainings : trainings.filter((t) => t.startDate?.slice(0, 4) === filterYear);
+  const trainingPerBulan = MONTH_LABELS.map((name, i) => {
+    const mo = String(i + 1).padStart(2, "0");
+    return { name, count: yearTrainings.filter((t) => t.startDate?.slice(5, 7) === mo).length };
+  });
+
+  // Chart: distribusi job family (from filtered trainings)
+  const jobFamilyMap: Record<string, number> = {};
+  filteredTrainings.forEach((t) => {
+    (t.jobFamilies ?? []).forEach((jf) => {
+      jobFamilyMap[jf] = (jobFamilyMap[jf] ?? 0) + 1;
+    });
+  });
+  const jobFamilyChartData = Object.entries(jobFamilyMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
 
   return (
     <div className="space-y-6">
@@ -224,116 +259,90 @@ export default function DashboardPage() {
                 <GraduationCap className="h-4 w-4 text-sky" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">{trainingBerjalan}</div>
-                <p className="text-xs text-text-secondary">
-                  Berdasarkan filter saat ini
-                </p>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : trainingBerjalan}</div>
+                <p className="text-xs text-text-secondary">Berdasarkan filter saat ini</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Peserta Terdaftar
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Peserta Terdaftar</CardTitle>
                 <Users className="h-4 w-4 text-sky-light" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">{pesertaTerdaftar}</div>
-                <p className="text-xs text-text-secondary">
-                  Berdasarkan filter saat ini
-                </p>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : pesertaTerdaftar}</div>
+                <p className="text-xs text-text-secondary">Berdasarkan filter saat ini</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Total Anggaran
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Total Anggaran</CardTitle>
                 <Wallet className="h-4 w-4 text-emerald-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">Rp {totalAnggaran}M</div>
-                <p className="text-xs text-text-secondary">
-                  Berdasarkan filter saat ini
-                </p>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : `Rp ${totalAnggaran}M`}</div>
+                <p className="text-xs text-text-secondary">Berdasarkan filter saat ini</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Anggaran Tercapai
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Anggaran Tercapai</CardTitle>
                 <CreditCard className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">Rp {anggaranTerpakai}M</div>
-                <p className="text-xs text-text-secondary">
-                  Berdasarkan filter saat ini
-                </p>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : `Rp ${anggaranTerpakai}M`}</div>
+                <p className="text-xs text-text-secondary">Berdasarkan filter saat ini</p>
               </CardContent>
             </Card>
 
-            {/* Baris 2: Rata-rata Jam Belajar, Total Learning Hours, Total Mandatori, Non Mandatori */}
+            {/* Baris 2 */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Rata-rata Jam Belajar
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Rata-rata Jam Belajar</CardTitle>
                 <TrendingUp className="h-4 w-4 text-sky" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">{rataRataJamBelajar} <span className="text-sm font-normal text-text-secondary">Jam</span></div>
-                <p className="text-xs text-text-secondary mt-1">
-                  Berdasarkan filter saat ini
-                </p>
+                <div className="text-2xl font-bold text-navy">
+                  {loading ? "—" : <>{rataRataJamBelajar} <span className="text-sm font-normal text-text-secondary">Jam</span></>}
+                </div>
+                <p className="text-xs text-text-secondary mt-1">Berdasarkan filter saat ini</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Total Learning Hours
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Total Learning Hours</CardTitle>
                 <Clock className="h-4 w-4 text-warning" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">{totalLearningHours} <span className="text-sm font-normal text-text-secondary">Jam</span></div>
-                <p className="text-xs text-text-secondary mt-1">
-                  Berdasarkan filter saat ini
-                </p>
+                <div className="text-2xl font-bold text-navy">
+                  {loading ? "—" : <>{totalLearningHours} <span className="text-sm font-normal text-text-secondary">Jam</span></>}
+                </div>
+                <p className="text-xs text-text-secondary mt-1">Berdasarkan filter saat ini</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Total Mandatori
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Total Mandatori</CardTitle>
                 <BookOpen className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">{totalMandatori}</div>
-                <p className="text-xs text-text-secondary mt-1">
-                  Berdasarkan filter saat ini
-                </p>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : totalMandatori}</div>
+                <p className="text-xs text-text-secondary mt-1">Berdasarkan filter saat ini</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Non Mandatori
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Non Mandatori</CardTitle>
                 <Bookmark className="h-4 w-4 text-indigo-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">{nonMandatori}</div>
-                <p className="text-xs text-text-secondary mt-1">
-                  Berdasarkan filter saat ini
-                </p>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : nonMandatori}</div>
+                <p className="text-xs text-text-secondary mt-1">Berdasarkan filter saat ini</p>
               </CardContent>
             </Card>
           </div>
@@ -346,29 +355,22 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="pl-2">
                 <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={participantData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
-                      <XAxis 
-                        dataKey="name" 
-                        stroke="#5A6B7C" 
-                        fontSize={12} 
-                        tickLine={false} 
-                        axisLine={false} 
-                      />
-                      <YAxis 
-                        stroke="#5A6B7C" 
-                        fontSize={12} 
-                        tickLine={false} 
-                        axisLine={false} 
-                      />
-                      <Tooltip 
-                        cursor={{ fill: '#F5F7FA' }}
-                        contentStyle={{ borderRadius: '8px', border: '1px solid #E0E6ED', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}
-                      />
-                      <Bar dataKey="count" fill="#1E88E5" radius={[4, 4, 0, 0]} name="Total Training" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={trainingPerBulan}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
+                        <XAxis dataKey="name" stroke="#5A6B7C" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#5A6B7C" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip
+                          cursor={{ fill: "#F5F7FA" }}
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED", boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)" }}
+                        />
+                        <Bar dataKey="count" fill="#1E88E5" radius={[4, 4, 0, 0]} name="Total Training" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -379,35 +381,29 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trainingData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
-                      <XAxis 
-                        dataKey="name" 
-                        stroke="#5A6B7C" 
-                        fontSize={12} 
-                        tickLine={false} 
-                        axisLine={false} 
-                      />
-                      <YAxis 
-                        stroke="#5A6B7C" 
-                        fontSize={12} 
-                        tickLine={false} 
-                        axisLine={false} 
-                      />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '8px', border: '1px solid #E0E6ED' }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="#1E88E5" 
-                        strokeWidth={3}
-                        dot={{ r: 4, fill: '#1E88E5', strokeWidth: 0 }}
-                        activeDot={{ r: 6, fill: '#0B2A4A', strokeWidth: 0 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
+                  ) : jobFamilyChartData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Tidak ada data</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={jobFamilyChartData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
+                        <XAxis dataKey="name" stroke="#5A6B7C" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#5A6B7C" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED" }} />
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#1E88E5"
+                          strokeWidth={3}
+                          dot={{ r: 4, fill: "#1E88E5", strokeWidth: 0 }}
+                          activeDot={{ r: 6, fill: "#0B2A4A", strokeWidth: 0 }}
+                          name="Jumlah Training"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>

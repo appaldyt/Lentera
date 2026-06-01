@@ -1,7 +1,8 @@
-import { Plane, Bell, Search } from "lucide-react";
+import { Plane, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { TopbarUserMenu } from "@/components/topbar-user-menu";
+import { NotificationBell } from "@/components/notification-bell";
 import { UserProvider } from "@/context/user-context";
 
 export default function DashboardLayout({
@@ -38,10 +39,7 @@ export default function DashboardLayout({
               </div>
             </div>
             <div className="flex items-center gap-3 ml-auto">
-              <button className="relative rounded-full p-2 text-text-secondary hover:bg-background hover:text-text-primary transition-colors">
-                <Bell className="h-5 w-5" />
-                <span className="absolute right-1.5 top-1.5 flex h-2 w-2 rounded-full bg-danger"></span>
-              </button>
+              <NotificationBell />
               <TopbarUserMenu />
             </div>
           </header>
