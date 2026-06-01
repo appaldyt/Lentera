@@ -228,6 +228,34 @@ async function main() {
     },
   });
 
+  // ── Employees ──────────────────────────────────────────────────────────────
+
+  const employeeSeeds = [
+    { id: "seed-emp-001", nik: "IAS-2021-0045", name: "Budi Santoso",       division: "Operations",      position: "Ground Handling Supervisor",   email: "budi.santoso@ias.id",       phone: "0812-3456-7890", workLocation: "CGK", lob: "Ground Handling",    employeeStatus: "PKWTT" },
+    { id: "seed-emp-002", nik: "IAS-2020-0112", name: "Dewi Rahayu",        division: "Safety",          position: "Aviation Safety Inspector",    email: "dewi.rahayu@ias.id",        phone: "0813-2233-4455", workLocation: "CGK", lob: "Ground Handling",    employeeStatus: "PKWTT" },
+    { id: "seed-emp-003", nik: "IAS-2022-0078", name: "Hendra Wijaya",      division: "Engineering",     position: "Maintenance Technician",       email: "hendra.wijaya@ias.id",      phone: "0811-9988-7766", workLocation: "DPS", lob: "Cargo & Logistik",   employeeStatus: "PKWT"  },
+    { id: "seed-emp-004", nik: "IAS-2019-0033", name: "Rina Kusumawati",    division: "Finance",         position: "Finance Officer",              email: "rina.kusumawati@ias.id",    phone: "0856-1234-5678", workLocation: "CGK", lob: "Finance",            employeeStatus: "PKWTT" },
+    { id: "seed-emp-005", nik: "IAS-2018-0007", name: "Doni Firmansyah",    division: "Operations",      position: "Operations Manager",           email: "doni.firmansyah@ias.id",    phone: "0821-4455-6677", workLocation: "SUB", lob: "Ground Handling",    employeeStatus: "PKWTT" },
+    { id: "seed-emp-006", nik: "IAS-2020-0055", name: "Maya Sari",          division: "Human Resources", position: "HR Specialist",                email: "maya.sari@ias.id",          phone: "0857-8899-0011", workLocation: "CGK", lob: "Human Resources",    employeeStatus: "PKWT"  },
+    { id: "seed-emp-007", nik: "IAS-2021-0089", name: "Fajar Nugroho",      division: "IT",              position: "System Analyst",               email: "fajar.nugroho@ias.id",      phone: "0878-2345-6789", workLocation: "CGK", lob: "IT",                 employeeStatus: "PKWTT" },
+    { id: "seed-emp-008", nik: "IAS-2019-0078", name: "Siti Rahma",         division: "Safety",          position: "Aviation Safety Inspector",    email: "siti.rahma@ias.id",         phone: "0812-9988-1122", workLocation: "CGK", lob: "Ground Handling",    employeeStatus: "PKWTT" },
+    { id: "seed-emp-009", nik: "IAS-2022-0103", name: "Andi Pratama",       division: "Ground Handling", position: "Customer Service Agent",       email: "andi.pratama@ias.id",       phone: "0822-3344-5566", workLocation: "SUB", lob: "Food",               employeeStatus: "PKWT"  },
+    { id: "seed-emp-010", nik: "IAS-2020-0212", name: "Budi Setiawan",      division: "Ground Handling", position: "Ground Handling Supervisor",   email: "budi.setiawan@ias.id",      phone: "0833-4455-6677", workLocation: "CGK", lob: "Cargo & Logistik",   employeeStatus: "PKWTT" },
+    { id: "seed-emp-011", nik: "IAS-2021-0519", name: "Dewi Lestari",       division: "Operations",      position: "Flight Dispatcher",            email: "dewi.lestari@ias.id",       phone: "0844-5566-7788", workLocation: "KNO", lob: "Ground Handling",    employeeStatus: "PKWTT" },
+    { id: "seed-emp-012", nik: "IAS-2021-0721", name: "Ahmad Fauzi",        division: "Security",        position: "Aviation Security Officer",    email: "ahmad.fauzi@ias.id",        phone: "0855-6677-8899", workLocation: "CGK", lob: "Aviation Security",  employeeStatus: "PKWT"  },
+    { id: "seed-emp-013", nik: "IAS-2018-0888", name: "Reza Firmansyah",    division: "Cargo",           position: "Cargo Handler",                email: "reza.firmansyah@ias.id",    phone: "0866-7788-9900", workLocation: "DPS", lob: "Cargo & Logistik",   employeeStatus: "PKWTT" },
+    { id: "seed-emp-014", nik: "IAS-2023-0301", name: "Putri Ayu",          division: "Human Resources", position: "HR Administrator",             email: "putri.ayu@ias.id",          phone: "0877-8899-0011", workLocation: "CGK", lob: "Human Resources",    employeeStatus: "PKWT"  },
+    { id: "seed-emp-015", nik: "IAS-2022-0415", name: "Rendi Pratama",      division: "General Affairs", position: "GA Coordinator",               email: "rendi.pratama@ias.id",      phone: "0888-9900-1122", workLocation: "CGK", lob: "General Affairs",    employeeStatus: "PKWTT" },
+  ];
+
+  for (const data of employeeSeeds) {
+    await prisma.employee.upsert({
+      where: { id: data.id },
+      update: {},
+      create: data,
+    });
+  }
+
   // ── Licenses ───────────────────────────────────────────────────────────────
   // Dates relative to 2026-06-01 (today):
   //   EXPIRED         → expiryDate < today
@@ -337,6 +365,7 @@ async function main() {
   console.log("  budi.s@ias.id      / user123   (User)");
   console.log(`  Training 1: ${training1.id} — ${training1.name}`);
   console.log(`  Training 2: ${training2.id} — ${training2.name}`);
+  console.log(`  Employees: ${employeeSeeds.length} records seeded`);
   console.log(`  Licenses: ${licenseSeeds.length} records seeded`);
 }
 

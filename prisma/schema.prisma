@@ -78,6 +78,21 @@ model TrainingParticipant {
   updatedAt     DateTime @updatedAt
 }
 
+model Employee {
+  id             String   @id @default(cuid())
+  nik            String   @unique
+  name           String
+  division       String
+  position       String
+  email          String   @unique
+  phone          String
+  workLocation   String
+  lob            String
+  employeeStatus String   @default("PKWTT")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 model License {
   id             String   @id @default(cuid())
   nik            String
