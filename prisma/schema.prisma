@@ -27,3 +27,53 @@ enum Role {
   ADMIN
   USER
 }
+
+model Training {
+  id           String                @id @default(cuid())
+  name         String
+  description  String?
+  jobFamilies  String[]
+  trainingType String                @default("MANDATORY")
+  organizer    String
+  room         String
+  startDate    DateTime
+  endDate      DateTime?
+  duration     String
+  cost         String
+  status       String                @default("PLANNING")
+  preparations TrainingPreparation[]
+  participants TrainingParticipant[]
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+}
+
+model TrainingPreparation {
+  id           String   @id @default(cuid())
+  trainingId   String
+  training     Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  activityName String
+  category     String
+  dueDate      DateTime
+  priority     String   @default("Normal")
+  pic          String
+  team         String
+  isCompleted  Boolean  @default(false)
+  progress     String   @default("0%")
+  linkOutput   String?
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model TrainingParticipant {
+  id            String   @id @default(cuid())
+  trainingId    String
+  training      Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  nik           String
+  name          String
+  department    String
+  trainingDate  DateTime
+  attendedHours Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
