@@ -11,107 +11,108 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, LayoutList } from "lucide-react";
 
+interface TrainingEvent {
+  id: string;
+  title: string;
+  type: string;
+  start: string;
+  end?: string;
+  backgroundColor: string;
+}
+
+function statusToColor(status: string): string {
+  switch (status) {
+    case "ONGOING":   return "#1E88E5";
+    case "DONE":      return "#2E7D32";
+    case "CANCELLED": return "#607d8b";
+    default:          return "#F9A825"; // PLANNING
+  }
+}
+
 export default function CalendarPage() {
   const router = useRouter();
+  const [events, setEvents] = useState<TrainingEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("timeline");
-  const [filterYear, setFilterYear] = useState("2026");
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
+
+  useEffect(() => {
+    fetch("/api/trainings")
+      .then((res) => res.json())
+      .then((json) => {
+        const trainings: {
+          id: string;
+          name: string;
+          trainingType: string;
+          startDate: string | null;
+          endDate: string | null;
+          status: string;
+        }[] = json.trainings ?? [];
+
+        setEvents(
+          trainings
+            .filter((t) => t.startDate)
+            .map((t) => ({
+              id: t.id,
+              title: t.name,
+              type: t.trainingType,
+              start: t.startDate!,
+              end: t.endDate ?? undefined,
+              backgroundColor: statusToColor(t.status),
+            }))
+        );
+      })
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     if (activeTab === "classic") {
-      // Force FullCalendar to recalculate its dimensions after a short delay
-      // because Radix Tabs animation might interfere with immediate calculation
-      const timer = setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 100);
+      const timer = setTimeout(() => window.dispatchEvent(new Event("resize")), 100);
       return () => clearTimeout(timer);
     }
   }, [activeTab]);
-  
-  const events = [
-    {
-      id: "TR-001",
-      title: "Aviation Safety Leadership",
-      type: "MANDATORY",
-      start: "2026-06-10",
-      end: "2026-06-12",
-      backgroundColor: "#F9A825", // PLANNING - Warning
-    },
-    {
-      id: "TR-002",
-      title: "Customer Service Excellence",
-      type: "NON_MANDATORY",
-      start: "2026-05-28",
-      backgroundColor: "#1E88E5", // ONGOING - Sky Blue
-    },
-    {
-      id: "TR-003",
-      title: "Basic Fire Fighting & Safety",
-      type: "MANDATORY",
-      start: "2026-05-15",
-      backgroundColor: "#2E7D32", // COMPLETED - Success
-    },
-    {
-      id: "TR-004",
-      title: "Ground Handling Operations",
-      type: "NON_MANDATORY",
-      start: "2026-07-01",
-      end: "2026-07-04",
-      backgroundColor: "#F9A825", // PLANNING - Warning
-    },
-    {
-      id: "TR-005",
-      title: "Leadership Workshop",
-      type: "MANDATORY",
-      start: "2026-05-30",
-      end: "2026-05-31",
-      backgroundColor: "#1E88E5",
-    },
-    {
-      id: "TR-006",
-      title: "Station Head Mastery Bootcamp",
-      type: "NON_MANDATORY",
-      start: "2026-07-25",
-      end: "2026-08-05",
-      backgroundColor: "#607d8b", // slate
-      label: "Coaching & Mentoring"
-    }
-  ];
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  
-  const filteredEvents = filterYear === "all" 
-    ? events 
-    : events.filter(e => new Date(e.start).getFullYear().toString() === filterYear);
 
-  const mandatoryEvents = filteredEvents.filter(e => e.type === "MANDATORY");
-  const nonMandatoryEvents = filteredEvents.filter(e => e.type === "NON_MANDATORY");
+  const availableYears = Array.from(
+    new Set(events.map((e) => new Date(e.start).getFullYear().toString()))
+  ).sort((a, b) => b.localeCompare(a));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const renderGridRow = (event: any, idx: number) => {
-    const startDate = new Date(event.start);
-    const startMonth = startDate.getMonth();
-    const endDate = event.end ? new Date(event.end) : startDate;
-    const endMonth = endDate.getMonth();
-    const colSpan = (endMonth - startMonth) + 1;
+  const filteredEvents =
+    filterYear === "all"
+      ? events
+      : events.filter((e) => new Date(e.start).getFullYear().toString() === filterYear);
+
+  const mandatoryEvents    = filteredEvents.filter((e) => e.type === "MANDATORY");
+  const nonMandatoryEvents = filteredEvents.filter((e) => e.type !== "MANDATORY");
+
+  const renderGridRow = (event: TrainingEvent, idx: number) => {
+    const startMonth = new Date(event.start).getMonth();
+    const endMonth   = event.end ? new Date(event.end).getMonth() : startMonth;
+    const colSpan    = endMonth - startMonth + 1;
 
     return (
-      <div key={event.id || idx} className="contents group">
+      <div key={event.id} className="contents group">
         <div className="p-3 border-b border-border/50 bg-background group-hover:bg-muted/30 text-sm font-medium text-navy flex items-center border-r">
           {idx + 1}. {event.title}
         </div>
         {months.map((_, i) => (
-          <div key={`empty-${i}`} className="border-b border-border/50 border-r last:border-r-0 group-hover:bg-muted/10 relative bg-background/50 h-14">
+          <div
+            key={i}
+            className="border-b border-border/50 border-r last:border-r-0 group-hover:bg-muted/10 relative bg-background/50 h-14"
+          >
             {i === startMonth && (
-              <div 
+              <div
                 className="absolute top-1/2 -translate-y-1/2 left-2 h-8 rounded flex items-center justify-center px-3 text-[11px] text-white shadow-sm font-medium cursor-pointer transition-transform hover:scale-[1.02]"
-                style={{ 
-                  backgroundColor: event.backgroundColor || '#1E88E5',
+                style={{
+                  backgroundColor: event.backgroundColor,
                   width: `calc(${colSpan * 100}% - 16px)`,
-                  zIndex: 10
+                  zIndex: 10,
                 }}
                 onClick={() => router.push(`/training/${event.id}`)}
               >
-                {event.label || "Pelaksanaan"}
+                Pelaksanaan
               </div>
             )}
           </div>
@@ -127,18 +128,17 @@ export default function CalendarPage() {
           <h2 className="text-2xl font-bold tracking-tight text-navy">Calendar of Training</h2>
           <p className="text-text-secondary">Visualisasi jadwal seluruh kegiatan training perusahaan.</p>
         </div>
-        
         <div className="flex flex-wrap items-center gap-3">
           {activeTab === "timeline" && (
-            <select 
+            <select
               className="flex h-9 rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
               value={filterYear}
               onChange={(e) => setFilterYear(e.target.value)}
             >
               <option value="all">Semua Tahun</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-              <option value="2027">2027</option>
+              {availableYears.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
             </select>
           )}
         </div>
@@ -164,38 +164,48 @@ export default function CalendarPage() {
             <CardContent className="p-0">
               <div className="w-full overflow-x-auto">
                 <div className="min-w-[1000px] border-b">
-                  
-                  {/* Header Months */}
+                  {/* Header */}
                   <div className="grid grid-cols-[300px_repeat(12,1fr)] bg-navy text-surface font-medium text-sm">
                     <div className="p-3 border-r border-white/20 text-center flex items-center justify-center">
                       Jenis Training
                     </div>
-                    {months.map(m => (
+                    {months.map((m) => (
                       <div key={m} className="p-3 border-r border-white/20 text-center last:border-r-0">
                         {m}
                       </div>
                     ))}
                   </div>
 
-                  {/* NON-MANDATORY SECTION */}
+                  {/* Non-Mandatory */}
                   <div className="bg-[#455a64] text-white p-2 text-sm font-bold pl-4">Non-Mandatory</div>
                   <div className="grid grid-cols-[300px_repeat(12,1fr)]">
-                    {nonMandatoryEvents.map((e, idx) => renderGridRow(e, idx))}
+                    {loading ? (
+                      <div className="col-span-13 p-4 text-sm text-text-secondary text-center">Memuat data...</div>
+                    ) : nonMandatoryEvents.length === 0 ? (
+                      <div className="col-span-13 p-4 text-sm text-text-secondary text-center">Tidak ada training non-mandatory.</div>
+                    ) : (
+                      nonMandatoryEvents.map((e, idx) => renderGridRow(e, idx))
+                    )}
                   </div>
 
-                  {/* MANDATORY SECTION */}
+                  {/* Mandatory */}
                   <div className="bg-[#455a64] text-white p-2 text-sm font-bold pl-4 border-t border-white/20">Mandatory</div>
                   <div className="grid grid-cols-[300px_repeat(12,1fr)]">
-                    {mandatoryEvents.map((e, idx) => renderGridRow(e, idx))}
+                    {loading ? (
+                      <div className="col-span-13 p-4 text-sm text-text-secondary text-center">Memuat data...</div>
+                    ) : mandatoryEvents.length === 0 ? (
+                      <div className="col-span-13 p-4 text-sm text-text-secondary text-center">Tidak ada training mandatory.</div>
+                    ) : (
+                      mandatoryEvents.map((e, idx) => renderGridRow(e, idx))
+                    )}
                   </div>
-
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* CLASSIC FULLCALENDAR VIEW */}
+        {/* FULLCALENDAR VIEW */}
         <TabsContent value="classic" className="flex-1 m-0">
           <Card className="flex-1 min-h-[600px] overflow-hidden border-border shadow-sm">
             <CardContent className="p-6 h-full">
@@ -209,32 +219,23 @@ export default function CalendarPage() {
                     right: "multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay",
                   }}
                   buttonText={{
-                    multiMonthYear: 'year',
-                    dayGridMonth: 'month',
-                    timeGridWeek: 'week',
-                    timeGridDay: 'day',
+                    multiMonthYear: "year",
+                    dayGridMonth: "month",
+                    timeGridWeek: "week",
+                    timeGridDay: "day",
                   }}
                   events={events}
                   height="auto"
                   dayMaxEvents={true}
                   eventClick={(info) => {
                     info.jsEvent.preventDefault();
-                    if (info.event.id) {
-                      router.push(`/training/${info.event.id}`);
-                    }
-                  }}
-                  eventTimeFormat={{
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    meridiem: false,
-                    hour12: false
+                    if (info.event.id) router.push(`/training/${info.event.id}`);
                   }}
                 />
               )}
             </CardContent>
           </Card>
         </TabsContent>
-
       </Tabs>
     </div>
   );
