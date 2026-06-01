@@ -110,6 +110,32 @@ model Budget {
   updatedAt      DateTime  @updatedAt
 }
 
+model Room {
+  id          String         @id @default(cuid())
+  name        String
+  capacity    Int
+  ownership   String
+  ownerEntity String         @default("")
+  location    String
+  photoLink   String         @default("")
+  facilities  RoomFacility[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model RoomFacility {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  name      String
+  type      String   @default("")
+  quantity  Int      @default(1)
+  photoLink String   @default("")
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model License {
   id             String   @id @default(cuid())
   nik            String

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Filter, MoreHorizontal, Download, ChevronDown, ChevronRight, Link as LinkIcon, CornerDownRight, Image as ImageIcon, X, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -38,85 +38,6 @@ interface Room {
   photoLink: string;
 }
 
-const initialRooms: Room[] = [
-  {
-    id: "RM-001",
-    name: "Auditorium A",
-    capacity: 100,
-    facilities: "Proyektor 4K, Soundsystem, AC Sentral, Podium",
-    facilitiesList: [
-      { id: "F1", name: "Proyektor 4K", type: "Elektronik", quantity: 2, photoLink: "#", notes: "Resolusi 4K, merk Epson" },
-      { id: "F2", name: "Soundsystem", type: "Audio", quantity: 1, photoLink: "#", notes: "Set lengkap speaker & mixer" },
-      { id: "F3", name: "AC Sentral", type: "Pendingin", quantity: 4, photoLink: "#", notes: "" },
-      { id: "F4", name: "Podium", type: "Mebel", quantity: 1, photoLink: "#", notes: "" },
-    ],
-    ownership: "INTERNAL",
-    ownerEntity: "PT Integrasi Aviasi Solusi",
-    location: "Gedung Pusat (Lantai 2)",
-    photoLink: "#",
-  },
-  {
-    id: "RM-002",
-    name: "Hangar 3 Practice Area",
-    capacity: 50,
-    facilities: "Alat Peraga Ground Handling, APAR, Safety Kit",
-    facilitiesList: [
-      { id: "F5", name: "Alat Peraga Ground Handling", type: "Peraga", quantity: 5, photoLink: "#", notes: "Termasuk mock-up baggage" },
-      { id: "F6", name: "APAR", type: "Safety", quantity: 3, photoLink: "#", notes: "Powder 6kg, cek berkala 6 bulan" },
-      { id: "F7", name: "Safety Kit", type: "Safety", quantity: 50, photoLink: "#", notes: "" },
-    ],
-    ownership: "INTERNAL",
-    ownerEntity: "PT Integrasi Aviasi Solusi",
-    location: "Fasilitas Hangar",
-    photoLink: "#",
-  },
-  {
-    id: "RM-003",
-    name: "Meeting Room Mawar",
-    capacity: 25,
-    facilities: "Smart TV, Papan Tulis Kaca, AC",
-    facilitiesList: [
-      { id: "F8", name: "Smart TV 65 Inch", type: "Elektronik", quantity: 1, photoLink: "#", notes: "Samsung, termasuk remote & bracket" },
-      { id: "F9", name: "Papan Tulis Kaca", type: "Alat Tulis", quantity: 1, photoLink: "#", notes: "" },
-      { id: "F10", name: "AC Split 2 PK", type: "Pendingin", quantity: 2, photoLink: "#", notes: "" },
-    ],
-    ownership: "RENTED",
-    ownerEntity: "Hotel Aero Bandara",
-    location: "Hotel Bandara Internasional",
-    photoLink: "#",
-  },
-  {
-    id: "RM-004",
-    name: "Laboratorium Komputer 1",
-    capacity: 30,
-    facilities: "30 PC All-in-One, Jaringan LAN, Proyektor",
-    facilitiesList: [
-      { id: "F11", name: "PC All-in-One Core i7", type: "Komputer", quantity: 30, photoLink: "#", notes: "RAM 16GB, SSD 512GB" },
-      { id: "F12", name: "Switch Hub 48 Port", type: "Jaringan", quantity: 1, photoLink: "#", notes: "Cisco Catalyst 2960" },
-      { id: "F13", name: "Proyektor EPSON", type: "Elektronik", quantity: 1, photoLink: "#", notes: "" },
-    ],
-    ownership: "INTERNAL",
-    ownerEntity: "PT Integrasi Aviasi Solusi",
-    location: "Gedung Diklat (Lantai 1)",
-    photoLink: "#",
-  },
-  {
-    id: "RM-005",
-    name: "Ballroom B",
-    capacity: 200,
-    facilities: "Panggung, LED Videotron, Soundsystem Premium",
-    facilitiesList: [
-      { id: "F14", name: "Panggung Modular", type: "Mebel", quantity: 1, photoLink: "#", notes: "Ukuran 6x4m, bisa dibongkar" },
-      { id: "F15", name: "LED Videotron 4x3m", type: "Elektronik", quantity: 1, photoLink: "#", notes: "" },
-      { id: "F16", name: "Soundsystem Premium (Line Array)", type: "Audio", quantity: 1, photoLink: "#", notes: "Set 8 unit speaker line array" },
-    ],
-    ownership: "RENTED",
-    ownerEntity: "Gedung Convention Center IAS",
-    location: "Gedung Convention Center",
-    photoLink: "#",
-  },
-];
-
 function getOwnershipBadge(ownership: string) {
   switch (ownership) {
     case "INTERNAL":
@@ -147,8 +68,21 @@ const emptyForm = {
   facilitiesList: [emptyFacility()],
 };
 
+function toRoomShape(r: {
+  id: string; name: string; capacity: number; ownership: string;
+  ownerEntity: string; location: string; photoLink: string;
+  facilitiesList: Facility[];
+}): Room {
+  return {
+    ...r,
+    ownership: r.ownership as Ownership,
+    facilities: r.facilitiesList.map((f) => f.name).join(", "),
+  };
+}
+
 export default function RoomsPage() {
-  const [rooms, setRooms] = useState<Room[]>(initialRooms);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loading, setLoading] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [filterOwnership, setFilterOwnership] = useState("ALL");
@@ -160,6 +94,24 @@ export default function RoomsPage() {
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ ...emptyForm, facilitiesList: [emptyFacility()] });
+  const [saving, setSaving] = useState(false);
+
+  const fetchRooms = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/rooms");
+      const data = await res.json();
+      setRooms((data.rooms ?? []).map(toRoomShape));
+    } catch {
+      setRooms([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms]);
 
   const toggleRow = (id: string) => {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -192,9 +144,12 @@ export default function RoomsPage() {
     setOpenActionId(null);
   };
 
-  const confirmDelete = () => {
-    if (roomToDelete) {
-      setRooms(rooms.filter((r) => r.id !== roomToDelete.id));
+  const confirmDelete = async () => {
+    if (!roomToDelete) return;
+    try {
+      await fetch(`/api/rooms/${roomToDelete.id}`, { method: "DELETE" });
+      await fetchRooms();
+    } finally {
       setIsDeleteModalOpen(false);
       setRoomToDelete(null);
     }
@@ -218,44 +173,40 @@ export default function RoomsPage() {
     });
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const validFacilities = formData.facilitiesList.filter((f) => f.name.trim() !== "");
-    const facilitiesStr = validFacilities.map((f) => f.name).join(", ");
-
-    if (editId) {
-      setRooms(rooms.map((r) =>
-        r.id === editId
-          ? {
-              ...r,
-              name: formData.name,
-              capacity: Number(formData.capacity),
-              location: formData.location,
-              ownership: formData.ownership,
-              ownerEntity: formData.ownerEntity,
-              photoLink: formData.photoLink,
-              facilities: facilitiesStr,
-              facilitiesList: validFacilities,
-            }
-          : r
-      ));
-    } else {
-      const newRoom: Room = {
-        id: `RM-00${rooms.length + 1}`,
+    setSaving(true);
+    try {
+      const body = {
         name: formData.name,
-        capacity: Number(formData.capacity),
+        capacity: formData.capacity,
         location: formData.location,
         ownership: formData.ownership,
         ownerEntity: formData.ownerEntity,
         photoLink: formData.photoLink,
-        facilities: facilitiesStr,
-        facilitiesList: validFacilities,
+        facilitiesList: formData.facilitiesList,
       };
-      setRooms([newRoom, ...rooms]);
-    }
 
-    setIsModalOpen(false);
-    setFormData({ ...emptyForm, facilitiesList: [emptyFacility()] });
+      if (editId) {
+        await fetch(`/api/rooms/${editId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } else {
+        await fetch("/api/rooms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      }
+
+      await fetchRooms();
+      setIsModalOpen(false);
+      setFormData({ ...emptyForm, facilitiesList: [emptyFacility()] });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filteredRooms = rooms.filter((room) => {
@@ -348,7 +299,13 @@ export default function RoomsPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredRooms.length === 0 ? (
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={8} className="h-24 text-center text-text-secondary">
+                Memuat data...
+              </TableCell>
+            </TableRow>
+          ) : filteredRooms.length === 0 ? (
             <TableRow>
               <TableCell colSpan={8} className="h-24 text-center text-text-secondary">
                 Tidak ada data ruangan ditemukan.
@@ -372,14 +329,14 @@ export default function RoomsPage() {
                   <TableCell className="text-right">{room.capacity} Org</TableCell>
                   <TableCell className="max-w-[300px] py-3">
                     <div className="flex flex-wrap gap-1.5">
-                      {room.facilities.split(", ").map((facility, idx) => (
+                      {room.facilities ? room.facilities.split(", ").map((facility, idx) => (
                         <span
                           key={idx}
                           className="inline-flex items-center rounded-sm bg-muted px-2 py-0.5 text-xs font-medium text-text-secondary border border-border"
                         >
                           {facility}
                         </span>
-                      ))}
+                      )) : <span className="text-border text-xs">—</span>}
                     </div>
                   </TableCell>
                   <TableCell>{room.location}</TableCell>
@@ -672,7 +629,7 @@ export default function RoomsPage() {
                       {formData.facilitiesList.length === 0 && (
                         <tr>
                           <td colSpan={6} className="text-center py-4 text-text-secondary text-xs">
-                            Belum ada fasilitas. Klik "Tambah Baris" untuk menambahkan.
+                            Belum ada fasilitas. Klik &quot;Tambah Baris&quot; untuk menambahkan.
                           </td>
                         </tr>
                       )}
@@ -683,8 +640,8 @@ export default function RoomsPage() {
 
               <div className="flex justify-end gap-3 pt-2 border-t border-border">
                 <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
-                <Button type="submit" className="bg-sky hover:bg-sky/90 text-white">
-                  {editId ? "Simpan Perubahan" : "Tambah Ruangan"}
+                <Button type="submit" disabled={saving} className="bg-sky hover:bg-sky/90 text-white">
+                  {saving ? "Menyimpan..." : editId ? "Simpan Perubahan" : "Tambah Ruangan"}
                 </Button>
               </div>
             </form>

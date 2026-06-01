@@ -460,6 +460,114 @@ async function main() {
     });
   }
 
+  // ── Rooms ──────────────────────────────────────────────────────────────────
+
+  const roomSeeds = [
+    {
+      id: "seed-room-001",
+      name: "Auditorium A",
+      capacity: 100,
+      ownership: "INTERNAL",
+      ownerEntity: "PT Integrasi Aviasi Solusi",
+      location: "Gedung Pusat (Lantai 2)",
+      photoLink: "",
+      facilities: [
+        { id: "seed-fac-001", name: "Proyektor 4K", type: "Elektronik", quantity: 2, photoLink: "", notes: "Resolusi 4K, merk Epson" },
+        { id: "seed-fac-002", name: "Soundsystem", type: "Audio", quantity: 1, photoLink: "", notes: "Set lengkap speaker & mixer" },
+        { id: "seed-fac-003", name: "AC Sentral", type: "Pendingin", quantity: 4, photoLink: "", notes: "" },
+        { id: "seed-fac-004", name: "Podium", type: "Mebel", quantity: 1, photoLink: "", notes: "" },
+      ],
+    },
+    {
+      id: "seed-room-002",
+      name: "Hangar 3 Practice Area",
+      capacity: 50,
+      ownership: "INTERNAL",
+      ownerEntity: "PT Integrasi Aviasi Solusi",
+      location: "Fasilitas Hangar",
+      photoLink: "",
+      facilities: [
+        { id: "seed-fac-005", name: "Alat Peraga Ground Handling", type: "Peraga", quantity: 5, photoLink: "", notes: "Termasuk mock-up baggage" },
+        { id: "seed-fac-006", name: "APAR", type: "Safety", quantity: 3, photoLink: "", notes: "Powder 6kg, cek berkala 6 bulan" },
+        { id: "seed-fac-007", name: "Safety Kit", type: "Safety", quantity: 50, photoLink: "", notes: "" },
+      ],
+    },
+    {
+      id: "seed-room-003",
+      name: "Meeting Room Mawar",
+      capacity: 25,
+      ownership: "RENTED",
+      ownerEntity: "Hotel Aero Bandara",
+      location: "Hotel Bandara Internasional",
+      photoLink: "",
+      facilities: [
+        { id: "seed-fac-008", name: "Smart TV 65 Inch", type: "Elektronik", quantity: 1, photoLink: "", notes: "Samsung, termasuk remote & bracket" },
+        { id: "seed-fac-009", name: "Papan Tulis Kaca", type: "Alat Tulis", quantity: 1, photoLink: "", notes: "" },
+        { id: "seed-fac-010", name: "AC Split 2 PK", type: "Pendingin", quantity: 2, photoLink: "", notes: "" },
+      ],
+    },
+    {
+      id: "seed-room-004",
+      name: "Laboratorium Komputer 1",
+      capacity: 30,
+      ownership: "INTERNAL",
+      ownerEntity: "PT Integrasi Aviasi Solusi",
+      location: "Gedung Diklat (Lantai 1)",
+      photoLink: "",
+      facilities: [
+        { id: "seed-fac-011", name: "PC All-in-One Core i7", type: "Komputer", quantity: 30, photoLink: "", notes: "RAM 16GB, SSD 512GB" },
+        { id: "seed-fac-012", name: "Switch Hub 48 Port", type: "Jaringan", quantity: 1, photoLink: "", notes: "Cisco Catalyst 2960" },
+        { id: "seed-fac-013", name: "Proyektor EPSON", type: "Elektronik", quantity: 1, photoLink: "", notes: "" },
+      ],
+    },
+    {
+      id: "seed-room-005",
+      name: "Ballroom B",
+      capacity: 200,
+      ownership: "RENTED",
+      ownerEntity: "Gedung Convention Center IAS",
+      location: "Gedung Convention Center",
+      photoLink: "",
+      facilities: [
+        { id: "seed-fac-014", name: "Panggung Modular", type: "Mebel", quantity: 1, photoLink: "", notes: "Ukuran 6x4m, bisa dibongkar" },
+        { id: "seed-fac-015", name: "LED Videotron 4x3m", type: "Elektronik", quantity: 1, photoLink: "", notes: "" },
+        { id: "seed-fac-016", name: "Soundsystem Premium (Line Array)", type: "Audio", quantity: 1, photoLink: "", notes: "Set 8 unit speaker line array" },
+      ],
+    },
+    {
+      id: "seed-room-006",
+      name: "Ruang Kelas Training A",
+      capacity: 40,
+      ownership: "INTERNAL",
+      ownerEntity: "PT Integrasi Aviasi Solusi",
+      location: "Gedung Diklat (Lantai 2)",
+      photoLink: "",
+      facilities: [
+        { id: "seed-fac-017", name: "Meja & Kursi Peserta", type: "Mebel", quantity: 40, photoLink: "", notes: "" },
+        { id: "seed-fac-018", name: "Whiteboard", type: "Alat Tulis", quantity: 2, photoLink: "", notes: "" },
+        { id: "seed-fac-019", name: "LCD Proyektor", type: "Elektronik", quantity: 1, photoLink: "", notes: "Resolusi Full HD" },
+        { id: "seed-fac-020", name: "AC Split 2 PK", type: "Pendingin", quantity: 2, photoLink: "", notes: "" },
+      ],
+    },
+  ];
+
+  for (const data of roomSeeds) {
+    const { facilities, ...roomData } = data;
+    await prisma.room.upsert({
+      where: { id: roomData.id },
+      update: {},
+      create: {
+        ...roomData,
+        facilities: {
+          createMany: {
+            data: facilities.map(({ id: facId, ...fac }) => ({ id: facId, ...fac })),
+            skipDuplicates: true,
+          },
+        },
+      },
+    });
+  }
+
   console.log("Seed complete.");
   console.log("  superadmin@ias.id  / admin123  (Super Admin)");
   console.log("  admin@ias.id       / admin123  (Admin)");
@@ -469,6 +577,7 @@ async function main() {
   console.log(`  Employees: ${employeeSeeds.length} records seeded`);
   console.log(`  Licenses: ${licenseSeeds.length} records seeded`);
   console.log(`  Budgets: ${budgetSeeds.length} records seeded`);
+  console.log(`  Rooms: ${roomSeeds.length} records seeded`);
 }
 
 main()
