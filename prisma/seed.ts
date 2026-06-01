@@ -228,12 +228,116 @@ async function main() {
     },
   });
 
+  // ── Licenses ───────────────────────────────────────────────────────────────
+  // Dates relative to 2026-06-01 (today):
+  //   EXPIRED         → expiryDate < today
+  //   EXPIRING_1_MONTH → ≤ 30 days  → by 2026-07-01
+  //   EXPIRING_3_MONTHS→ ≤ 90 days  → by 2026-08-30
+  //   EXPIRING_5_MONTHS→ ≤ 150 days → by 2026-10-29
+  //   ACTIVE          → > 150 days
+
+  const licenseSeeds = [
+    {
+      id: "seed-lic-001",
+      nik: "IAS-2019-0078",
+      name: "Siti Rahma",
+      position: "Aviation Safety Inspector",
+      workLocation: "CGK",
+      employeeStatus: "PKWTT",
+      lob: "Ground Handling",
+      licenseName: "Aircraft Maintenance Engineer (AME)",
+      licenseNumber: "AME-2023-078",
+      category: "Operasional",
+      issuedDate: new Date("2023-08-15T00:00:00.000Z"),
+      expiryDate: new Date("2025-08-15T00:00:00.000Z"), // EXPIRED
+    },
+    {
+      id: "seed-lic-002",
+      nik: "IAS-2022-0103",
+      name: "Andi Pratama",
+      position: "Customer Service Agent",
+      workLocation: "SUB",
+      employeeStatus: "PKWT",
+      lob: "Food",
+      licenseName: "Customer Excellence Certification",
+      licenseNumber: "-",
+      category: "Akademik",
+      issuedDate: new Date("2025-02-10T00:00:00.000Z"),
+      expiryDate: new Date("2028-02-10T00:00:00.000Z"), // ACTIVE
+    },
+    {
+      id: "seed-lic-003",
+      nik: "IAS-2020-0212",
+      name: "Budi Santoso",
+      position: "Ground Handling Supervisor",
+      workLocation: "CGK",
+      employeeStatus: "PKWTT",
+      lob: "Cargo & Logistik",
+      licenseName: "Dangerous Goods Regulations (DGR)",
+      licenseNumber: "DGR-2024-212",
+      category: "Operasional",
+      issuedDate: new Date("2024-06-20T00:00:00.000Z"),
+      expiryDate: new Date("2026-08-01T00:00:00.000Z"), // EXPIRING_3_MONTHS (61 hari)
+    },
+    {
+      id: "seed-lic-004",
+      nik: "IAS-2021-0519",
+      name: "Dewi Lestari",
+      position: "Flight Dispatcher",
+      workLocation: "KNO",
+      employeeStatus: "PKWTT",
+      lob: "Ground Handling",
+      licenseName: "Flight Dispatcher License (FOO)",
+      licenseNumber: "FOO-2026-0519",
+      category: "Operasional",
+      issuedDate: new Date("2026-01-10T00:00:00.000Z"),
+      expiryDate: new Date("2026-09-15T00:00:00.000Z"), // EXPIRING_5_MONTHS (106 hari)
+    },
+    {
+      id: "seed-lic-005",
+      nik: "IAS-2021-0721",
+      name: "Ahmad Fauzi",
+      position: "Aviation Security Officer",
+      workLocation: "CGK",
+      employeeStatus: "PKWT",
+      lob: "Aviation Security",
+      licenseName: "Basic Aviation Security (AVSEC)",
+      licenseNumber: "AVSEC-2024-721",
+      category: "Operasional",
+      issuedDate: new Date("2024-06-15T00:00:00.000Z"),
+      expiryDate: new Date("2026-06-20T00:00:00.000Z"), // EXPIRING_1_MONTH (19 hari)
+    },
+    {
+      id: "seed-lic-006",
+      nik: "IAS-2018-0888",
+      name: "Reza Firmansyah",
+      position: "Cargo Handler",
+      workLocation: "DPS",
+      employeeStatus: "PKWTT",
+      lob: "Cargo & Logistik",
+      licenseName: "Cargo Security Awareness",
+      licenseNumber: "CSA-2025-888",
+      category: "Operasional",
+      issuedDate: new Date("2025-03-01T00:00:00.000Z"),
+      expiryDate: new Date("2027-03-01T00:00:00.000Z"), // ACTIVE
+    },
+  ];
+
+  for (const data of licenseSeeds) {
+    await prisma.license.upsert({
+      where: { id: data.id },
+      update: {},
+      create: data,
+    });
+  }
+
   console.log("Seed complete.");
   console.log("  superadmin@ias.id  / admin123  (Super Admin)");
   console.log("  admin@ias.id       / admin123  (Admin)");
   console.log("  budi.s@ias.id      / user123   (User)");
   console.log(`  Training 1: ${training1.id} — ${training1.name}`);
   console.log(`  Training 2: ${training2.id} — ${training2.name}`);
+  console.log(`  Licenses: ${licenseSeeds.length} records seeded`);
 }
 
 main()
