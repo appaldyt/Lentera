@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Filter, FileSpreadsheet, GraduationCap, ArrowUpRight, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,30 +14,38 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
-// Mock Data: Aggregated Learning Hours per Employee
-// This simulates a SQL query: 
-// SELECT e.nik, e.name, e.department, SUM(tp.attendedHours) as totalHours 
-// FROM Employee e JOIN TrainingParticipant tp ON e.id = tp.employeeId GROUP BY e.id
-const learningHoursData = [
-  { id: "EMP-001", nik: "20260101", name: "Budi Santoso", department: "Operations", totalHours: 42, year: "2026" },
-  { id: "EMP-002", nik: "20260102", name: "Siti Rahma", department: "Human Resources", totalHours: 24, year: "2026" },
-  { id: "EMP-003", nik: "20260103", name: "Andi Pratama", department: "Ground Handling", totalHours: 48, year: "2026" },
-  { id: "EMP-004", nik: "20260104", name: "Dewi Lestari", department: "Safety & Quality", totalHours: 16, year: "2025" },
-  { id: "EMP-005", nik: "20260105", name: "Rina Wijaya", department: "Finance", totalHours: 35, year: "2026" },
-  { id: "EMP-006", nik: "20260106", name: "Hendra Gunawan", department: "IT", totalHours: 8, year: "2025" },
-];
+interface LearningHoursEntry {
+  id: string;
+  nik: string;
+  name: string;
+  department: string;
+  year: string;
+  totalHours: number;
+}
 
 export default function LearningHoursPage() {
+  const [allData, setAllData] = useState<LearningHoursEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterYear, setFilterYear] = useState("all");
 
-  const filteredData = learningHoursData.filter((emp) => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          emp.nik.includes(searchQuery) ||
-                          emp.department.toLowerCase().includes(searchQuery.toLowerCase());
+  useEffect(() => {
+    fetch("/api/learning-hours")
+      .then((res) => res.json())
+      .then((json) => {
+        setAllData(json.data ?? []);
+      })
+      .catch(() => setAllData([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredData = allData.filter((emp) => {
+    const matchesSearch =
+      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      emp.nik.includes(searchQuery) ||
+      emp.department.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesYear = filterYear === "all" || emp.year === filterYear;
     return matchesSearch && matchesYear;
   });
@@ -45,6 +53,8 @@ export default function LearningHoursPage() {
   const totalHours = filteredData.reduce((sum, emp) => sum + emp.totalHours, 0);
   const activeEmployees = filteredData.length;
   const averageHours = activeEmployees > 0 ? (totalHours / activeEmployees).toFixed(1) : "0.0";
+
+  const availableYears = Array.from(new Set(allData.map((d) => d.year))).sort((a, b) => b.localeCompare(a));
 
   return (
     <div className="space-y-6">
@@ -85,8 +95,12 @@ export default function LearningHoursPage() {
             <ArrowUpRight className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-navy">{activeEmployees} <span className="text-sm font-normal text-text-secondary">orang</span></div>
-            <p className="text-xs text-success mt-1">100% mengikuti kelas</p>
+            <div className="text-2xl font-bold text-navy">
+              {activeEmployees} <span className="text-sm font-normal text-text-secondary">orang</span>
+            </div>
+            <p className="text-xs text-success mt-1">
+              {activeEmployees > 0 ? "100% mengikuti kelas" : "Belum ada data"}
+            </p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-border">
@@ -105,25 +119,29 @@ export default function LearningHoursPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-text-secondary" />
-          <Input 
-            placeholder="Cari NIK, Nama, atau Divisi..." 
-            className="pl-9" 
+          <Input
+            placeholder="Cari NIK, Nama, atau Divisi..."
+            className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          <select 
+          <select
             className="flex h-9 rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
             value={filterYear}
             onChange={(e) => setFilterYear(e.target.value)}
           >
             <option value="all">Semua Tahun</option>
-            <option value="2025">2025</option>
-            <option value="2026">2026</option>
-            <option value="2027">2027</option>
+            {availableYears.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
           </select>
-          <Button variant="outline" className="gap-2 bg-navy text-surface hover:bg-navy/90 hover:text-surface">
+          <Button
+            variant="outline"
+            className="gap-2 bg-navy text-surface hover:bg-navy/90 hover:text-surface"
+            onClick={() => setFilterYear(filterYear)}
+          >
             <Filter className="h-4 w-4" />
             Terapkan
           </Button>
@@ -138,12 +156,25 @@ export default function LearningHoursPage() {
               <TableHead className="font-semibold text-navy w-[120px]">NIK</TableHead>
               <TableHead className="font-semibold text-navy">Nama Karyawan</TableHead>
               <TableHead className="font-semibold text-navy">Divisi</TableHead>
+              <TableHead className="font-semibold text-navy text-center">Tahun</TableHead>
               <TableHead className="font-semibold text-navy text-center">Total Jam Belajar</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredData.map((emp) => {
-              return (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center text-text-secondary">
+                  Memuat data...
+                </TableCell>
+              </TableRow>
+            ) : filteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center text-text-secondary">
+                  Data tidak ditemukan.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredData.map((emp) => (
                 <TableRow key={emp.id} className="hover:bg-sky-light/5">
                   <TableCell className="font-medium text-navy">{emp.nik}</TableCell>
                   <TableCell>{emp.name}</TableCell>
@@ -152,19 +183,13 @@ export default function LearningHoursPage() {
                       {emp.department}
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-center text-text-secondary">{emp.year}</TableCell>
                   <TableCell className="text-center font-bold text-navy">
-                    {emp.totalHours} <span className="text-xs font-normal text-text-secondary">Jam</span>
+                    {emp.totalHours}{" "}
+                    <span className="text-xs font-normal text-text-secondary">Jam</span>
                   </TableCell>
                 </TableRow>
-              );
-            })}
-            
-            {filteredData.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-text-secondary">
-                  Data tidak ditemukan.
-                </TableCell>
-              </TableRow>
+              ))
             )}
           </TableBody>
         </Table>
