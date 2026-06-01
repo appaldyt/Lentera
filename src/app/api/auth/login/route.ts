@@ -1,5 +1,4 @@
-import { type NextRequest } from "next/server";
-import { cookies } from "next/headers";
+import { type NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { createToken, COOKIE_NAME } from "@/lib/auth";
@@ -9,7 +8,7 @@ export async function POST(request: NextRequest) {
   const { email, password } = body as { email?: string; password?: string };
 
   if (!email || !password) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Email dan password wajib diisi" },
       { status: 400 }
     );
@@ -17,7 +16,7 @@ export async function POST(request: NextRequest) {
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Email atau password salah" },
       { status: 401 }
     );
@@ -25,7 +24,7 @@ export async function POST(request: NextRequest) {
 
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Email atau password salah" },
       { status: 401 }
     );
@@ -38,16 +37,7 @@ export async function POST(request: NextRequest) {
     role: user.role as "SUPER_ADMIN" | "ADMIN" | "USER",
   });
 
-  const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 8,
-  });
-
-  return Response.json({
+  const response = NextResponse.json({
     user: {
       id: user.id,
       email: user.email,
@@ -55,4 +45,14 @@ export async function POST(request: NextRequest) {
       role: user.role,
     },
   });
+
+  response.cookies.set(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 8,
+  });
+
+  return response;
 }

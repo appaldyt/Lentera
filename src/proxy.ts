@@ -14,7 +14,7 @@ const PROTECTED_PATHS = [
   "/settings",
 ];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isProtected = PROTECTED_PATHS.some(
