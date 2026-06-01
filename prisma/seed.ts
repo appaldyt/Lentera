@@ -359,6 +359,107 @@ async function main() {
     });
   }
 
+  // ── Budgets ────────────────────────────────────────────────────────────────
+
+  const budgetSeeds = [
+    {
+      id: "seed-bgt-001",
+      trainingName: "Aviation Safety Leadership",
+      budgetYear: 2026, budgetMonth: 5,
+      trainingType: "Mandatori",
+      plannedAmount: 15000000, actualAmount: 15000000,
+      invoiceDate: new Date("2026-05-02T00:00:00.000Z"),
+      organizer: "GMF AeroAsia",
+      dueDate: new Date("2026-05-15T00:00:00.000Z"),
+      status: "Lunas", approvalStatus: "Disetujui",
+    },
+    {
+      id: "seed-bgt-002",
+      trainingName: "Customer Service Excellence",
+      budgetYear: 2026, budgetMonth: 6,
+      trainingType: "Non-Mandatori",
+      plannedAmount: 5000000, actualAmount: 0,
+      invoiceDate: null,
+      organizer: "Internal Trainer",
+      dueDate: new Date("2026-06-01T00:00:00.000Z"),
+      status: "Belum Dibayar", approvalStatus: "Menunggu Persetujuan",
+    },
+    {
+      id: "seed-bgt-003",
+      trainingName: "Basic Fire Fighting & Safety",
+      budgetYear: 2026, budgetMonth: 4,
+      trainingType: "Mandatori",
+      plannedAmount: 7500000, actualAmount: 7500000,
+      invoiceDate: new Date("2026-04-05T00:00:00.000Z"),
+      organizer: "Angkasa Pura II",
+      dueDate: new Date("2026-04-20T00:00:00.000Z"),
+      status: "Lunas", approvalStatus: "Disetujui",
+    },
+    {
+      id: "seed-bgt-004",
+      trainingName: "Ground Handling Operations",
+      budgetYear: 2026, budgetMonth: 5,
+      trainingType: "Mandatori",
+      plannedAmount: 25000000, actualAmount: 10000000,
+      invoiceDate: new Date("2026-05-10T00:00:00.000Z"),
+      organizer: "JAS Airport Services",
+      dueDate: new Date("2026-05-25T00:00:00.000Z"),
+      status: "Jatuh Tempo", approvalStatus: "Disetujui",
+    },
+    {
+      id: "seed-bgt-005",
+      trainingName: "Dangerous Goods Regulations (DGR)",
+      budgetYear: 2026, budgetMonth: 7,
+      trainingType: "Mandatori",
+      plannedAmount: 12000000, actualAmount: 0,
+      invoiceDate: null,
+      organizer: "IATA Training",
+      dueDate: new Date("2026-07-31T00:00:00.000Z"),
+      status: "Belum Dibayar", approvalStatus: "Disetujui",
+    },
+    {
+      id: "seed-bgt-006",
+      trainingName: "Leadership & People Management",
+      budgetYear: 2026, budgetMonth: 5,
+      trainingType: "Non-Mandatori",
+      plannedAmount: 8000000, actualAmount: 8000000,
+      invoiceDate: new Date("2026-05-22T00:00:00.000Z"),
+      organizer: "PT Integrasi Aviasi Solusi – Internal",
+      dueDate: new Date("2026-05-30T00:00:00.000Z"),
+      status: "Lunas", approvalStatus: "Disetujui",
+    },
+    {
+      id: "seed-bgt-007",
+      trainingName: "Aviation Security Awareness",
+      budgetYear: 2026, budgetMonth: 8,
+      trainingType: "Mandatori",
+      plannedAmount: 6500000, actualAmount: 0,
+      invoiceDate: null,
+      organizer: "Direktorat Jenderal Perhubungan Udara",
+      dueDate: new Date("2026-08-15T00:00:00.000Z"),
+      status: "Belum Dibayar", approvalStatus: "Menunggu Persetujuan",
+    },
+    {
+      id: "seed-bgt-008",
+      trainingName: "Cargo Handling & Documentation",
+      budgetYear: 2026, budgetMonth: 3,
+      trainingType: "Mandatori",
+      plannedAmount: 9000000, actualAmount: 9000000,
+      invoiceDate: new Date("2026-03-10T00:00:00.000Z"),
+      organizer: "JAS Airport Services",
+      dueDate: new Date("2026-03-25T00:00:00.000Z"),
+      status: "Lunas", approvalStatus: "Disetujui",
+    },
+  ];
+
+  for (const data of budgetSeeds) {
+    await prisma.budget.upsert({
+      where: { id: data.id },
+      update: {},
+      create: data,
+    });
+  }
+
   console.log("Seed complete.");
   console.log("  superadmin@ias.id  / admin123  (Super Admin)");
   console.log("  admin@ias.id       / admin123  (Admin)");
@@ -367,6 +468,7 @@ async function main() {
   console.log(`  Training 2: ${training2.id} — ${training2.name}`);
   console.log(`  Employees: ${employeeSeeds.length} records seeded`);
   console.log(`  Licenses: ${licenseSeeds.length} records seeded`);
+  console.log(`  Budgets: ${budgetSeeds.length} records seeded`);
 }
 
 main()

@@ -93,6 +93,23 @@ model Employee {
   updatedAt      DateTime @updatedAt
 }
 
+model Budget {
+  id             String    @id @default(cuid())
+  trainingName   String
+  budgetYear     Int
+  budgetMonth    Int
+  trainingType   String    @default("Mandatori")
+  plannedAmount  Int       @default(0)
+  actualAmount   Int       @default(0)
+  invoiceDate    DateTime?
+  organizer      String    @default("")
+  dueDate        DateTime?
+  status         String    @default("Belum Dibayar")
+  approvalStatus String    @default("Menunggu Persetujuan")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
 model License {
   id             String   @id @default(cuid())
   nik            String
