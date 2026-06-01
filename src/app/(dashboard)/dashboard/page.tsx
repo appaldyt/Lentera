@@ -21,85 +21,6 @@ import {
   Legend,
 } from "recharts";
 
-const budgetData = [
-  { name: "Jan", planned: 4000, actual: 2400 },
-  { name: "Feb", planned: 3000, actual: 1398 },
-  { name: "Mar", planned: 2000, actual: 9800 },
-  { name: "Apr", planned: 2780, actual: 3908 },
-  { name: "May", planned: 1890, actual: 4800 },
-  { name: "Jun", planned: 2390, actual: 3800 },
-  { name: "Jul", planned: 3490, actual: 4300 },
-];
-
-const participantData = [
-  { name: "Jan", count: 120 },
-  { name: "Feb", count: 150 },
-  { name: "Mar", count: 180 },
-  { name: "Apr", count: 140 },
-  { name: "May", count: 210 },
-  { name: "Jun", count: 250 },
-];
-
-const trainingData = [
-  { name: "Commercial", value: 40 },
-  { name: "Operations", value: 30 },
-  { name: "Safety & Quality", value: 20 },
-  { name: "Ground Handling", value: 27 },
-  { name: "HR", value: 18 },
-];
-
-const licenseExpirationData = [
-  { month: "Jun 26", expiring: 5 },
-  { month: "Jul 26", expiring: 12 },
-  { month: "Aug 26", expiring: 3 },
-  { month: "Sep 26", expiring: 8 },
-  { month: "Oct 26", expiring: 25 },
-  { month: "Nov 26", expiring: 10 },
-];
-
-const licenseTypeData = [
-  { name: "Akademik", value: 450 },
-  { name: "Operasional", value: 1002 },
-];
-
-const licenseNameData = [
-  { name: "AVSEC", count: 450 },
-  { name: "AME", count: 320 },
-  { name: "Basic Safety", count: 210 },
-  { name: "FOO", count: 180 },
-  { name: "Lainnya", count: 292 },
-];
-
-const locationData = [
-  { name: "CGK", count: 650 },
-  { name: "SUB", count: 280 },
-  { name: "KNO", count: 190 },
-  { name: "DPS", count: 145 },
-  { name: "UPG", count: 187 },
-  { name: "BPN", count: 120 },
-  { name: "YIA", count: 110 },
-  { name: "SRG", count: 95 },
-  { name: "BTH", count: 85 },
-  { name: "PLM", count: 70 },
-  { name: "PNK", count: 65 },
-  { name: "PDG", count: 60 },
-  { name: "PKU", count: 55 },
-  { name: "BDJ", count: 50 },
-  { name: "AMQ", count: 45 },
-];
-
-const lobData = [
-  { name: "Ground Handling", value: 520 },
-  { name: "Cargo & Logistik", value: 350 },
-  { name: "Aviation Security", value: 372 },
-  { name: "Food", value: 210 },
-];
-
-const masaBerlakuData = [
-  { label: "Berakhir < 1 Bulan", count: 12, color: "bg-red-500 text-white" },
-  { label: "Berakhir < 3 Bulan", count: 48, color: "bg-orange-500 text-white" },
-  { label: "Berakhir < 5 Bulan", count: 85, color: "bg-yellow-500 text-white" },
-];
 
 const COLORS = ['#0B2A4A', '#1E88E5', '#38BDF8', '#7DD3FC', '#E0E6ED'];
 
@@ -120,10 +41,25 @@ interface LearningHourItem {
 }
 
 interface BudgetItem {
+  id: string;
+  trainingName: string;
   budgetYear: number;
   budgetMonth: number;
+  trainingType: string;
   plannedAmount: number;
   actualAmount: number;
+  dueDate: string | null;
+  status: string;
+  approvalStatus: string;
+}
+
+interface LicenseItem {
+  id: string;
+  licenseName: string;
+  category: string;
+  expiryDate: string | null;
+  status: string;
+  employee: { nik: string; workLocation: string; lob: string };
 }
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
@@ -136,6 +72,7 @@ export default function DashboardPage() {
   const [trainings, setTrainings] = useState<TrainingItem[]>([]);
   const [learningHours, setLearningHours] = useState<LearningHourItem[]>([]);
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
+  const [licenses, setLicenses] = useState<LicenseItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -143,11 +80,13 @@ export default function DashboardPage() {
       fetch("/api/trainings").then((r) => r.json()),
       fetch("/api/learning-hours").then((r) => r.json()),
       fetch("/api/finance").then((r) => r.json()),
+      fetch("/api/licenses").then((r) => r.json()),
     ])
-      .then(([tJson, lhJson, fJson]) => {
+      .then(([tJson, lhJson, fJson, licJson]) => {
         setTrainings(tJson.trainings ?? []);
         setLearningHours(lhJson.data ?? []);
         setBudgets(fJson.budgets ?? []);
+        setLicenses(licJson.licenses ?? []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -194,6 +133,93 @@ export default function DashboardPage() {
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 8);
+
+  // ── Lisensi metrics ──────────────────────────────────────────────────────
+  const totalLisensiAktif = licenses.filter((l) => l.status !== "EXPIRED").length;
+  const uniqueEmployees = new Set(licenses.filter((l) => l.status !== "EXPIRED").map((l) => l.employee.nik)).size;
+  const segeraBerakhir = licenses.filter((l) => l.status === "EXPIRING_1_MONTH" || l.status === "EXPIRING_3_MONTHS").length;
+  const totalExpired = licenses.filter((l) => l.status === "EXPIRED").length;
+  const criticalLicenses = licenses.filter((l) => l.category === "Operasional").length;
+
+  // Chart: proyeksi kadaluarsa 6 bulan ke depan
+  const licenseExpiryProjection = (() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const yr = String(d.getFullYear()).slice(2);
+      const mo = String(d.getMonth() + 1).padStart(2, "0");
+      const label = `${MONTH_LABELS[d.getMonth()]} ${yr}`;
+      const expiring = licenses.filter((l) => l.expiryDate?.startsWith(`${d.getFullYear()}-${mo}`)).length;
+      return { month: label, expiring };
+    });
+  })();
+
+  // Chart: distribusi jenis lisensi (by category)
+  const licTypeCounts: Record<string, number> = {};
+  licenses.forEach((l) => { licTypeCounts[l.category] = (licTypeCounts[l.category] ?? 0) + 1; });
+  const licenseTypeChartData = Object.entries(licTypeCounts).map(([name, value]) => ({ name, value }));
+
+  // Chart: top 5 nama lisensi
+  const licNameCounts: Record<string, number> = {};
+  licenses.forEach((l) => { licNameCounts[l.licenseName] = (licNameCounts[l.licenseName] ?? 0) + 1; });
+  const licenseNameChartData = Object.entries(licNameCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => ({ name, count }));
+
+  // Chart: distribusi lokasi kerja
+  const locCounts: Record<string, number> = {};
+  licenses.forEach((l) => {
+    const loc = l.employee.workLocation || "Lainnya";
+    locCounts[loc] = (locCounts[loc] ?? 0) + 1;
+  });
+  const locationChartData = Object.entries(locCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Chart: distribusi LOB
+  const lobCounts: Record<string, number> = {};
+  licenses.forEach((l) => {
+    const lob = l.employee.lob || "Lainnya";
+    lobCounts[lob] = (lobCounts[lob] ?? 0) + 1;
+  });
+  const lobChartData = Object.entries(lobCounts).map(([name, value]) => ({ name, value }));
+
+  // Chart: status masa berlaku
+  const masaBerlakuChartData = [
+    { label: "Berakhir < 1 Bulan", count: licenses.filter((l) => l.status === "EXPIRING_1_MONTH").length, color: "bg-red-500 text-white" },
+    { label: "Berakhir < 3 Bulan", count: licenses.filter((l) => l.status === "EXPIRING_3_MONTHS").length, color: "bg-orange-500 text-white" },
+    { label: "Berakhir < 5 Bulan", count: licenses.filter((l) => l.status === "EXPIRING_5_MONTHS").length, color: "bg-yellow-500 text-white" },
+  ];
+
+  // ── Finance metrics ───────────────────────────────────────────────────────
+  const finBudgetsYTD = budgets.filter((b) => filterYear === "all" || b.budgetYear.toString() === filterYear);
+  const finPlanned = finBudgetsYTD.reduce((s, b) => s + b.plannedAmount, 0);
+  const finActual = finBudgetsYTD.reduce((s, b) => s + b.actualAmount, 0);
+  const totalAnggaranFin = (finPlanned / 1_000_000).toFixed(1);
+  const totalRealisasiFin = (finActual / 1_000_000).toFixed(1);
+  const pctRealisasi = finPlanned > 0 ? ((finActual / finPlanned) * 100).toFixed(1) : "0.0";
+  const tagihanBelumLunas = finBudgetsYTD.filter((b) => b.status === "Belum Dibayar" || b.status === "Jatuh Tempo");
+  const tagihanJatuhTempoAmt = (tagihanBelumLunas.reduce((s, b) => s + b.plannedAmount, 0) / 1_000_000).toFixed(1);
+  const efisiensiPct = finPlanned > 0 ? Math.abs(((finPlanned - finActual) / finPlanned) * 100).toFixed(1) : "0.0";
+  const efisiensiPositif = finActual <= finPlanned;
+
+  const budgetPerBulan = MONTH_LABELS.map((name, i) => {
+    const mo = i + 1;
+    const items = finBudgetsYTD.filter((b) => b.budgetMonth === mo);
+    return {
+      name,
+      planned: parseFloat((items.reduce((s, b) => s + b.plannedAmount, 0) / 1_000_000).toFixed(2)),
+      actual: parseFloat((items.reduce((s, b) => s + b.actualAmount, 0) / 1_000_000).toFixed(2)),
+    };
+  });
+
+  const jenisCounts: Record<string, number> = {};
+  finBudgetsYTD.forEach((b) => {
+    const type = b.trainingType || "Lainnya";
+    jenisCounts[type] = (jenisCounts[type] ?? 0) + 1;
+  });
+  const jenisAnggaranChartData = Object.entries(jenisCounts).map(([name, value]) => ({ name, value }));
 
   return (
     <div className="space-y-6">
@@ -415,61 +441,45 @@ export default function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Total Lisensi Aktif
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Total Lisensi Aktif</CardTitle>
                 <ShieldCheck className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">1,452</div>
-                <p className="text-xs text-text-secondary">
-                  Dipegang oleh 850 karyawan
-                </p>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : totalLisensiAktif.toLocaleString("id-ID")}</div>
+                <p className="text-xs text-text-secondary">Dipegang oleh {loading ? "—" : uniqueEmployees} karyawan</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Segera Berakhir (&lt; 3 Bulan)
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Segera Berakhir (&lt; 3 Bulan)</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-warning" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-warning">48</div>
-                <p className="text-xs text-text-secondary">
-                  Proses perpanjangan sedang berjalan
-                </p>
+                <div className="text-2xl font-bold text-warning">{loading ? "—" : segeraBerakhir}</div>
+                <p className="text-xs text-text-secondary">Perlu segera diperpanjang</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Kadaluwarsa
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Kadaluarsa</CardTitle>
                 <FileX className="h-4 w-4 text-danger" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-danger">7</div>
-                <p className="text-xs text-text-secondary">
-                  Karyawan tidak dapat bertugas
-                </p>
+                <div className="text-2xl font-bold text-danger">{loading ? "—" : totalExpired}</div>
+                <p className="text-xs text-text-secondary">Karyawan tidak dapat bertugas</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Critical Licenses
-                </CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Critical Licenses</CardTitle>
                 <ShieldAlert className="h-4 w-4 text-navy-light" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">124</div>
-                <p className="text-xs text-text-secondary">
-                  Lisensi Mandatory Operasional
-                </p>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : criticalLicenses}</div>
+                <p className="text-xs text-text-secondary">Lisensi kategori Operasional</p>
               </CardContent>
             </Card>
           </div>
@@ -477,33 +487,23 @@ export default function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
               <CardHeader>
-                <CardTitle>Proyeksi Kadaluwarsa Lisensi (6 Bulan Kedepan)</CardTitle>
+                <CardTitle>Proyeksi Kadaluarsa Lisensi (6 Bulan Kedepan)</CardTitle>
               </CardHeader>
               <CardContent className="pl-2">
                 <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={licenseExpirationData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
-                      <XAxis 
-                        dataKey="month" 
-                        stroke="#5A6B7C" 
-                        fontSize={12} 
-                        tickLine={false} 
-                        axisLine={false} 
-                      />
-                      <YAxis 
-                        stroke="#5A6B7C" 
-                        fontSize={12} 
-                        tickLine={false} 
-                        axisLine={false} 
-                      />
-                      <Tooltip 
-                        cursor={{ fill: '#F5F7FA' }}
-                        contentStyle={{ borderRadius: '8px', border: '1px solid #E0E6ED', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}
-                      />
-                      <Bar dataKey="expiring" fill="#EAB308" radius={[4, 4, 0, 0]} name="Lisensi Berakhir" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={licenseExpiryProjection}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
+                        <XAxis dataKey="month" stroke="#5A6B7C" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#5A6B7C" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip cursor={{ fill: "#F5F7FA" }} contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED", boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)" }} />
+                        <Bar dataKey="expiring" fill="#EAB308" radius={[4, 4, 0, 0]} name="Lisensi Berakhir" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -514,25 +514,21 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={licenseTypeData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {licenseTypeData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E0E6ED' }} />
-                      <Legend verticalAlign="bottom" height={36} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={licenseTypeChartData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                          {licenseTypeChartData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED" }} />
+                        <Legend verticalAlign="bottom" height={36} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -543,35 +539,23 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="pl-2">
                 <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={licenseNameData} layout="vertical" margin={{ left: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E0E6ED" />
-                      <XAxis 
-                        type="number"
-                        stroke="#5A6B7C" 
-                        fontSize={12} 
-                        tickLine={false} 
-                        axisLine={false} 
-                      />
-                      <YAxis 
-                        type="category"
-                        dataKey="name" 
-                        stroke="#5A6B7C" 
-                        fontSize={12} 
-                        tickLine={false} 
-                        axisLine={false} 
-                      />
-                      <Tooltip 
-                        cursor={{ fill: '#F5F7FA' }}
-                        contentStyle={{ borderRadius: '8px', border: '1px solid #E0E6ED', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}
-                      />
-                      <Bar dataKey="count" fill="#1E88E5" radius={[0, 4, 4, 0]} name="Total Lisensi" barSize={32}>
-                        {licenseNameData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={licenseNameChartData} layout="vertical" margin={{ left: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E0E6ED" />
+                        <XAxis type="number" stroke="#5A6B7C" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <YAxis type="category" dataKey="name" stroke="#5A6B7C" fontSize={12} tickLine={false} axisLine={false} />
+                        <Tooltip cursor={{ fill: "#F5F7FA" }} contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED", boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)" }} />
+                        <Bar dataKey="count" fill="#1E88E5" radius={[0, 4, 4, 0]} name="Total Lisensi" barSize={32}>
+                          {licenseNameChartData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -582,39 +566,25 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full overflow-y-auto pr-2">
-                  {/* Calculate height dynamically based on number of items so each bar has enough space */}
-                  <div className="w-full" style={{ height: `${locationData.length * 36}px` }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={locationData} layout="vertical" margin={{ left: 0, right: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E0E6ED" />
-                        <XAxis 
-                          type="number"
-                          stroke="#5A6B7C" 
-                          fontSize={10} 
-                          tickLine={false} 
-                          axisLine={false} 
-                        />
-                        <YAxis 
-                          type="category"
-                          dataKey="name" 
-                          stroke="#5A6B7C" 
-                          fontSize={10} 
-                          tickLine={false} 
-                          axisLine={false} 
-                          width={40}
-                        />
-                        <Tooltip 
-                          cursor={{ fill: '#F5F7FA' }}
-                          contentStyle={{ borderRadius: '8px', border: '1px solid #E0E6ED', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}
-                        />
-                        <Bar dataKey="count" fill="#38BDF8" radius={[0, 4, 4, 0]} name="Total Lisensi" barSize={16}>
-                          {locationData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
+                  ) : (
+                    <div className="w-full" style={{ height: `${Math.max(locationChartData.length * 36, 300)}px` }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={locationChartData} layout="vertical" margin={{ left: 0, right: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E0E6ED" />
+                          <XAxis type="number" stroke="#5A6B7C" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
+                          <YAxis type="category" dataKey="name" stroke="#5A6B7C" fontSize={10} tickLine={false} axisLine={false} width={40} />
+                          <Tooltip cursor={{ fill: "#F5F7FA" }} contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED", boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)" }} />
+                          <Bar dataKey="count" fill="#38BDF8" radius={[0, 4, 4, 0]} name="Total Lisensi" barSize={16}>
+                            {locationChartData.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -625,25 +595,21 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={lobData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {lobData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E0E6ED' }} />
-                      <Legend verticalAlign="bottom" height={36} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={lobChartData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                          {lobChartData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED" }} />
+                        <Legend verticalAlign="bottom" height={36} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -654,13 +620,13 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col sm:flex-row gap-4 items-center justify-center py-4 h-[300px]">
-                  {masaBerlakuData.map((item, index) => (
-                    <div key={index} className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-border/50 bg-background/50 w-full h-full justify-center">
+                  {masaBerlakuChartData.map((item, index) => (
+                    <div key={index} className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-border/50 bg-background/50 w-full h-full">
                       <div className={`px-4 py-2 rounded-full font-bold text-sm text-center shadow-sm ${item.color}`}>
                         {item.label}
                       </div>
-                      <div className="text-3xl font-black text-navy">{item.count}</div>
-                      <div className="text-xs text-text-secondary text-center">Karyawan</div>
+                      <div className="text-3xl font-black text-navy">{loading ? "—" : item.count}</div>
+                      <div className="text-xs text-text-secondary text-center">Lisensi</div>
                     </div>
                   ))}
                 </div>
@@ -679,13 +645,13 @@ export default function DashboardPage() {
                 <CreditCard className="h-4 w-4 text-sky" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">Rp 52.5M</div>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : `Rp ${totalAnggaranFin}M`}</div>
                 <p className="text-xs text-text-secondary">
-                  +12% dibanding tahun lalu
+                  Berdasarkan filter saat ini
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-text-secondary">
@@ -694,24 +660,24 @@ export default function DashboardPage() {
                 <CreditCard className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">Rp 32.5M</div>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : `Rp ${totalRealisasiFin}M`}</div>
                 <p className="text-xs text-text-secondary">
-                  61.9% dari total anggaran
+                  {loading ? "—" : `${pctRealisasi}% dari total anggaran`}
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-text-secondary">
-                  Tagihan Jatuh Tempo
+                  Tagihan Belum Lunas
                 </CardTitle>
                 <AlertTriangle className="h-4 w-4 text-danger" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-danger">Rp 10.0M</div>
+                <div className="text-2xl font-bold text-danger">{loading ? "—" : `Rp ${tagihanJatuhTempoAmt}M`}</div>
                 <p className="text-xs text-text-secondary">
-                  1 Tagihan perlu tindakan
+                  {loading ? "—" : `${tagihanBelumLunas.length} tagihan perlu tindakan`}
                 </p>
               </CardContent>
             </Card>
@@ -724,9 +690,11 @@ export default function DashboardPage() {
                 <BadgeInfo className="h-4 w-4 text-navy-light" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-success">+8.5%</div>
+                <div className={`text-2xl font-bold ${efisiensiPositif ? "text-success" : "text-danger"}`}>
+                  {loading ? "—" : `${efisiensiPositif ? "+" : "-"}${efisiensiPct}%`}
+                </div>
                 <p className="text-xs text-text-secondary">
-                  Lebih hemat dari estimasi
+                  {efisiensiPositif ? "Lebih hemat dari estimasi" : "Melebihi estimasi anggaran"}
                 </p>
               </CardContent>
             </Card>
@@ -735,76 +703,78 @@ export default function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
               <CardHeader>
-                <CardTitle>Anggaran vs Realisasi (YTD)</CardTitle>
+                <CardTitle>Anggaran vs Realisasi per Bulan</CardTitle>
               </CardHeader>
               <CardContent className="pl-2">
                 <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={budgetData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
-                      <XAxis 
-                        dataKey="name" 
-                        stroke="#5A6B7C" 
-                        fontSize={12} 
-                        tickLine={false} 
-                        axisLine={false} 
-                      />
-                      <YAxis 
-                        stroke="#5A6B7C" 
-                        fontSize={12} 
-                        tickLine={false} 
-                        axisLine={false} 
-                        tickFormatter={(value) => `Rp${value}`}
-                      />
-                      <Tooltip 
-                        cursor={{ fill: '#F5F7FA' }}
-                        contentStyle={{ borderRadius: '8px', border: '1px solid #E0E6ED', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}
-                      />
-                      <Bar dataKey="planned" fill="#1E88E5" radius={[4, 4, 0, 0]} name="Planned" />
-                      <Bar dataKey="actual" fill="#0B2A4A" radius={[4, 4, 0, 0]} name="Actual" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={budgetPerBulan}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
+                        <XAxis
+                          dataKey="name"
+                          stroke="#5A6B7C"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          stroke="#5A6B7C"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => `${value}M`}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "#F5F7FA" }}
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED", boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)" }}
+                          formatter={(value) => [`Rp ${value}M`, undefined]}
+                        />
+                        <Legend verticalAlign="bottom" height={36} />
+                        <Bar dataKey="planned" fill="#1E88E5" radius={[4, 4, 0, 0]} name="Anggaran" />
+                        <Bar dataKey="actual" fill="#0B2A4A" radius={[4, 4, 0, 0]} name="Realisasi" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card className="col-span-3">
               <CardHeader>
                 <CardTitle>Distribusi Jenis Anggaran</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: "Mandatori", value: 35 },
-                          { name: "Non-Mandatori", value: 25 },
-                          { name: "Magang", value: 15 },
-                          { name: "Honor Pelatih", value: 25 },
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {[
-                          { name: "Mandatori", value: 35 },
-                          { name: "Non-Mandatori", value: 25 },
-                          { name: "Magang", value: 15 },
-                          { name: "Honor Pelatih", value: 25 },
-                        ].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
+                  ) : jenisAnggaranChartData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Tidak ada data</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={jenisAnggaranChartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {jenisAnggaranChartData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
+                        />
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
             </Card>
