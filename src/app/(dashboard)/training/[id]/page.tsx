@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Plus, FileSpreadsheet, MapPin, Calendar as CalendarIcon, Clock, Users, Search, Filter, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Plus, FileSpreadsheet, MapPin, Calendar as CalendarIcon, Clock, Users, Search, Filter, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -49,11 +49,15 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
   const [training, setTraining] = useState(trainingDetail);
   const [participants, setParticipants] = useState(training.participants);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"add" | "edit" | "delete">("add");
+  const [editingParticipant, setEditingParticipant] = useState<typeof participants[0] | null>(null);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
   
   // Form states
   const [searchNik, setSearchNik] = useState("");
   const [foundEmployee, setFoundEmployee] = useState<{nik: string, name: string, department: string} | null>(null);
   const [trainingDateInput, setTrainingDateInput] = useState(trainingDetail.startDate);
+  const [editAttendedHours, setEditAttendedHours] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleSearchNik = (nik: string) => {
@@ -88,6 +92,40 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
       setIsModalOpen(false);
       setSearchNik("");
       setFoundEmployee(null);
+    }
+  };
+
+  const handleOpenParticipantModal = (mode: "add" | "edit" | "delete", participant: typeof participants[0] | null = null) => {
+    setModalMode(mode);
+    setEditingParticipant(participant);
+    if (mode === "edit" && participant) {
+      setTrainingDateInput(participant.trainingDate);
+      setEditAttendedHours(participant.attendedHours);
+    } else if (mode === "add") {
+      setTrainingDateInput(trainingDetail.startDate);
+      setSearchNik("");
+      setFoundEmployee(null);
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleEditParticipant = () => {
+    if (editingParticipant) {
+      setParticipants(participants.map(p => p.id === editingParticipant.id ? {
+        ...p,
+        trainingDate: trainingDateInput,
+        attendedHours: editAttendedHours
+      } : p));
+      setIsModalOpen(false);
+      setEditingParticipant(null);
+    }
+  };
+
+  const confirmDeleteParticipant = () => {
+    if (editingParticipant) {
+      setParticipants(participants.filter(p => p.id !== editingParticipant.id));
+      setIsModalOpen(false);
+      setEditingParticipant(null);
     }
   };
   
@@ -194,7 +232,7 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
               <FileSpreadsheet className="h-4 w-4" />
               Import Excel
             </Button>
-            <Button className="gap-2 bg-navy hover:bg-navy/90 text-surface" onClick={() => setIsModalOpen(true)}>
+            <Button className="gap-2 bg-navy hover:bg-navy/90 text-surface" onClick={() => handleOpenParticipantModal("add")}>
               <Plus className="h-4 w-4" />
               Tambah Peserta
             </Button>
@@ -225,9 +263,42 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
                   <TableCell>{par.trainingDate}</TableCell>
                   <TableCell>{par.attendedHours} Jam</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary hover:text-danger hover:bg-danger/10">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+                    <div className="relative inline-block text-left">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-text-secondary"
+                        onClick={() => setOpenActionId(openActionId === par.id ? null : par.id)}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                      
+                      {openActionId === par.id && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setOpenActionId(null)}></div>
+                          <Card className="absolute right-0 top-full mt-1 w-36 z-50 py-1 shadow-md border-border animate-in fade-in zoom-in-95 duration-100">
+                            <button 
+                              className="w-full text-left px-4 py-2 text-sm text-navy hover:bg-muted/50 flex items-center gap-2"
+                              onClick={() => {
+                                handleOpenParticipantModal("edit", par);
+                                setOpenActionId(null);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" /> Edit
+                            </button>
+                            <button 
+                              className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger/10 flex items-center gap-2"
+                              onClick={() => {
+                                handleOpenParticipantModal("delete", par);
+                                setOpenActionId(null);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" /> Hapus
+                            </button>
+                          </Card>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -243,45 +314,100 @@ export default function TrainingDetailPage({ params }: { params: { id: string } 
         </CardContent>
       </Card>
       
-      {/* Modal Tambah Peserta */}
+      {/* Modal Tambah/Edit/Delete Peserta */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-surface w-full max-w-md p-6 rounded-lg shadow-lg">
-            <h3 className="text-lg font-bold text-navy mb-4">Tambah Peserta Training</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nik">NIK Karyawan</Label>
-                <Input 
-                  id="nik" 
-                  placeholder="Masukkan NIK... (contoh: 20260105)" 
-                  value={searchNik} 
-                  onChange={(e) => handleSearchNik(e.target.value)} 
-                />
-                {errorMsg && <p className="text-xs text-danger">{errorMsg}</p>}
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Nama Karyawan</Label>
-                <Input value={foundEmployee ? foundEmployee.name : ""} disabled className="bg-muted/50 text-text-secondary" />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Divisi</Label>
-                <Input value={foundEmployee ? foundEmployee.department : ""} disabled className="bg-muted/50 text-text-secondary" />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tanggal Training</Label>
-                <Input type="date" value={trainingDateInput} onChange={(e) => setTrainingDateInput(e.target.value)} />
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-3 mt-6">
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
-              <Button onClick={handleAddParticipant} disabled={!foundEmployee} className="bg-navy text-surface hover:bg-navy-light">
-                Tambahkan
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-navy">
+                {modalMode === "add" ? "Tambah Peserta Training" : modalMode === "edit" ? "Edit Data Peserta" : "Konfirmasi Hapus"}
+              </h3>
+              <Button variant="ghost" size="icon" onClick={() => setIsModalOpen(false)}>
+                <X className="h-5 w-5" />
               </Button>
             </div>
+            
+            {modalMode === "delete" && editingParticipant ? (
+              <div className="space-y-6">
+                <p className="text-text-secondary">
+                  Apakah Anda yakin ingin menghapus <strong>{editingParticipant.name}</strong> dari daftar peserta training ini? Tindakan ini tidak dapat dibatalkan.
+                </p>
+                <div className="flex justify-end gap-3 mt-6">
+                  <Button variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
+                  <Button onClick={confirmDeleteParticipant} className="bg-danger text-white hover:bg-danger/90">
+                    Hapus Data
+                  </Button>
+                </div>
+              </div>
+            ) : modalMode === "edit" && editingParticipant ? (
+              <>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Nama Karyawan</Label>
+                    <Input value={editingParticipant.name} disabled className="bg-muted/50 text-text-secondary" />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Divisi</Label>
+                    <Input value={editingParticipant.department} disabled className="bg-muted/50 text-text-secondary" />
+                  </div>
+  
+                  <div className="space-y-2">
+                    <Label>Tanggal Training</Label>
+                    <Input type="date" value={trainingDateInput} onChange={(e) => setTrainingDateInput(e.target.value)} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Jam Kehadiran (Jam)</Label>
+                    <Input type="number" min="0" value={editAttendedHours} onChange={(e) => setEditAttendedHours(Number(e.target.value))} />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end gap-3 mt-6">
+                  <Button variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
+                  <Button onClick={handleEditParticipant} className="bg-navy text-surface hover:bg-navy-light">
+                    Update Data
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nik">NIK Karyawan</Label>
+                    <Input 
+                      id="nik" 
+                      placeholder="Masukkan NIK... (contoh: 20260105)" 
+                      value={searchNik} 
+                      onChange={(e) => handleSearchNik(e.target.value)} 
+                    />
+                    {errorMsg && <p className="text-xs text-danger">{errorMsg}</p>}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Nama Karyawan</Label>
+                    <Input value={foundEmployee ? foundEmployee.name : ""} disabled className="bg-muted/50 text-text-secondary" />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Divisi</Label>
+                    <Input value={foundEmployee ? foundEmployee.department : ""} disabled className="bg-muted/50 text-text-secondary" />
+                  </div>
+  
+                  <div className="space-y-2">
+                    <Label>Tanggal Training</Label>
+                    <Input type="date" value={trainingDateInput} onChange={(e) => setTrainingDateInput(e.target.value)} />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end gap-3 mt-6">
+                  <Button variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
+                  <Button onClick={handleAddParticipant} disabled={!foundEmployee} className="bg-navy text-surface hover:bg-navy-light">
+                    Tambahkan
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

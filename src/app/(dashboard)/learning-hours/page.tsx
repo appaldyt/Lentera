@@ -42,6 +42,10 @@ export default function LearningHoursPage() {
     return matchesSearch && matchesYear;
   });
 
+  const totalHours = filteredData.reduce((sum, emp) => sum + emp.totalHours, 0);
+  const activeEmployees = filteredData.length;
+  const averageHours = activeEmployees > 0 ? (totalHours / activeEmployees).toFixed(1) : "0.0";
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -69,8 +73,10 @@ export default function LearningHoursPage() {
             <TrendingUp className="h-4 w-4 text-sky" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-navy">28.8 Jam</div>
-            <p className="text-xs text-text-secondary mt-1">Per Karyawan tahun ini</p>
+            <div className="text-2xl font-bold text-navy">{averageHours} Jam</div>
+            <p className="text-xs text-text-secondary mt-1">
+              Per Karyawan {filterYear !== "all" ? `tahun ${filterYear}` : "keseluruhan"}
+            </p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-border">
@@ -79,7 +85,7 @@ export default function LearningHoursPage() {
             <ArrowUpRight className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-navy">6 <span className="text-sm font-normal text-text-secondary">orang</span></div>
+            <div className="text-2xl font-bold text-navy">{activeEmployees} <span className="text-sm font-normal text-text-secondary">orang</span></div>
             <p className="text-xs text-success mt-1">100% mengikuti kelas</p>
           </CardContent>
         </Card>
@@ -89,7 +95,7 @@ export default function LearningHoursPage() {
             <GraduationCap className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-navy">173 Jam</div>
+            <div className="text-2xl font-bold text-navy">{totalHours} Jam</div>
             <p className="text-xs text-text-secondary mt-1">Seluruh partisipasi pelatihan</p>
           </CardContent>
         </Card>

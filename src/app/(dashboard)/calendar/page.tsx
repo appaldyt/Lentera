@@ -14,6 +14,7 @@ import { Calendar, LayoutList } from "lucide-react";
 export default function CalendarPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("timeline");
+  const [filterYear, setFilterYear] = useState("2026");
 
   useEffect(() => {
     if (activeTab === "classic") {
@@ -77,8 +78,13 @@ export default function CalendarPage() {
   ];
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const mandatoryEvents = events.filter(e => e.type === "MANDATORY");
-  const nonMandatoryEvents = events.filter(e => e.type === "NON_MANDATORY");
+  
+  const filteredEvents = filterYear === "all" 
+    ? events 
+    : events.filter(e => new Date(e.start).getFullYear().toString() === filterYear);
+
+  const mandatoryEvents = filteredEvents.filter(e => e.type === "MANDATORY");
+  const nonMandatoryEvents = filteredEvents.filter(e => e.type === "NON_MANDATORY");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderGridRow = (event: any, idx: number) => {
@@ -120,6 +126,21 @@ export default function CalendarPage() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-navy">Calendar of Training</h2>
           <p className="text-text-secondary">Visualisasi jadwal seluruh kegiatan training perusahaan.</p>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-3">
+          {activeTab === "timeline" && (
+            <select 
+              className="flex h-9 rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+              value={filterYear}
+              onChange={(e) => setFilterYear(e.target.value)}
+            >
+              <option value="all">Semua Tahun</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
+          )}
         </div>
       </div>
 

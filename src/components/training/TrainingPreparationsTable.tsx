@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CornerDownRight, CheckSquare, Square, Link as LinkIcon, Pencil, Trash2, Plus, X } from "lucide-react";
+import { CornerDownRight, CheckSquare, Square, Link as LinkIcon, Pencil, Trash2, Plus, X, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 export interface Subtask {
   id: string;
@@ -43,6 +44,7 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
   const [isSubtaskModalOpen, setIsSubtaskModalOpen] = useState(false);
   const [subtaskModalMode, setSubtaskModalMode] = useState<"add" | "edit" | "delete">("add");
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
   
   const [subtaskFormData, setSubtaskFormData] = useState({
     activityName: "",
@@ -224,13 +226,41 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
                 )}
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-1">
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-sky hover:bg-sky-light/10" onClick={() => handleOpenSubtaskModal("edit", prep)}>
-                    <Pencil className="h-3 w-3" />
+                <div className="relative inline-block text-left">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-text-secondary"
+                    onClick={() => setOpenActionId(openActionId === prep.id ? null : prep.id)}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-danger hover:bg-danger/10" onClick={() => handleOpenSubtaskModal("delete", prep)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  
+                  {openActionId === prep.id && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setOpenActionId(null)}></div>
+                      <Card className="absolute right-0 top-full mt-1 w-36 z-50 py-1 shadow-md border-border animate-in fade-in zoom-in-95 duration-100">
+                        <button 
+                          className="w-full text-left px-4 py-2 text-sm text-navy hover:bg-muted/50 flex items-center gap-2"
+                          onClick={() => {
+                            handleOpenSubtaskModal("edit", prep);
+                            setOpenActionId(null);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" /> Edit
+                        </button>
+                        <button 
+                          className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger/10 flex items-center gap-2"
+                          onClick={() => {
+                            handleOpenSubtaskModal("delete", prep);
+                            setOpenActionId(null);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" /> Hapus
+                        </button>
+                      </Card>
+                    </>
+                  )}
                 </div>
               </TableCell>
             </TableRow>

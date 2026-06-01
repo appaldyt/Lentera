@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Search, Filter, Download, Plus, Edit, Trash2, X, Upload } from "lucide-react";
+import { Search, Filter, Download, Plus, Edit, Trash2, X, Upload, MoreHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -25,11 +26,12 @@ const mockLicenses = [
       name: "Siti Rahma",
       position: "Aviation Safety Inspector",
       workLocation: "CGK",
-      employeeStatus: "TETAP",
+      employeeStatus: "PKWTT",
       lob: "Ground Handling",
     },
     licenseName: "Aircraft Maintenance Engineer (AME)",
-    category: "OPERASIONAL",
+    licenseNumber: "AME-001",
+    category: "Operasional",
     issuedDate: "2023-08-15",
     expiryDate: "2025-08-15",
     status: "EXPIRED",
@@ -41,11 +43,12 @@ const mockLicenses = [
       name: "Andi Pratama",
       position: "Customer Service Agent",
       workLocation: "SUB",
-      employeeStatus: "KONTRAK",
+      employeeStatus: "PKWT",
       lob: "Food",
     },
     licenseName: "Customer Excellence Certification",
-    category: "AKADEMIK",
+    licenseNumber: "-",
+    category: "Akademik",
     issuedDate: "2025-02-10",
     expiryDate: "2028-02-10",
     status: "ACTIVE",
@@ -57,11 +60,12 @@ const mockLicenses = [
       name: "Budi Santoso",
       position: "Ground Handling Supervisor",
       workLocation: "CGK",
-      employeeStatus: "TETAP",
+      employeeStatus: "PKWTT",
       lob: "Cargo & Logistik",
     },
     licenseName: "Dangerous Goods Regulations (DGR)",
-    category: "OPERASIONAL",
+    licenseNumber: "DGR-2024-001",
+    category: "Operasional",
     issuedDate: "2024-06-20",
     expiryDate: "2026-06-20",
     status: "EXPIRING_3_MONTHS",
@@ -73,11 +77,12 @@ const mockLicenses = [
       name: "Dewi Lestari",
       position: "Flight Dispatcher",
       workLocation: "KNO",
-      employeeStatus: "TETAP",
+      employeeStatus: "PKWTT",
       lob: "Ground Handling",
     },
     licenseName: "Flight Dispatcher License (FOO)",
-    category: "OPERASIONAL",
+    licenseNumber: "FOO-2026-0519",
+    category: "Operasional",
     issuedDate: "2026-01-10",
     expiryDate: "2026-10-10",
     status: "EXPIRING_5_MONTHS",
@@ -89,11 +94,12 @@ const mockLicenses = [
       name: "Ahmad Fauzi",
       position: "Aviation Security",
       workLocation: "CGK",
-      employeeStatus: "KONTRAK",
+      employeeStatus: "PKWT",
       lob: "Aviation Security",
     },
     licenseName: "Basic Aviation Security (AVSEC)",
-    category: "OPERASIONAL",
+    licenseNumber: "-",
+    category: "Operasional",
     issuedDate: "2024-06-15",
     expiryDate: "2026-06-15", // Expiring in < 1 month (assuming current date is May 2026)
     status: "EXPIRING_1_MONTH",
@@ -101,32 +107,41 @@ const mockLicenses = [
 ];
 
 const mockEmployees = [
-  { nik: "20260105", name: "Siti Rahma", position: "Aviation Safety Inspector", workLocation: "CGK", employeeStatus: "TETAP", lob: "Ground Handling" },
-  { nik: "20260103", name: "Andi Pratama", position: "Customer Service Agent", workLocation: "SUB", employeeStatus: "KONTRAK", lob: "Food" },
-  { nik: "20260212", name: "Budi Santoso", position: "Ground Handling Supervisor", workLocation: "CGK", employeeStatus: "TETAP", lob: "Cargo & Logistik" },
-  { nik: "20260519", name: "Dewi Lestari", position: "Flight Dispatcher", workLocation: "KNO", employeeStatus: "TETAP", lob: "Ground Handling" },
-  { nik: "20260721", name: "Ahmad Fauzi", position: "Aviation Security", workLocation: "CGK", employeeStatus: "KONTRAK", lob: "Aviation Security" },
-  { nik: "20260888", name: "Reza Rahadian", position: "Pilot", workLocation: "DPS", employeeStatus: "TETAP", lob: "Cargo & Logistik" },
+  { nik: "20260105", name: "Siti Rahma", position: "Aviation Safety Inspector", workLocation: "CGK", employeeStatus: "PKWTT", lob: "Ground Handling" },
+  { nik: "20260103", name: "Andi Pratama", position: "Customer Service Agent", workLocation: "SUB", employeeStatus: "PKWT", lob: "Food" },
+  { nik: "20260212", name: "Budi Santoso", position: "Ground Handling Supervisor", workLocation: "CGK", employeeStatus: "PKWTT", lob: "Cargo & Logistik" },
+  { nik: "20260519", name: "Dewi Lestari", position: "Flight Dispatcher", workLocation: "KNO", employeeStatus: "PKWTT", lob: "Ground Handling" },
+  { nik: "20260721", name: "Ahmad Fauzi", position: "Aviation Security", workLocation: "CGK", employeeStatus: "PKWT", lob: "Aviation Security" },
+  { nik: "20260888", name: "Reza Rahadian", position: "Pilot", workLocation: "DPS", employeeStatus: "PKWTT", lob: "Cargo & Logistik" },
 ];
 
 export default function LicensesPage() {
   const [licenses, setLicenses] = useState(mockLicenses);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("SEMUA");
+  const [activeTab, setActiveTab] = useState("Semua Lisensi");
+
+  // Column Filters
+  const [filterColNama, setFilterColNama] = useState("");
+  const [filterColLokasi, setFilterColLokasi] = useState("");
+  const [filterColLisensi, setFilterColLisensi] = useState("");
+  const [filterColStatus, setFilterColStatus] = useState("ALL");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit" | "delete">("add");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nik: "",
     name: "",
     position: "",
     workLocation: "CGK",
-    employeeStatus: "TETAP",
+    employeeStatus: "PKWTT",
     lob: "Ground Handling",
     licenseName: "",
-    category: "OPERASIONAL",
+    licenseNumber: "-",
+    category: "Operasional",
     issuedDate: "",
     expiryDate: "",
     status: "ACTIVE"
@@ -144,6 +159,7 @@ export default function LicensesPage() {
         employeeStatus: license.employee.employeeStatus,
         lob: license.employee.lob,
         licenseName: license.licenseName,
+        licenseNumber: license.licenseNumber || "-",
         category: license.category,
         issuedDate: license.issuedDate,
         expiryDate: license.expiryDate,
@@ -152,8 +168,8 @@ export default function LicensesPage() {
     } else {
       setEditingId(null);
       setFormData({
-        nik: "", name: "", position: "", workLocation: "CGK", employeeStatus: "TETAP", lob: "Ground Handling",
-        licenseName: "", category: "OPERASIONAL", issuedDate: "", expiryDate: "", status: "ACTIVE"
+        nik: "", name: "", position: "", workLocation: "CGK", employeeStatus: "PKWTT", lob: "Ground Handling",
+        licenseName: "", licenseNumber: "-", category: "Operasional", issuedDate: "", expiryDate: "", status: "ACTIVE"
       });
     }
     setIsModalOpen(true);
@@ -188,6 +204,7 @@ export default function LicensesPage() {
           lob: formData.lob,
         },
         licenseName: formData.licenseName,
+        licenseNumber: formData.licenseNumber || "-",
         category: formData.category,
         issuedDate: formData.issuedDate,
         expiryDate: formData.expiryDate,
@@ -206,6 +223,7 @@ export default function LicensesPage() {
           lob: formData.lob,
         },
         licenseName: formData.licenseName,
+        licenseNumber: formData.licenseNumber || "-",
         category: formData.category,
         issuedDate: formData.issuedDate,
         expiryDate: formData.expiryDate,
@@ -230,9 +248,14 @@ export default function LicensesPage() {
       item.employee.nik.toLowerCase().includes(searchLower) ||
       item.licenseName.toLowerCase().includes(searchLower);
       
-    const matchTab = activeTab === "SEMUA" || item.category === activeTab;
+    const matchTab = activeTab === "Semua Lisensi" || item.category === activeTab;
     
-    return matchSearch && matchTab;
+    const matchColNama = item.employee.name.toLowerCase().includes(filterColNama.toLowerCase());
+    const matchColLokasi = item.employee.workLocation.toLowerCase().includes(filterColLokasi.toLowerCase());
+    const matchColLisensi = item.licenseName.toLowerCase().includes(filterColLisensi.toLowerCase());
+    const matchColStatus = filterColStatus === "ALL" || item.status === filterColStatus;
+    
+    return matchSearch && matchTab && matchColNama && matchColLokasi && matchColLisensi && matchColStatus;
   });
 
   const getStatusBadge = (status: string) => {
@@ -266,9 +289,9 @@ export default function LicensesPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
             <TabsList className="bg-muted">
-              <TabsTrigger value="SEMUA">Semua Lisensi</TabsTrigger>
-              <TabsTrigger value="AKADEMIK">Akademik</TabsTrigger>
-              <TabsTrigger value="OPERASIONAL">Operasional</TabsTrigger>
+              <TabsTrigger value="Semua Lisensi">Semua Lisensi</TabsTrigger>
+              <TabsTrigger value="Akademik">Akademik</TabsTrigger>
+              <TabsTrigger value="Operasional">Operasional</TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="flex items-center gap-2">
@@ -300,11 +323,77 @@ export default function LicensesPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Button variant="outline" className="gap-2 border-border/50 text-text-secondary w-full sm:w-auto">
+            <div className="relative flex items-center gap-2 w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                className="gap-2 border-border/50 text-text-secondary w-full sm:w-auto"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
                 <Filter className="h-4 w-4" />
-                Filter Status
+                Filter
               </Button>
+
+              {isFilterOpen && (
+                <Card className="absolute right-0 top-[calc(100%+8px)] w-80 z-50 p-4 shadow-xl border-border animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-navy text-sm flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      Filter Data
+                    </h4>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setIsFilterOpen(false)}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-text-secondary">Nama Karyawan</label>
+                      <Input placeholder="Filter by Name..." className="h-8 text-sm" value={filterColNama} onChange={(e) => setFilterColNama(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-text-secondary">Lokasi Kerja</label>
+                      <Input placeholder="Filter by Location..." className="h-8 text-sm" value={filterColLokasi} onChange={(e) => setFilterColLokasi(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-text-secondary">Nama Lisensi</label>
+                      <Input placeholder="Filter by License..." className="h-8 text-sm" value={filterColLisensi} onChange={(e) => setFilterColLisensi(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-text-secondary">Status Lisensi</label>
+                      <select 
+                        className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                        value={filterColStatus}
+                        onChange={(e) => setFilterColStatus(e.target.value)}
+                      >
+                        <option value="ALL">Semua Status</option>
+                        <option value="ACTIVE">Aktif</option>
+                        <option value="EXPIRING_5_MONTHS">Berakhir &lt; 5 Bulan</option>
+                        <option value="EXPIRING_3_MONTHS">Berakhir &lt; 3 Bulan</option>
+                        <option value="EXPIRING_1_MONTH">Berakhir &lt; 1 Bulan</option>
+                        <option value="EXPIRED">Kadaluwarsa</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 mt-6">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => {
+                        setFilterColNama("");
+                        setFilterColLokasi("");
+                        setFilterColLisensi("");
+                        setFilterColStatus("ALL");
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    <Button className="flex-1 bg-sky hover:bg-sky/90 text-white" onClick={() => setIsFilterOpen(false)}>
+                      Filter Results
+                    </Button>
+                  </div>
+                </Card>
+              )}
             </div>
           </div>
 
@@ -319,6 +408,7 @@ export default function LicensesPage() {
                   <TableHead className="font-semibold text-navy">LOB</TableHead>
                   <TableHead className="font-semibold text-navy">Status Karyawan</TableHead>
                   <TableHead className="font-semibold text-navy">Jenis Lisensi</TableHead>
+                  <TableHead className="font-semibold text-navy">No Lisensi</TableHead>
                   <TableHead className="font-semibold text-navy">Nama Lisensi</TableHead>
                   <TableHead className="font-semibold text-navy">Tanggal Terbit</TableHead>
                   <TableHead className="font-semibold text-navy">Kadaluwarsa</TableHead>
@@ -329,7 +419,7 @@ export default function LicensesPage() {
               <TableBody>
                 {filteredLicenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="h-24 text-center text-text-secondary">
+                    <TableCell colSpan={12} className="h-24 text-center text-text-secondary">
                       Tidak ada lisensi ditemukan.
                     </TableCell>
                   </TableRow>
@@ -338,33 +428,59 @@ export default function LicensesPage() {
                     <TableRow key={item.id} className="hover:bg-muted/30">
                       <TableCell className="font-medium">{item.employee.nik}</TableCell>
                       <TableCell>{item.employee.name}</TableCell>
-                      <TableCell className="text-text-secondary">{item.employee.position}</TableCell>
+                      <TableCell>{item.employee.position}</TableCell>
                       <TableCell>{item.employee.workLocation}</TableCell>
-                      <TableCell className="text-text-secondary">{item.employee.lob}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-background text-xs">
-                          {item.employee.employeeStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-text-secondary font-medium">{item.category}</TableCell>
+                      <TableCell>{item.employee.lob}</TableCell>
+                      <TableCell>{item.employee.employeeStatus}</TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell>{item.licenseNumber || "-"}</TableCell>
                       <TableCell className="font-medium text-navy">{item.licenseName}</TableCell>
-                      <TableCell className="text-text-secondary">{item.issuedDate}</TableCell>
+                      <TableCell>{item.issuedDate}</TableCell>
                       <TableCell className="font-medium">{item.expiryDate}</TableCell>
                       <TableCell>{getStatusBadge(item.status)}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary hover:text-sky" onClick={() => handleOpenModal("edit", item)}>
-                            <Edit className="h-4 w-4" />
+                        <div className="relative inline-block text-left">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-text-secondary"
+                            onClick={() => setOpenActionId(openActionId === item.id ? null : item.id)}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary hover:text-danger hover:bg-danger/10" onClick={() => handleOpenModal("delete", item)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          
+                          {openActionId === item.id && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setOpenActionId(null)}></div>
+                              <Card className="absolute right-0 top-full mt-1 w-36 z-50 py-1 shadow-md border-border animate-in fade-in zoom-in-95 duration-100">
+                                <button 
+                                  className="w-full text-left px-4 py-2 text-sm text-navy hover:bg-muted/50 flex items-center gap-2"
+                                  onClick={() => {
+                                    handleOpenModal("edit", item);
+                                    setOpenActionId(null);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" /> Edit
+                                </button>
+                                <button 
+                                  className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger/10 flex items-center gap-2"
+                                  onClick={() => {
+                                    handleOpenModal("delete", item);
+                                    setOpenActionId(null);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" /> Hapus
+                                </button>
+                              </Card>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
                   ))
                 )}
               </TableBody>
+
             </Table>
           </div>
         </CardContent>
@@ -427,14 +543,18 @@ export default function LicensesPage() {
                   <Input required value={formData.licenseName} onChange={(e) => setFormData({...formData, licenseName: e.target.value})} placeholder="Nama Lisensi" />
                 </div>
                 <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">No Lisensi</label>
+                  <Input value={formData.licenseNumber} onChange={(e) => setFormData({...formData, licenseNumber: e.target.value})} placeholder="Isi - jika tidak ada" />
+                </div>
+                <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">Kategori</label>
                   <select 
                     className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
                     value={formData.category} 
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
                   >
-                    <option value="OPERASIONAL">OPERASIONAL</option>
-                    <option value="AKADEMIK">AKADEMIK</option>
+                    <option value="Operasional">Operasional</option>
+                    <option value="Akademik">Akademik</option>
                   </select>
                 </div>
                 <div className="space-y-2">

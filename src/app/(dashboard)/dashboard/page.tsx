@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, GraduationCap, AlertTriangle, CreditCard, ShieldAlert, ShieldCheck, BadgeInfo, FileX } from "lucide-react";
+import { Users, GraduationCap, AlertTriangle, CreditCard, ShieldAlert, ShieldCheck, BadgeInfo, FileX, Clock, Wallet, TrendingUp, BookOpen, Bookmark } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart,
@@ -29,12 +29,21 @@ const budgetData = [
   { name: "Jul", planned: 3490, actual: 4300 },
 ];
 
+const participantData = [
+  { name: "Jan", count: 120 },
+  { name: "Feb", count: 150 },
+  { name: "Mar", count: 180 },
+  { name: "Apr", count: 140 },
+  { name: "May", count: 210 },
+  { name: "Jun", count: 250 },
+];
+
 const trainingData = [
-  { name: "Safety", value: 40 },
-  { name: "Leadership", value: 30 },
-  { name: "Technical", value: 20 },
-  { name: "Compliance", value: 27 },
-  { name: "Soft Skills", value: 18 },
+  { name: "Commercial", value: 40 },
+  { name: "Operations", value: 30 },
+  { name: "Safety & Quality", value: 20 },
+  { name: "Ground Handling", value: 27 },
+  { name: "HR", value: 18 },
 ];
 
 const licenseExpirationData = [
@@ -100,6 +109,57 @@ export default function DashboardPage() {
   const [filterMonth, setFilterMonth] = useState("all");
   const [filterYear, setFilterYear] = useState("all");
 
+  // Aligned mock data from Manajemen Training & Learning Hours
+  const mockTrainings = [
+    { status: "PLANNING", trainingType: "MANDATORY", month: "06", year: "2026" },
+    { status: "ONGOING", trainingType: "NON_MANDATORY", month: "05", year: "2026" },
+    { status: "ONGOING", trainingType: "MANDATORY", month: "04", year: "2026" },
+    { status: "ONGOING", trainingType: "MANDATORY", month: "05", year: "2026" },
+  ];
+
+  const mockBudgets = [
+    { actualAmount: 15.0, plannedAmount: 15.0, month: "05", year: "2026" },
+    { actualAmount: 0.0, plannedAmount: 5.0, month: "06", year: "2026" },
+    { actualAmount: 7.5, plannedAmount: 7.5, month: "04", year: "2026" },
+    { actualAmount: 10.0, plannedAmount: 25.0, month: "05", year: "2026" },
+  ];
+
+  const learningHoursData = [
+    { totalHours: 42, month: "06", year: "2026" },
+    { totalHours: 24, month: "05", year: "2026" },
+    { totalHours: 48, month: "04", year: "2026" },
+    { totalHours: 16, month: "10", year: "2025" },
+    { totalHours: 35, month: "05", year: "2026" },
+    { totalHours: 8, month: "12", year: "2025" },
+  ];
+
+  const filteredTrainings = mockTrainings.filter(t => {
+    const mYear = filterYear === "all" || t.year === filterYear;
+    const mMonth = filterMonth === "all" || t.month === filterMonth;
+    return mYear && mMonth;
+  });
+
+  const filteredBudgets = mockBudgets.filter(b => {
+    const mYear = filterYear === "all" || b.year === filterYear;
+    const mMonth = filterMonth === "all" || b.month === filterMonth;
+    return mYear && mMonth;
+  });
+
+  const filteredParticipants = learningHoursData.filter(p => {
+    const mYear = filterYear === "all" || p.year === filterYear;
+    const mMonth = filterMonth === "all" || p.month === filterMonth;
+    return mYear && mMonth;
+  });
+
+  const trainingBerjalan = filteredTrainings.filter(t => t.status === "ONGOING").length;
+  const totalMandatori = filteredTrainings.filter(t => t.trainingType === "MANDATORY").length;
+  const nonMandatori = filteredTrainings.filter(t => t.trainingType === "NON_MANDATORY").length;
+  const anggaranTerpakai = filteredBudgets.reduce((sum, b) => sum + b.actualAmount, 0).toFixed(1);
+  const totalAnggaran = filteredBudgets.reduce((sum, b) => sum + b.plannedAmount, 0).toFixed(1);
+  const pesertaTerdaftar = filteredParticipants.length;
+  const totalLearningHours = filteredParticipants.reduce((sum, p) => sum + p.totalHours, 0);
+  const rataRataJamBelajar = pesertaTerdaftar > 0 ? (totalLearningHours / pesertaTerdaftar).toFixed(1) : "0.0";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -149,11 +209,13 @@ export default function DashboardPage() {
         <TabsList className="bg-muted">
           <TabsTrigger value="training">Overview Training</TabsTrigger>
           <TabsTrigger value="licenses">Overview Lisensi & Sertifikasi</TabsTrigger>
+          <TabsTrigger value="finance">Overview Anggaran & Biaya</TabsTrigger>
         </TabsList>
 
         <TabsContent value="training" className="space-y-6 mt-0">
           {/* Summary Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* Baris 1: Training Berjalan, Peserta Terdaftar, Total Anggaran, Anggaran Tercapai/Terpakai */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-text-secondary">
@@ -162,28 +224,13 @@ export default function DashboardPage() {
                 <GraduationCap className="h-4 w-4 text-sky" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">12</div>
+                <div className="text-2xl font-bold text-navy">{trainingBerjalan}</div>
                 <p className="text-xs text-text-secondary">
-                  +2 dibanding bulan lalu
+                  Berdasarkan filter saat ini
                 </p>
               </CardContent>
             </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Anggaran Terpakai
-                </CardTitle>
-                <CreditCard className="h-4 w-4 text-success" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">Rp 45.2M</div>
-                <p className="text-xs text-text-secondary">
-                  64% dari total budget tahunan
-                </p>
-              </CardContent>
-            </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-text-secondary">
@@ -192,24 +239,100 @@ export default function DashboardPage() {
                 <Users className="h-4 w-4 text-sky-light" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">248</div>
+                <div className="text-2xl font-bold text-navy">{pesertaTerdaftar}</div>
                 <p className="text-xs text-text-secondary">
-                  Karyawan aktif bulan ini
+                  Berdasarkan filter saat ini
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-text-secondary">
-                  Tingkat Kelulusan
+                  Total Anggaran
                 </CardTitle>
-                <BadgeInfo className="h-4 w-4 text-navy-light" />
+                <Wallet className="h-4 w-4 text-emerald-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">92%</div>
-                <p className="text-xs text-success">
-                  +4% dari rata-rata tahun lalu
+                <div className="text-2xl font-bold text-navy">Rp {totalAnggaran}M</div>
+                <p className="text-xs text-text-secondary">
+                  Berdasarkan filter saat ini
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">
+                  Anggaran Tercapai
+                </CardTitle>
+                <CreditCard className="h-4 w-4 text-success" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-navy">Rp {anggaranTerpakai}M</div>
+                <p className="text-xs text-text-secondary">
+                  Berdasarkan filter saat ini
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Baris 2: Rata-rata Jam Belajar, Total Learning Hours, Total Mandatori, Non Mandatori */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">
+                  Rata-rata Jam Belajar
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-sky" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-navy">{rataRataJamBelajar} <span className="text-sm font-normal text-text-secondary">Jam</span></div>
+                <p className="text-xs text-text-secondary mt-1">
+                  Berdasarkan filter saat ini
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">
+                  Total Learning Hours
+                </CardTitle>
+                <Clock className="h-4 w-4 text-warning" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-navy">{totalLearningHours} <span className="text-sm font-normal text-text-secondary">Jam</span></div>
+                <p className="text-xs text-text-secondary mt-1">
+                  Berdasarkan filter saat ini
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">
+                  Total Mandatori
+                </CardTitle>
+                <BookOpen className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-navy">{totalMandatori}</div>
+                <p className="text-xs text-text-secondary mt-1">
+                  Berdasarkan filter saat ini
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">
+                  Non Mandatori
+                </CardTitle>
+                <Bookmark className="h-4 w-4 text-indigo-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-navy">{nonMandatori}</div>
+                <p className="text-xs text-text-secondary mt-1">
+                  Berdasarkan filter saat ini
                 </p>
               </CardContent>
             </Card>
@@ -219,12 +342,12 @@ export default function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
               <CardHeader>
-                <CardTitle>Anggaran vs Realisasi (YTD)</CardTitle>
+                <CardTitle>Total Training per Bulan</CardTitle>
               </CardHeader>
               <CardContent className="pl-2">
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={budgetData}>
+                    <BarChart data={participantData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
                       <XAxis 
                         dataKey="name" 
@@ -238,14 +361,12 @@ export default function DashboardPage() {
                         fontSize={12} 
                         tickLine={false} 
                         axisLine={false} 
-                        tickFormatter={(value) => `Rp${value}`}
                       />
                       <Tooltip 
                         cursor={{ fill: '#F5F7FA' }}
                         contentStyle={{ borderRadius: '8px', border: '1px solid #E0E6ED', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}
                       />
-                      <Bar dataKey="planned" fill="#1E88E5" radius={[4, 4, 0, 0]} name="Planned" />
-                      <Bar dataKey="actual" fill="#0B2A4A" radius={[4, 4, 0, 0]} name="Actual" />
+                      <Bar dataKey="count" fill="#1E88E5" radius={[4, 4, 0, 0]} name="Total Training" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -254,7 +375,7 @@ export default function DashboardPage() {
 
             <Card className="col-span-3">
               <CardHeader>
-                <CardTitle>Distribusi Kategori Training</CardTitle>
+                <CardTitle>Distribusi Job Family</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full">
@@ -546,6 +667,148 @@ export default function DashboardPage() {
                       <div className="text-xs text-text-secondary text-center">Karyawan</div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="finance" className="space-y-6 mt-0">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">
+                  Total Anggaran (YTD)
+                </CardTitle>
+                <CreditCard className="h-4 w-4 text-sky" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-navy">Rp 52.5M</div>
+                <p className="text-xs text-text-secondary">
+                  +12% dibanding tahun lalu
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">
+                  Total Realisasi (YTD)
+                </CardTitle>
+                <CreditCard className="h-4 w-4 text-success" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-navy">Rp 32.5M</div>
+                <p className="text-xs text-text-secondary">
+                  61.9% dari total anggaran
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">
+                  Tagihan Jatuh Tempo
+                </CardTitle>
+                <AlertTriangle className="h-4 w-4 text-danger" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-danger">Rp 10.0M</div>
+                <p className="text-xs text-text-secondary">
+                  1 Tagihan perlu tindakan
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-text-secondary">
+                  Efisiensi Anggaran
+                </CardTitle>
+                <BadgeInfo className="h-4 w-4 text-navy-light" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-success">+8.5%</div>
+                <p className="text-xs text-text-secondary">
+                  Lebih hemat dari estimasi
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-4">
+              <CardHeader>
+                <CardTitle>Anggaran vs Realisasi (YTD)</CardTitle>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={budgetData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
+                      <XAxis 
+                        dataKey="name" 
+                        stroke="#5A6B7C" 
+                        fontSize={12} 
+                        tickLine={false} 
+                        axisLine={false} 
+                      />
+                      <YAxis 
+                        stroke="#5A6B7C" 
+                        fontSize={12} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        tickFormatter={(value) => `Rp${value}`}
+                      />
+                      <Tooltip 
+                        cursor={{ fill: '#F5F7FA' }}
+                        contentStyle={{ borderRadius: '8px', border: '1px solid #E0E6ED', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}
+                      />
+                      <Bar dataKey="planned" fill="#1E88E5" radius={[4, 4, 0, 0]} name="Planned" />
+                      <Bar dataKey="actual" fill="#0B2A4A" radius={[4, 4, 0, 0]} name="Actual" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="col-span-3">
+              <CardHeader>
+                <CardTitle>Distribusi Jenis Anggaran</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: "Mandatori", value: 35 },
+                          { name: "Non-Mandatori", value: 25 },
+                          { name: "Magang", value: 15 },
+                          { name: "Honor Pelatih", value: 25 },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {[
+                          { name: "Mandatori", value: 35 },
+                          { name: "Non-Mandatori", value: 25 },
+                          { name: "Magang", value: 15 },
+                          { name: "Honor Pelatih", value: 25 },
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>

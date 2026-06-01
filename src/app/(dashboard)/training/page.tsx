@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, ChevronDown, ChevronRight, X, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, ChevronDown, ChevronRight, X, Pencil, Trash2, MoreHorizontal, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import TrainingPreparationsTable from "@/components/training/TrainingPreparationsTable";
 
@@ -217,6 +218,7 @@ export default function TrainingManagementPage() {
   // Filter State
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
 
   // Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -459,18 +461,54 @@ export default function TrainingManagementPage() {
                     <TableCell>{training.cost}</TableCell>
                     <TableCell>{getStatusBadge(training.status)}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-sky hover:bg-sky-light/10" onClick={() => handleOpenModal("edit", training)}>
-                          <Pencil className="h-4 w-4" />
+                      <div className="relative inline-block text-left">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-text-secondary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenActionId(openActionId === training.id ? null : training.id);
+                          }}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-danger hover:bg-danger/10" onClick={() => handleOpenModal("delete", training)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Link href={`/training/${training.id}`}>
-                          <Button variant="ghost" size="sm" className="text-sky hover:bg-sky-light/10 ml-1">
-                            Detail
-                          </Button>
-                        </Link>
+                        
+                        {openActionId === training.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenActionId(null);
+                            }}></div>
+                            <Card className="absolute right-0 top-full mt-1 w-36 z-50 py-1 shadow-md border-border animate-in fade-in zoom-in-95 duration-100">
+                              <Link href={`/training/${training.id}`}>
+                                <button className="w-full text-left px-4 py-2 text-sm text-navy hover:bg-muted/50 flex items-center gap-2">
+                                  <Eye className="h-4 w-4" /> Detail
+                                </button>
+                              </Link>
+                              <button 
+                                className="w-full text-left px-4 py-2 text-sm text-navy hover:bg-muted/50 flex items-center gap-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenModal("edit", training);
+                                  setOpenActionId(null);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" /> Edit
+                              </button>
+                              <button 
+                                className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger/10 flex items-center gap-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenModal("delete", training);
+                                  setOpenActionId(null);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" /> Hapus
+                              </button>
+                            </Card>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

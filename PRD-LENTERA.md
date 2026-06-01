@@ -37,23 +37,30 @@
 
 ## 3. Core Features
 
-- **Dashboard Admin** — ringkasan training berjalan, lisensi hampir expired, status anggaran, dan utilisasi ruangan. Dilengkapi dengan filter interaktif berdasarkan **Bulan** dan **Tahun**.
-- **Manajemen Training** — input data training (nama, deskripsi, penyelenggara, job families, durasi, biaya, ruangan, rentang jadwal mulai dan selesai) beserta rincian aktivitas persiapan (berupa checklist sub-task yang interaktif, mencakup persentase progres, link output, dan note). Dilengkapi dengan fitur **Export** tabel data serta filter tabel interaktif berdasarkan **Bulan** dan **Tahun**.
-- **Calendar of Training (Interaktif & Timeline)** — visualisasi jadwal training dalam tampilan kalender grid bulanan/mingguan, serta tampilan *Timeline Program (Gantt Chart)* tahunan yang dikelompokkan berdasarkan *Jenis Training* (Mandatori & Non-Mandatori). Rentang durasi jadwal secara otomatis membaca rentang waktu dari *Tanggal Mulai* hingga *Tanggal Selesai*. Event pada kalender dapat diklik untuk langsung mengedit detail training.
+- **Dashboard Admin** — ringkasan eksekutif seluruh modul, dipisahkan dalam 3 tab interaktif:
+  - **Overview Training**: Statistik training berjalan, kelulusan, distribusi Line of Business, dan grafik visual *Peserta Training per Bulan*.
+  - **Overview Lisensi & Sertifikasi**: Metrik lisensi yang hampir kadaluwarsa, peta distribusi demografi LOB & Lokasi, serta proporsi jenis lisensi.
+  - **Overview Anggaran & Biaya**: Metrik kinerja keuangan meliputi Total Anggaran (YTD), Total Realisasi (YTD), Efisiensi Anggaran, Tagihan Jatuh Tempo, didukung visualisasi *Bar Chart* (Anggaran vs Realisasi) dan *Pie Chart* (Distribusi Jenis Anggaran).
+  - Secara global dilengkapi dengan filter interaktif berdasarkan **Bulan** dan **Tahun**.
+- **Manajemen Training** — input data training (nama, deskripsi, penyelenggara, job families, durasi, biaya, ruangan, rentang jadwal mulai dan selesai) beserta rincian aktivitas persiapan (berupa checklist sub-task yang interaktif dengan *Menu Aksi Dropdown* (3-titik) untuk Edit dan Hapus). Tabel utama dilengkapi dengan menu aksi seragam untuk fitur Edit, Detail, dan Hapus (beserta dialog konfirmasi penghapusan), **Export** tabel data, serta filter interaktif berdasarkan **Bulan** dan **Tahun**.
+- **Calendar of Training (Interaktif & Timeline)** — visualisasi jadwal training dalam tampilan kalender grid bulanan/mingguan, serta tampilan *Timeline Program (Gantt Chart)* tahunan yang dikelompokkan berdasarkan *Jenis Training* (Mandatori & Non-Mandatori). Rentang durasi jadwal secara otomatis membaca rentang waktu dari *Tanggal Mulai* hingga *Tanggal Selesai*. Tampilan Timeline dilengkapi dengan **Filter Tahun** yang otomatis disembunyikan saat pengguna beralih ke mode Grid. Event pada kalender dapat diklik untuk langsung mengedit detail training.
 - **Learning Hours** — dasbor pelaporan rekapitulasi yang secara otomatis mengagregasi total jam belajar (*attendedHours*) per karyawan, dilengkapi visualisasi *progress bar* terhadap target jam tahunan. Terintegrasi dengan fitur **Filter Tahun** yang secara real-time menyaring data yang ditampilkan.
-- **Registrasi Peserta** — input peserta training berdasarkan NIK karyawan (dengan integrasi *auto-fill* nama dan divisi dari *database* karyawan), penetapan tanggal training, dan alokasi jam training per peserta.
+- **Registrasi Peserta** — input peserta training berdasarkan NIK karyawan (dengan integrasi *auto-fill* nama dan divisi dari *database* karyawan), penetapan tanggal training, dan alokasi jam training per peserta. Fitur CRUD pada tabel daftar peserta menggunakan menu aksi dropdown (3-titik) seragam untuk mengedit (termasuk *Jam Kehadiran*) dan menghapus data secara aman dengan dialog konfirmasi.
 - **Monitoring Lisensi & Sertifikasi** — modul pencatatan lisensi karyawan yang komprehensif, dilengkapi dengan:
   - **Dashboard Analitik Terpusat**: Visualisasi data lisensi melalui *Bar Chart* (Proyeksi Kadaluwarsa 6 bulan ke depan), *Pie Chart* (Distribusi Kategori Akademik vs Operasional & Distribusi Line of Business), *Horizontal Bar Chart* (Top 5 Nama Lisensi Terpopuler), *Scrollable Vertical Bar Chart* (Distribusi 44+ Stasiun/Lokasi Kerja), dan indikator *Pill Badges* (Rincian peringatan kadaluwarsa <1, <3, <5 bulan).
-  - **Tabel Data Interaktif**: Menampilkan data detail dengan kolom lengkap, *filter tab* (Semua, Akademik, Operasional) dan *search bar*.
-  - **Fitur CRUD & Auto-Fill**: Manajemen penambahan, pengeditan, dan penghapusan lisensi menggunakan *Custom Modal Dialog*. Formulir input terintegrasi dengan sistem *Auto-Fill* (memasukkan NIK akan otomatis menarik data Nama, Jabatan, Lokasi, Status Karyawan, dan Line of Business dari *master data* Manajemen Karyawan secara *read-only*).
-- **Monitoring Anggaran & Pembayaran** — pencatatan budget per training, realisasi pembayaran, status (lunas/jatuh tempo/belum dibayar).
+  - **Tabel Data Interaktif**: Menampilkan data detail dengan kolom lengkap (termasuk **No Lisensi**), *filter tab* (Semua Lisensi, Akademik, Operasional), *search bar*, serta **Menu Filter Pop-up** interaktif yang elegan untuk menyaring spesifik berdasarkan Nama, Lokasi Kerja, Nama Lisensi, dan Status.
+  - **Fitur CRUD & Auto-Fill**: Manajemen penambahan, pengeditan, dan penghapusan lisensi menggunakan *Custom Modal Dialog* dan Menu Aksi Dropdown (3-titik) yang aman (memiliki konfirmasi hapus). Formulir input terintegrasi dengan sistem *Auto-Fill* (memasukkan NIK otomatis ditarik Nama, Jabatan, Lokasi, Status Karyawan PKWT/PKWTT/OS, dan LOB dari *master data* Karyawan).
+- **Manajemen Karyawan** — master data direktori tenaga kerja yang memuat profil karyawan. Dilengkapi dengan tabel interaktif, **Menu Filter Pop-up** (Divisi, Jabatan, Lokasi Kerja, Status: PKWT, PKWTT, OS), serta fitur **CRUD via Custom Modal Dialog** dan Menu Aksi Dropdown (3-titik) untuk menambah, mengedit, dan menghapus data karyawan (dilengkapi dialog konfirmasi).
+- **Monitoring Anggaran & Biaya** — fitur manajemen keuangan yang dipisahkan menjadi dua tab interaktif:
+  - **Tab Perencanaan Anggaran**: Untuk mencatat rencana budget (mencakup data Tahun Anggaran, Bulan, Jenis Training, Rencana Anggaran, dan Status Persetujuan). Dilengkapi dengan ringkasan *Total Anggaran (Planned)*, *Anggaran Disetujui*, dan *Menunggu Persetujuan*. Memiliki *Modal Form* terdedikasi serta **Menu Aksi Dropdown (3-titik)** untuk menambah, **mengedit**, dan **menghapus** data perencanaan secara aman dengan *dialog konfirmasi peringatan*.
+  - **Tab Tagihan & Realisasi (Biaya)**: Untuk memantau pengeluaran aktual (Realisasi Biaya), Tanggal Invoice, Nama Penyelenggara, Tanggal Jatuh Tempo, dan Status Pembayaran (Lunas/Belum Dibayar/Jatuh Tempo). Dilengkapi dengan ringkasan *Total Realisasi (Actual)*, *Tagihan Lunas*, dan *Tagihan Jatuh Tempo*. Memiliki *Modal Form* terdedikasi serta **Menu Aksi Dropdown (3-titik)** untuk menambah, **mengedit**, dan **menghapus** data tagihan secara aman dengan *dialog konfirmasi peringatan*.
 - **Manajemen Ruangan** — daftar ruangan dengan kapasitas, fasilitas, kepemilikan, dan ketersediaan jadwal.
 - **Import Data Massal** — fitur import Excel/CSV di beberapa menu utama:
   - Import data **Karyawan** (NIK, nama, departemen, posisi, email).
   - Khusus menu **Manajemen Training** dan **Learning Hours**, fitur utamanya adalah **Export Excel** untuk mengunduh rekap.
   - Import data **Peserta Training** (training, NIK karyawan, jam training).
   - Import data **Lisensi** (nama, jenis, kategori, tanggal terbit, tanggal expired, pemilik).
-  - Import data **Anggaran & Pembayaran** (training, planned amount, actual, status).
+  - Import data **Anggaran & Biaya** (training, tahun anggaran, bulan, jenis, planned amount, actual amount, status persetujuan, status pembayaran).
   - Import data **Ruangan** (nama, kapasitas, fasilitas, kepemilikan, lokasi).
   - Setiap menu menyediakan **template Excel** yang dapat diunduh.
   - **Validasi otomatis** (cek duplikasi NIK, format tanggal, FK valid) sebelum data masuk.
@@ -227,6 +234,7 @@ Berikut tabel utama yang dibutuhkan beserta kolomnya:
 ### `License` — lisensi/sertifikasi
 - `id` (String, PK)
 - `name` (String) — nama lisensi
+- `licenseNumber` (String, nullable) — nomor lisensi
 - `type` (Enum: COMPANY, INDIVIDUAL)
 - `category` (String) — jenis lisensi (mis. K3, ISO, Sertifikasi Profesi)
 - `issuedDate`, `expiryDate` (DateTime)
@@ -236,17 +244,24 @@ Berikut tabel utama yang dibutuhkan beserta kolomnya:
 ### `Budget` — anggaran training
 - `id` (String, PK)
 - `trainingId` (FK → Training)
+- `budgetYear` (Int) — tahun anggaran (mis. 2026)
+- `budgetMonth` (Int) — bulan (1-12)
+- `trainingType` (String) — jenis anggaran (mis. Mandatori, Non-Mandatori, Magang, Honor Pelatih)
 - `plannedAmount` (Decimal)
 - `actualAmount` (Decimal)
-- `notes` (Text)
-
-### `Payment` — pembayaran training
-- `id` (String, PK)
-- `trainingId` (FK → Training)
-- `amount` (Decimal)
-- `paymentDate` (DateTime)
+- `approvalStatus` (Enum: DISETUJUI, MENUNGGU_PERSETUJUAN)
+- `status` (Enum: LUNAS, BELUM_DIBAYAR, JATUH_TEMPO)
 - `dueDate` (DateTime)
-- `status` (Enum: PAID, PENDING, OVERDUE)
+
+### `Payment` — tagihan & realisasi biaya (Invoice)
+- `id` (String, PK)
+- `trainingId` (FK → Training) — nama training
+- `organizer` (String) — nama penyelenggara
+- `invoiceDate` (DateTime) — tanggal invoice
+- `amount` (Decimal) — realisasi biaya
+- `dueDate` (DateTime) — tanggal jatuh tempo
+- `paymentDate` (DateTime, nullable) — tanggal lunas
+- `status` (Enum: PAID, UNPAID, OVERDUE)
 - `description` (String)
 
 ### `Room` — data ruangan
@@ -335,13 +350,22 @@ erDiagram
     BUDGET {
         string id PK
         string trainingId FK
+        int budgetYear
+        int budgetMonth
+        string trainingType
         decimal plannedAmount
         decimal actualAmount
+        string approvalStatus
+        string status
+        datetime dueDate
     }
     PAYMENT {
         string id PK
         string trainingId FK
+        string organizer
+        datetime invoiceDate
         decimal amount
+        datetime dueDate
         datetime paymentDate
         string status
     }
