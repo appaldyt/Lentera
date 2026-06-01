@@ -38,7 +38,7 @@
 ## 3. Core Features
 
 - **Dashboard Admin** — ringkasan eksekutif seluruh modul, dipisahkan dalam 3 tab interaktif:
-  - **Overview Training**: Statistik training berjalan, kelulusan, distribusi Line of Business, dan grafik visual *Peserta Training per Bulan*.
+  - **Overview Training**: Statistik ringkas (Training Berjalan, Peserta Terdaftar, Total Anggaran, Anggaran Tercapai, Rata-rata Jam Belajar, Total Learning Hours, Total Mandatori & Non-Mandatori) yang terintegrasi dengan data modul lain. Dilengkapi grafik visual *Total Training per Bulan* dan *Distribusi Job Family*.
   - **Overview Lisensi & Sertifikasi**: Metrik lisensi yang hampir kadaluwarsa, peta distribusi demografi LOB & Lokasi, serta proporsi jenis lisensi.
   - **Overview Anggaran & Biaya**: Metrik kinerja keuangan meliputi Total Anggaran (YTD), Total Realisasi (YTD), Efisiensi Anggaran, Tagihan Jatuh Tempo, didukung visualisasi *Bar Chart* (Anggaran vs Realisasi) dan *Pie Chart* (Distribusi Jenis Anggaran).
   - Secara global dilengkapi dengan filter interaktif berdasarkan **Bulan** dan **Tahun**.
@@ -54,7 +54,7 @@
 - **Monitoring Anggaran & Biaya** — fitur manajemen keuangan yang dipisahkan menjadi dua tab interaktif:
   - **Tab Perencanaan Anggaran**: Untuk mencatat rencana budget (mencakup data Tahun Anggaran, Bulan, Jenis Training, Rencana Anggaran, dan Status Persetujuan). Dilengkapi dengan ringkasan *Total Anggaran (Planned)*, *Anggaran Disetujui*, dan *Menunggu Persetujuan*. Memiliki *Modal Form* terdedikasi serta **Menu Aksi Dropdown (3-titik)** untuk menambah, **mengedit**, dan **menghapus** data perencanaan secara aman dengan *dialog konfirmasi peringatan*.
   - **Tab Tagihan & Realisasi (Biaya)**: Untuk memantau pengeluaran aktual (Realisasi Biaya), Tanggal Invoice, Nama Penyelenggara, Tanggal Jatuh Tempo, dan Status Pembayaran (Lunas/Belum Dibayar/Jatuh Tempo). Dilengkapi dengan ringkasan *Total Realisasi (Actual)*, *Tagihan Lunas*, dan *Tagihan Jatuh Tempo*. Memiliki *Modal Form* terdedikasi serta **Menu Aksi Dropdown (3-titik)** untuk menambah, **mengedit**, dan **menghapus** data tagihan secara aman dengan *dialog konfirmasi peringatan*.
-- **Manajemen Ruangan** — daftar ruangan dengan kapasitas, fasilitas, kepemilikan, dan ketersediaan jadwal.
+- **Manajemen Ruangan** — daftar ruangan dengan kapasitas, kepemilikan, lokasi, dan foto ruangan. Dilengkapi dengan **tabel expandable** interaktif untuk melihat rincian fasilitas (nama barang, jenis, jumlah, dan link foto) secara terstruktur layaknya *sub-task*, serta tombol "Tambah Barang Baru".
 - **Import Data Massal** — fitur import Excel/CSV di beberapa menu utama:
   - Import data **Karyawan** (NIK, nama, departemen, posisi, email).
   - Khusus menu **Manajemen Training** dan **Learning Hours**, fitur utamanya adalah **Export Excel** untuk mengunduh rekap.
@@ -268,9 +268,17 @@ Berikut tabel utama yang dibutuhkan beserta kolomnya:
 - `id` (String, PK)
 - `name` (String)
 - `capacity` (Int)
-- `facilities` (Text) — mis. proyektor, AC, whiteboard
 - `ownership` (Enum: INTERNAL, RENTED)
 - `location` (String)
+- `photoLink` (String, nullable) — link foto ruangan utama
+
+### `RoomFacility` — rincian barang/fasilitas di dalam ruangan
+- `id` (String, PK)
+- `roomId` (FK → Room)
+- `name` (String) — nama barang (mis. Proyektor 4K)
+- `type` (String) — jenis (mis. Elektronik, Mebel)
+- `quantity` (Int) — jumlah barang
+- `photoLink` (String, nullable) — link foto detail barang
 
 ### `ImportLog` — riwayat import data
 - `id` (String, PK)
@@ -294,6 +302,7 @@ erDiagram
     TRAINING ||--|| BUDGET : has
     TRAINING ||--o{ PAYMENT : has
     TRAINING }o--|| ROOM : uses
+    ROOM ||--o{ ROOM_FACILITY : contains
 
     USER {
         string id PK
