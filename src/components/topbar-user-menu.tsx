@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { User, ChevronDown, LogOut, ShieldCheck, UserCog, Settings } from "lucide-react";
 import { useUser, UserRole, ROLE_LABELS } from "@/context/user-context";
 import { Card } from "@/components/ui/card";
@@ -20,7 +21,14 @@ const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
 
 export function TopbarUserMenu() {
   const { user } = useUser();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+    router.refresh();
+  }
 
   return (
     <div className="relative">
@@ -73,7 +81,10 @@ export function TopbarUserMenu() {
 
             {/* Logout */}
             <div className="px-2 py-2">
-              <button className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-danger hover:bg-danger/10 transition-colors">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-danger hover:bg-danger/10 transition-colors"
+              >
                 <LogOut className="h-4 w-4" />
                 Keluar
               </button>

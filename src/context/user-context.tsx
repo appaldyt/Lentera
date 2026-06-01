@@ -1,10 +1,11 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export type UserRole = "SUPER_ADMIN" | "ADMIN" | "USER";
 
 export interface CurrentUser {
+  id?: string;
   name: string;
   email: string;
   role: UserRole;
@@ -16,24 +17,35 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   USER: "User",
 };
 
-const DEMO_USERS: Record<UserRole, CurrentUser> = {
-  SUPER_ADMIN: { name: "Super Admin", email: "superadmin@ias.id", role: "SUPER_ADMIN" },
-  ADMIN: { name: "Admin HR LENTERA", email: "admin@ias.id", role: "ADMIN" },
-  USER: { name: "Budi Santoso", email: "budi.s@ias.id", role: "USER" },
+const DEMO_USER: CurrentUser = {
+  name: "Super Admin",
+  email: "superadmin@ias.id",
+  role: "SUPER_ADMIN",
 };
 
 interface UserContextValue {
   user: CurrentUser;
-  switchRole: (role: UserRole) => void;
+  setUser: (user: CurrentUser) => void;
 }
 
 const UserContext = createContext<UserContextValue | null>(null);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<CurrentUser>(DEMO_USERS.SUPER_ADMIN);
-  const switchRole = (role: UserRole) => setUser(DEMO_USERS[role]);
+  const [user, setUser] = useState<CurrentUser>(DEMO_USER);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user as CurrentUser);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
-    <UserContext.Provider value={{ user, switchRole }}>
+    <UserContext.Provider value={{ user, setUser }}>
       {children}
     </UserContext.Provider>
   );

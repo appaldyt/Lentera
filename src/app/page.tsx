@@ -1,16 +1,60 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plane, ChevronRight, Lock } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Plane, ChevronRight, Lock, AlertCircle } from "lucide-react";
 
-export default function LandingPage() {
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Terjadi kesalahan. Silakan coba lagi.");
+        return;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setError("Tidak dapat terhubung ke server. Coba lagi nanti.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col lg:flex-row bg-background">
-      {/* Left Column - Branding & Visuals */}
+      {/* Left Column - Branding */}
       <div className="relative flex w-full flex-col justify-center overflow-hidden bg-navy lg:w-1/2 p-8 lg:p-16">
-        {/* Abstract Aviation Background Image */}
         <div className="absolute inset-0 z-0">
           <Image
             src="/aviation_bg.png"
@@ -19,8 +63,7 @@ export default function LandingPage() {
             className="object-cover opacity-30 mix-blend-overlay"
             priority
           />
-          {/* Gradient Overlay for better text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/80 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/80 to-transparent" />
         </div>
 
         <div className="relative z-10 flex h-full flex-col justify-between">
@@ -38,9 +81,11 @@ export default function LandingPage() {
               Learning, Evaluation, Needs, Training & Employee Reporting Application
             </h2>
             <p className="text-lg text-sky-light max-w-xl leading-relaxed">
-              Platform terpusat untuk memonitor, mengelola, dan mengoptimalkan seluruh kegiatan training serta sertifikasi karyawan perusahaan secara efisien dan terstruktur.
+              Platform terpusat untuk memonitor, mengelola, dan mengoptimalkan
+              seluruh kegiatan training serta sertifikasi karyawan perusahaan
+              secara efisien dan terstruktur.
             </p>
-            
+
             <div className="flex items-center gap-4 pt-8">
               <div className="flex flex-col gap-1 border-l-2 border-sky pl-4">
                 <span className="text-2xl font-bold text-surface">Real-time</span>
@@ -56,14 +101,14 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="mt-16 text-sm text-sky-light/60">
-            &copy; {new Date().getFullYear()} PT Integrasi Aviasi Solusi. All rights reserved.
+            &copy; 2025 PT Integrasi Aviasi Solusi. All rights reserved.
           </div>
         </div>
       </div>
 
-      {/* Right Column - Login Portal */}
+      {/* Right Column - Login Form */}
       <div className="flex w-full items-center justify-center lg:w-1/2 p-8 shadow-[-20px_0_40px_-10px_rgba(0,0,0,0.1)] z-10 bg-surface">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
@@ -81,7 +126,14 @@ export default function LandingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3 py-2.5 text-sm text-danger">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {error}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -90,12 +142,19 @@ export default function LandingPage() {
                     placeholder="nama@ias.id"
                     required
                     className="h-11"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
                   />
                 </div>
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password">Password</Label>
-                    <a href="#" className="text-sm font-medium text-sky hover:text-sky-light transition-colors">
+                    <a
+                      href="#"
+                      className="text-sm font-medium text-sky hover:text-sky-light transition-colors"
+                    >
                       Lupa password?
                     </a>
                   </div>
@@ -106,20 +165,36 @@ export default function LandingPage() {
                       placeholder="••••••••"
                       required
                       className="h-11 pr-10"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={loading}
                     />
                     <Lock className="absolute right-3 top-3 h-5 w-5 text-text-secondary/50" />
                   </div>
                 </div>
-                
-                <Button type="button" className="w-full h-11 text-base group">
-                  Masuk ke Dashboard
-                  <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 text-base group"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    "Memverifikasi..."
+                  ) : (
+                    <>
+                      Masuk ke Dashboard
+                      <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </>
+                  )}
                 </Button>
               </form>
             </CardContent>
             <CardFooter className="flex justify-center border-t border-border/40 pt-6">
               <p className="text-sm text-text-secondary">
-                Butuh bantuan akses? <a href="#" className="text-sky hover:underline font-medium">Hubungi IT Support</a>
+                Butuh bantuan akses?{" "}
+                <a href="#" className="text-sky hover:underline font-medium">
+                  Hubungi IT Support
+                </a>
               </p>
             </CardFooter>
           </Card>
