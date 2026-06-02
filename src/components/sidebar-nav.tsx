@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, Calendar, Badge, CircleDollarSign, Building, Settings, Users, GraduationCap, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, BookOpen, Calendar, Badge, CircleDollarSign, Building, Settings, Users, GraduationCap, ShieldCheck, History } from "lucide-react";
 import { useUser } from "@/context/user-context";
 
 export function SidebarNav() {
@@ -27,6 +27,7 @@ export function SidebarNav() {
             <p className="text-xs font-semibold text-sky-light/70 uppercase tracking-wider px-2">Operasional</p>
           </div>
           <SidebarItem href="/employees" icon={<Users className="h-4 w-4" />} label="Manajemen Karyawan" active={pathname === "/employees"} />
+          <SidebarItem href="/training-history" icon={<History className="h-4 w-4" />} label="Riwayat Training" active={pathname === "/training-history"} />
           <SidebarItem href="/finance" icon={<CircleDollarSign className="h-4 w-4" />} label="Anggaran & Biaya" active={pathname === "/finance"} />
           <SidebarItem href="/rooms" icon={<Building className="h-4 w-4" />} label="Manajemen Ruangan" active={pathname === "/rooms"} />
 
