@@ -200,7 +200,7 @@ export default function DashboardPage() {
   const totalRealisasiFin = (finActual / 1_000_000).toFixed(1);
   const pctRealisasi = finPlanned > 0 ? ((finActual / finPlanned) * 100).toFixed(1) : "0.0";
   const tagihanBelumLunas = finBudgetsYTD.filter((b) => b.status === "Belum Dibayar" || b.status === "Jatuh Tempo");
-  const tagihanJatuhTempoAmt = (tagihanBelumLunas.reduce((s, b) => s + b.plannedAmount, 0) / 1_000_000).toFixed(1);
+  const tagihanJatuhTempoAmt = (tagihanBelumLunas.reduce((s, b) => s + b.actualAmount, 0) / 1_000_000).toFixed(1);
   const efisiensiPct = finPlanned > 0 ? Math.abs(((finPlanned - finActual) / finPlanned) * 100).toFixed(1) : "0.0";
   const efisiensiPositif = finActual <= finPlanned;
 
