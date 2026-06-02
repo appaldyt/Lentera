@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       cost: cost ?? "",
       status: status ?? "PLANNING",
     },
-    include: { preparations: true },
+    include: { preparations: true, participants: true },
   });
 
   return Response.json({ training: serializeTraining(training) }, { status: 201 });
