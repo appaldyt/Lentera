@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 interface BudgetProcess {
   id: string;
@@ -609,24 +610,27 @@ export default function FinancePage() {
                           </>
                         )}
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="relative inline-block text-left">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary" onClick={() => setOpenActionId(openActionId === item.id ? null : item.id)}>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                            {openActionId === item.id && (
-                              <>
-                                <div className="fixed inset-0 z-40" onClick={() => setOpenActionId(null)} />
-                                <Card className="absolute right-0 top-full mt-1 w-36 z-50 py-1 shadow-md border-border animate-in fade-in zoom-in-95 duration-100">
-                                  <button className="w-full text-left px-4 py-2 text-sm text-navy hover:bg-muted/50 flex items-center gap-2" onClick={() => handleOpenEdit(item)}>
-                                    <Edit className="h-4 w-4" /> Edit
-                                  </button>
-                                  <button className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger/10 flex items-center gap-2" onClick={() => { setDeletingItem(item); setIsDeleteModalOpen(true); setOpenActionId(null); }}>
-                                    <Trash2 className="h-4 w-4" /> Hapus
-                                  </button>
-                                </Card>
-                              </>
-                            )}
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-36">
+                              <DropdownMenuItem
+                                className="w-full flex items-center gap-2 text-navy cursor-pointer"
+                                onClick={() => handleOpenEdit(item)}
+                              >
+                                <Edit className="h-4 w-4" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="w-full flex items-center gap-2 text-danger focus:text-danger focus:bg-danger/10 cursor-pointer"
+                                onClick={() => { setDeletingItem(item); setIsDeleteModalOpen(true); }}
+                              >
+                                <Trash2 className="h-4 w-4" /> Hapus
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                       {activeTab === "BIAYA" && expandedRowId === item.id && (

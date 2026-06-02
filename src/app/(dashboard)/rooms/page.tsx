@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 type Ownership = "INTERNAL" | "RENTED";
 
@@ -358,42 +359,28 @@ export default function RoomsPage() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="relative inline-block text-left">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-text-secondary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenActionId(openActionId === room.id ? null : room.id);
-                        }}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                      {openActionId === room.id && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-40"
-                            onClick={(e) => { e.stopPropagation(); setOpenActionId(null); }}
-                          />
-                          <Card className="absolute right-0 top-full mt-1 w-36 z-50 py-1 shadow-md border-border animate-in fade-in zoom-in-95 duration-100">
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-navy hover:bg-muted/50 flex items-center gap-2"
-                              onClick={(e) => { e.stopPropagation(); handleEdit(room); }}
-                            >
-                              <Pencil className="h-4 w-4" /> Edit
-                            </button>
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger/10 flex items-center gap-2"
-                              onClick={(e) => { e.stopPropagation(); promptDelete(room); }}
-                            >
-                              <Trash2 className="h-4 w-4" /> Hapus
-                            </button>
-                          </Card>
-                        </>
-                      )}
-                    </div>
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem
+                          className="w-full flex items-center gap-2 text-navy cursor-pointer"
+                          onClick={() => handleEdit(room)}
+                        >
+                          <Pencil className="h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="w-full flex items-center gap-2 text-danger focus:text-danger focus:bg-danger/10 cursor-pointer"
+                          onClick={() => promptDelete(room)}
+                        >
+                          <Trash2 className="h-4 w-4" /> Hapus
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
 
