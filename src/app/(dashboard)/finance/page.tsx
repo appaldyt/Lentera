@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import * as XLSX from "xlsx";
 
 interface BudgetProcess {
   id: string;
@@ -388,7 +389,66 @@ export default function FinancePage() {
   const uniqueOrganizers = Array.from(new Set(budgets.map((b) => b.organizer).filter(Boolean)));
   const uniqueYears = Array.from(new Set(budgets.map((b) => b.budgetYear))).sort((a, b) => b - a);
 
+  const handleExport = () => {
+    if (filteredBudgets.length === 0) {
+      alert("Tidak ada data untuk dieksport");
+      return;
+    }
 
+    let exportData;
+    let fileName = "";
+    let sheetName = "";
+
+    if (activeTab === "ANGGARAN") {
+      exportData = filteredBudgets.map((item, idx) => ({
+        "No": idx + 1,
+        "Tahun": item.budgetYear,
+        "Bulan": monthNames[item.budgetMonth - 1],
+        "Nama Training": item.trainingName,
+        "Jenis": item.trainingType,
+        "Rencana Anggaran": item.plannedAmount,
+        "Status Persetujuan": item.approvalStatus,
+      }));
+      fileName = "Data_Perencanaan_Anggaran.xlsx";
+      sheetName = "Perencanaan Anggaran";
+    } else {
+      exportData = filteredBudgets.map((item, idx) => ({
+        "No": idx + 1,
+        "Nama Training": item.trainingName,
+        "Penyelenggara": item.organizer || "-",
+        "Tgl. Invoice": item.invoiceDate || "-",
+        "Realisasi Biaya": item.actualAmount,
+        "Tgl. Jatuh Tempo": item.dueDate || "-",
+        "Status Pembayaran": item.status,
+      }));
+      fileName = "Data_Tagihan_Realisasi.xlsx";
+      sheetName = "Tagihan & Realisasi";
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    if (activeTab === "BIAYA") {
+      const processData = filteredBudgets.flatMap((item) => 
+        item.processes.map((p) => ({
+          "Nama Training": item.trainingName,
+          "No Tahapan": p.stepNo,
+          "Tahapan Proses": p.tahap,
+          "Status": p.status,
+          "Tanggal": p.tanggal || "-",
+          "Keterangan": p.keterangan || "-",
+          "Link Bukti": p.linkBukti || "-"
+        }))
+      );
+      if (processData.length > 0) {
+        const wsProcess = XLSX.utils.json_to_sheet(processData);
+        XLSX.utils.book_append_sheet(wb, wsProcess, "Tahapan Proses");
+      }
+    }
+
+    XLSX.writeFile(wb, fileName);
+  };
 
   const toggleRow = (id: string) => {
     setExpandedRowId(expandedRowId === id ? null : id);
@@ -402,7 +462,7 @@ export default function FinancePage() {
           <p className="text-text-secondary mt-1">Kelola perencanaan anggaran training dan pantau tagihan pembayaran.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2 border-sky/30 text-sky hover:bg-sky/5 bg-white">
+          <Button variant="outline" className="gap-2 border-sky/30 text-sky hover:bg-sky/5 bg-white" onClick={handleExport}>
             <Download className="h-4 w-4" /> Export
           </Button>
           <Button className="bg-navy hover:bg-navy/90 text-surface gap-2" onClick={handleOpenAdd}>

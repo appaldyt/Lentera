@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import * as XLSX from "xlsx";
 
 export async function GET(request: Request) {
   try {
@@ -60,38 +61,30 @@ export async function GET(request: Request) {
       }).format(date);
     };
 
-    // Build CSV
-    const headers = [
-      "NIK",
-      "Nama Karyawan",
-      "Nama Training",
-      "Job Family",
-      "Tgl. Mulai",
-      "Tgl. Selesai",
-      "Jam Belajar",
-      "Status",
-    ];
+    // Build Excel
+    const exportData = data.map((item, idx) => ({
+      "No": idx + 1,
+      "NIK": item.nik,
+      "Nama Karyawan": item.name,
+      "Nama Training": item.training.name,
+      "Job Family": item.training.jobFamilies.join(", "),
+      "Tgl. Mulai": formatDate(item.training.startDate),
+      "Tgl. Selesai": formatDate(item.training.endDate),
+      "Jam Belajar": item.attendedHours,
+      "Status": "Selesai",
+    }));
 
-    const rows = data.map((item) => [
-      `"${item.nik}"`,
-      `"${item.name}"`,
-      `"${item.training.name}"`,
-      `"${item.training.jobFamilies.join(", ")}"`,
-      `"${formatDate(item.training.startDate)}"`,
-      `"${formatDate(item.training.endDate)}"`,
-      `"${item.attendedHours}"`,
-      `"Selesai"`,
-    ]);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(wb, ws, "Riwayat Training");
 
-    // Include BOM for Excel UTF-8 support
-    const BOM = "\uFEFF";
-    const csvContent = BOM + [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
-    return new NextResponse(csvContent, {
+    return new NextResponse(buf, {
       status: 200,
       headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": 'attachment; filename="Riwayat_Training.csv"',
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": 'attachment; filename="Riwayat_Training.xlsx"',
       },
     });
   } catch (error) {

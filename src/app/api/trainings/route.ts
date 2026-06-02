@@ -29,12 +29,23 @@ function serializeTraining(t: Awaited<ReturnType<typeof fetchTrainings>>[number]
       linkOutput: p.linkOutput ?? "-",
       note: p.note ?? "",
     })),
+    participants: t.participants.map((p) => ({
+      id: p.id,
+      nik: p.nik,
+      name: p.name,
+      department: p.department,
+      trainingDate: formatDate(p.trainingDate),
+      attendedHours: p.attendedHours,
+    })),
   };
 }
 
 async function fetchTrainings() {
   return prisma.training.findMany({
-    include: { preparations: { orderBy: { createdAt: "asc" } } },
+    include: { 
+      preparations: { orderBy: { createdAt: "asc" } },
+      participants: { orderBy: { createdAt: "asc" } }
+    },
     orderBy: { startDate: "desc" },
   });
 }

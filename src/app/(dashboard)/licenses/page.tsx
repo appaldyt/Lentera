@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import * as XLSX from "xlsx";
 
 interface License {
   id: string;
@@ -311,6 +312,38 @@ export default function LicensesPage() {
     }
   };
 
+  const handleExport = () => {
+    if (filteredLicenses.length === 0) {
+      alert("Tidak ada data untuk dieksport");
+      return;
+    }
+
+    const exportData = filteredLicenses.map((item, idx) => ({
+      "No": idx + 1,
+      "NIK": item.employee.nik,
+      "Nama": item.employee.name,
+      "Jabatan": item.employee.position,
+      "Lokasi Kerja": item.employee.workLocation,
+      "LOB": item.employee.lob,
+      "Status Karyawan": item.employee.employeeStatus,
+      "Jenis Lisensi": item.category,
+      "No Lisensi": item.licenseNumber || "-",
+      "Nama Lisensi": item.licenseName,
+      "Tanggal Terbit": item.issuedDate,
+      "Kadaluwarsa": item.expiryDate,
+      "Status": item.status === "ACTIVE" ? "Aktif" : 
+                item.status === "EXPIRING_5_MONTHS" ? "Berakhir < 5 Bulan" :
+                item.status === "EXPIRING_3_MONTHS" ? "Berakhir < 3 Bulan" :
+                item.status === "EXPIRING_1_MONTH" ? "Berakhir < 1 Bulan" :
+                item.status === "EXPIRED" ? "Kadaluwarsa" : item.status
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(wb, ws, "Data Lisensi");
+    XLSX.writeFile(wb, "Monitoring_Lisensi_Sertifikasi.xlsx");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -332,7 +365,7 @@ export default function LicensesPage() {
             <Button variant="outline" className="gap-2 border-border/50 text-text-secondary" onClick={() => setIsImportModalOpen(true)}>
               <Upload className="h-4 w-4" /> Import
             </Button>
-            <Button variant="outline" className="gap-2 border-border/50 text-text-secondary">
+            <Button variant="outline" className="gap-2 border-border/50 text-text-secondary" onClick={handleExport}>
               <Download className="h-4 w-4" /> Export
             </Button>
             <Button className="bg-sky hover:bg-sky/90 text-surface gap-2" onClick={() => handleOpenModal("add")}>

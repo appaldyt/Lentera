@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CornerDownRight, CheckSquare, Square, Link as LinkIcon, Pencil, Trash2, Plus, X, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 export interface Subtask {
   id: string;
@@ -226,42 +227,27 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
                 )}
               </TableCell>
               <TableCell className="text-right">
-                <div className="relative inline-block text-left">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 text-text-secondary"
-                    onClick={() => setOpenActionId(openActionId === prep.id ? null : prep.id)}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                  
-                  {openActionId === prep.id && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setOpenActionId(null)}></div>
-                      <Card className="absolute right-0 top-full mt-1 w-36 z-50 py-1 shadow-md border-border animate-in fade-in zoom-in-95 duration-100">
-                        <button 
-                          className="w-full text-left px-4 py-2 text-sm text-navy hover:bg-muted/50 flex items-center gap-2"
-                          onClick={() => {
-                            handleOpenSubtaskModal("edit", prep);
-                            setOpenActionId(null);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" /> Edit
-                        </button>
-                        <button 
-                          className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger/10 flex items-center gap-2"
-                          onClick={() => {
-                            handleOpenSubtaskModal("delete", prep);
-                            setOpenActionId(null);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" /> Hapus
-                        </button>
-                      </Card>
-                    </>
-                  )}
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-36">
+                    <DropdownMenuItem
+                      className="w-full flex items-center gap-2 text-navy cursor-pointer"
+                      onClick={() => handleOpenSubtaskModal("edit", prep)}
+                    >
+                      <Pencil className="h-4 w-4" /> Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="w-full flex items-center gap-2 text-danger focus:text-danger focus:bg-danger/10 cursor-pointer"
+                      onClick={() => handleOpenSubtaskModal("delete", prep)}
+                    >
+                      <Trash2 className="h-4 w-4" /> Hapus
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}

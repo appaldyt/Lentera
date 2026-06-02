@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import TrainingPreparationsTable, { type Subtask } from "@/components/training/TrainingPreparationsTable";
+import * as XLSX from "xlsx";
 
 interface Training {
   id: string;
@@ -28,6 +29,14 @@ interface Training {
   cost: string;
   status: string;
   preparations: Subtask[];
+  participants: {
+    id: string;
+    nik: string;
+    name: string;
+    department: string;
+    trainingDate: string;
+    attendedHours: number;
+  }[];
 }
 
 function getStatusBadge(status: string) {
@@ -57,6 +66,10 @@ export default function TrainingManagementPage() {
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [filterMonth, setFilterMonth] = useState("all");
   const [filterYear, setFilterYear] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterJenis, setFilterJenis] = useState("ALL");
+  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [openActionId, setOpenActionId] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -159,12 +172,96 @@ export default function TrainingManagementPage() {
   };
 
   const filteredTrainings = trainings.filter((t) => {
-    if (filterMonth === "all" && filterYear === "all") return true;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      if (!t.name.toLowerCase().includes(term) && !t.organizer.toLowerCase().includes(term)) {
+        return false;
+      }
+    }
     const [year, month] = (t.startDate ?? "").split("-");
     const monthMatch = filterMonth === "all" || month === filterMonth;
     const yearMatch = filterYear === "all" || year === filterYear;
-    return monthMatch && yearMatch;
+    const jenisMatch = filterJenis === "ALL" || t.trainingType === filterJenis;
+    const statusMatch = filterStatus === "ALL" || t.status === filterStatus;
+    
+    return monthMatch && yearMatch && jenisMatch && statusMatch;
   });
+
+  const handleExport = () => {
+    if (filteredTrainings.length === 0) {
+      alert("Tidak ada data untuk dieksport");
+      return;
+    }
+
+    // 1. Data Training
+    const trainingData = filteredTrainings.map((t, idx) => ({
+      "No": idx + 1,
+      "Nama Training": t.name,
+      "Jenis": t.trainingType === "MANDATORY" ? "Mandatori" : "Non-Mandatori",
+      "Penyelenggara": t.organizer,
+      "Ruangan": t.room,
+      "Tanggal Mulai": t.startDate,
+      "Tanggal Selesai": t.endDate || "-",
+      "Durasi": t.duration,
+      "Biaya": t.cost,
+      "Status": t.status,
+      "Job Family": t.jobFamilies.join(", "),
+      "Keterangan": t.description || "-"
+    }));
+
+    // 2. Data Sub-task
+    const subtaskData: any[] = [];
+    filteredTrainings.forEach((t) => {
+      t.preparations.forEach((p, idx) => {
+        subtaskData.push({
+          "Nama Training": t.name,
+          "No": idx + 1,
+          "Sub-task": p.activityName,
+          "Kategori": p.category,
+          "Tenggat Waktu": p.dueDate,
+          "Prioritas": p.priority,
+          "PIC": p.pic,
+          "Tim": p.team,
+          "Progress": p.progress,
+          "Link Output": p.linkOutput,
+          "Catatan": p.note
+        });
+      });
+    });
+
+    // 3. Data Peserta
+    const participantData: any[] = [];
+    filteredTrainings.forEach((t) => {
+      t.participants?.forEach((p, idx) => {
+        participantData.push({
+          "Nama Training": t.name,
+          "No": idx + 1,
+          "NIK": p.nik,
+          "Nama Peserta": p.name,
+          "Departemen": p.department,
+          "Tanggal Training": p.trainingDate,
+          "Jam Kehadiran": p.attendedHours
+        });
+      });
+    });
+
+    const wb = XLSX.utils.book_new();
+
+    const wsTraining = XLSX.utils.json_to_sheet(trainingData);
+    XLSX.utils.book_append_sheet(wb, wsTraining, "Data Training");
+
+    if (subtaskData.length > 0) {
+      const wsSubtask = XLSX.utils.json_to_sheet(subtaskData);
+      XLSX.utils.book_append_sheet(wb, wsSubtask, "Sub-task Training");
+    }
+
+    if (participantData.length > 0) {
+      const wsParticipant = XLSX.utils.json_to_sheet(participantData);
+      XLSX.utils.book_append_sheet(wb, wsParticipant, "Peserta Training");
+    }
+
+    XLSX.writeFile(wb, "Data_Manajemen_Training.xlsx");
+  };
 
   return (
     <div className="space-y-6">
@@ -175,7 +272,9 @@ export default function TrainingManagementPage() {
           <p className="text-text-secondary">Kelola semua aktivitas dan jadwal training karyawan.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2">Export</Button>
+          <Button variant="outline" className="gap-2" onClick={handleExport}>
+            Export
+          </Button>
           <Button className="gap-2" onClick={() => handleOpenModal("add")}>
             <Plus className="h-4 w-4" /> Tambah Training
           </Button>
@@ -186,9 +285,14 @@ export default function TrainingManagementPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-text-secondary" />
-          <Input placeholder="Cari nama training atau penyelenggara..." className="pl-9" />
+          <Input 
+            placeholder="Cari nama training atau penyelenggara..." 
+            className="pl-9" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto relative">
           <select
             className="flex h-9 rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
             value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
@@ -208,9 +312,64 @@ export default function TrainingManagementPage() {
             <option value="2026">2026</option>
             <option value="2027">2027</option>
           </select>
-          <Button variant="outline" className="gap-2">
-            <Filter className="h-4 w-4" /> Filter
-          </Button>
+          <div className="relative">
+            <Button variant="outline" className="gap-2" onClick={() => setIsFilterOpen(!isFilterOpen)}>
+              <Filter className="h-4 w-4" /> Filter
+            </Button>
+            
+            {isFilterOpen && (
+              <Card className="absolute right-0 top-[calc(100%+8px)] w-80 z-50 p-4 shadow-xl border-border animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-semibold text-navy text-sm flex items-center gap-2">
+                    <Filter className="h-4 w-4" /> Filter Data
+                  </h4>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setIsFilterOpen(false)}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-text-secondary">Jenis Training</label>
+                    <select
+                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                      value={filterJenis}
+                      onChange={(e) => setFilterJenis(e.target.value)}
+                    >
+                      <option value="ALL">Semua Jenis</option>
+                      <option value="MANDATORY">Mandatori</option>
+                      <option value="NON_MANDATORY">Non-Mandatori</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-text-secondary">Status Training</label>
+                    <select
+                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                    >
+                      <option value="ALL">Semua Status</option>
+                      <option value="PLANNING">Planning</option>
+                      <option value="ONGOING">Ongoing</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-6">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => { setFilterJenis("ALL"); setFilterStatus("ALL"); }}
+                  >
+                    Clear
+                  </Button>
+                  <Button className="flex-1 bg-sky hover:bg-sky/90 text-white" onClick={() => setIsFilterOpen(false)}>
+                    Filter Results
+                  </Button>
+                </div>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
 

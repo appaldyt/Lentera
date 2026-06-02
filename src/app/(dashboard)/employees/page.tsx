@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import * as XLSX from "xlsx";
 
 interface Employee {
   id: string;
@@ -260,6 +261,31 @@ export default function EmployeesPage() {
   const validImportCount = importRows.filter((r) => r._errors.length === 0).length;
   const invalidImportCount = importRows.filter((r) => r._errors.length > 0).length;
 
+  const handleExport = () => {
+    if (filteredEmployees.length === 0) {
+      alert("Tidak ada data untuk dieksport");
+      return;
+    }
+
+    const exportData = filteredEmployees.map((emp, idx) => ({
+      "No": idx + 1,
+      "NIK": emp.nik,
+      "Nama Karyawan": emp.name,
+      "Divisi": emp.division,
+      "Jabatan": emp.position,
+      "Email": emp.email,
+      "No. Telepon": emp.phone,
+      "Lokasi Kerja": emp.workLocation,
+      "LOB": emp.lob,
+      "Status Karyawan": emp.employeeStatus
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(wb, ws, "Data Karyawan");
+    XLSX.writeFile(wb, "Data_Karyawan.xlsx");
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -270,7 +296,10 @@ export default function EmployeesPage() {
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="gap-2" onClick={() => setIsImportModalOpen(true)}>
-            <Upload className="h-4 w-4" /> Import Data
+            <Upload className="h-4 w-4" /> Import
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={handleExport}>
+            <Download className="h-4 w-4" /> Export
           </Button>
           <Button className="gap-2" onClick={() => { setEditId(null); setFormData(EMPTY_FORM); setIsModalOpen(true); }}>
             <Plus className="h-4 w-4" /> Tambah Karyawan

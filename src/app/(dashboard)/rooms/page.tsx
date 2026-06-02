@@ -2,7 +2,7 @@
 
 import { useState, Fragment, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, MoreHorizontal, Download, ChevronDown, ChevronRight, Link as LinkIcon, CornerDownRight, Image as ImageIcon, X, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, MoreHorizontal, Download, ChevronDown, ChevronRight, Link as LinkIcon, CornerDownRight, Image as ImageIcon, X, Pencil, Trash2, Upload, FileUp, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -15,6 +15,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import * as XLSX from "xlsx";
+import { useRef } from "react";
 
 type Ownership = "INTERNAL" | "RENTED";
 
@@ -81,6 +83,11 @@ function toRoomShape(r: {
   };
 }
 
+const EXCEL_HEADERS = [
+  "Nama Ruangan", "Kapasitas", "Kepemilikan", "Entitas Pemilik", "Lokasi", "Foto Ruangan", 
+  "Nama Barang", "Jenis Barang", "Jumlah", "Keterangan Barang", "Foto Barang"
+];
+
 export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +103,113 @@ export default function RoomsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ ...emptyForm, facilitiesList: [emptyFacility()] });
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Import states
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
+  const [importRows, setImportRows] = useState<any[]>([]);
+  const [importFileName, setImportFileName] = useState("");
+  const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileSelect = async (file: File) => {
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+      alert("Hanya file Excel (.xlsx / .xls) yang didukung.");
+      return;
+    }
+    setImportFileName(file.name);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(worksheet);
+
+      const parsedRows = rows.map((row: any) => {
+        const errors: string[] = [];
+        if (!row["Nama Ruangan"]) errors.push("Nama Ruangan wajib diisi");
+        if (!row["Kapasitas"]) errors.push("Kapasitas wajib diisi");
+        if (!row["Lokasi"]) errors.push("Lokasi wajib diisi");
+        return { ...row, _errors: errors };
+      });
+
+      setImportRows(parsedRows);
+      setImportStep("preview");
+    } catch (err) {
+      alert("Gagal membaca file Excel.");
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  };
+
+  const handleConfirmImport = async () => {
+    const validRows = importRows.filter((r) => r._errors.length === 0);
+    if (validRows.length === 0) return;
+    
+    setImporting(true);
+    try {
+      const roomsMap: Record<string, any> = {};
+
+      validRows.forEach((row: any) => {
+        const roomName = row["Nama Ruangan"];
+        if (!roomsMap[roomName]) {
+          roomsMap[roomName] = {
+            name: roomName,
+            capacity: row["Kapasitas"] || 0,
+            ownership: row["Kepemilikan"] || "INTERNAL",
+            ownerEntity: row["Entitas Pemilik"] || "",
+            location: row["Lokasi"] || "",
+            photoLink: row["Foto Ruangan"] || "",
+            facilitiesList: []
+          };
+        }
+
+        if (row["Nama Barang"]) {
+          roomsMap[roomName].facilitiesList.push({
+            name: row["Nama Barang"],
+            type: row["Jenis Barang"] || "",
+            quantity: row["Jumlah"] || 1,
+            notes: row["Keterangan Barang"] || "",
+            photoLink: row["Foto Barang"] || ""
+          });
+        }
+      });
+
+      const bulkData = Object.values(roomsMap);
+
+      const res = await fetch("/api/rooms/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: bulkData }),
+      });
+
+      if (!res.ok) throw new Error("Failed to import");
+      
+      setImportResult({ success: bulkData.length, failed: 0 });
+      setImportStep("result");
+      fetchRooms();
+    } catch (error) {
+      console.error(error);
+      alert("Terjadi kesalahan saat mengimpor.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const closeImportModal = () => {
+    setIsImportModalOpen(false);
+    setImportStep("upload");
+    setImportRows([]);
+    setImportFileName("");
+    setImportResult(null);
+  };
 
   const fetchRooms = useCallback(async () => {
     setLoading(true);
@@ -109,6 +223,70 @@ export default function RoomsPage() {
       setLoading(false);
     }
   }, []);
+
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        "Nama Ruangan": "Ruang Kelas A",
+        "Kapasitas": 40,
+        "Kepemilikan": "INTERNAL",
+        "Entitas Pemilik": "PT Integrasi Aviasi Solusi",
+        "Lokasi": "Gedung Diklat Lt 2",
+        "Foto Ruangan": "https://example.com/foto-ruangan.jpg",
+        "Nama Barang": "Meja Peserta",
+        "Jenis Barang": "Furniture",
+        "Jumlah": 40,
+        "Keterangan Barang": "Kondisi baik",
+        "Foto Barang": "https://example.com/meja.jpg"
+      },
+      {
+        "Nama Ruangan": "Ruang Kelas A",
+        "Kapasitas": 40,
+        "Kepemilikan": "INTERNAL",
+        "Entitas Pemilik": "PT Integrasi Aviasi Solusi",
+        "Lokasi": "Gedung Diklat Lt 2",
+        "Foto Ruangan": "https://example.com/foto-ruangan.jpg",
+        "Nama Barang": "Proyektor EPSON",
+        "Jenis Barang": "Elektronik",
+        "Jumlah": 1,
+        "Keterangan Barang": "Terpasang di langit-langit",
+        "Foto Barang": "https://example.com/proyektor.jpg"
+      },
+      {
+        "Nama Ruangan": "Meeting Room B",
+        "Kapasitas": 15,
+        "Kepemilikan": "RENTED",
+        "Entitas Pemilik": "Hotel Bandara",
+        "Lokasi": "Lantai 1",
+        "Foto Ruangan": "",
+        "Nama Barang": "Papan Tulis Kaca",
+        "Jenis Barang": "Alat Tulis",
+        "Jumlah": 1,
+        "Keterangan Barang": "",
+        "Foto Barang": ""
+      }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    
+    ws['!cols'] = [
+      { wch: 20 },
+      { wch: 10 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 10 },
+      { wch: 25 },
+      { wch: 30 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Template Ruangan");
+    XLSX.writeFile(wb, "Template_Import_Ruangan.xlsx");
+  };
 
   useEffect(() => {
     fetchRooms();
@@ -218,6 +396,53 @@ export default function RoomsPage() {
     return matchesSearch && matchesOwnership;
   });
 
+  const handleExport = () => {
+    if (filteredRooms.length === 0) {
+      alert("Tidak ada data untuk dieksport");
+      return;
+    }
+
+    const exportData: any[] = [];
+    filteredRooms.forEach((room) => {
+      if (room.facilitiesList.length > 0) {
+        room.facilitiesList.forEach((f) => {
+          exportData.push({
+            "Nama Ruangan": room.name,
+            "Kapasitas": room.capacity,
+            "Kepemilikan": room.ownership,
+            "Entitas Pemilik": room.ownerEntity,
+            "Lokasi": room.location,
+            "Foto Ruangan": room.photoLink,
+            "Nama Barang": f.name,
+            "Jenis Barang": f.type,
+            "Jumlah": f.quantity,
+            "Keterangan Barang": f.notes,
+            "Foto Barang": f.photoLink
+          });
+        });
+      } else {
+        exportData.push({
+          "Nama Ruangan": room.name,
+          "Kapasitas": room.capacity,
+          "Kepemilikan": room.ownership,
+          "Entitas Pemilik": room.ownerEntity,
+          "Lokasi": room.location,
+          "Foto Ruangan": room.photoLink,
+          "Nama Barang": "",
+          "Jenis Barang": "",
+          "Jumlah": "",
+          "Keterangan Barang": "",
+          "Foto Barang": ""
+        });
+      }
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(wb, ws, "Data Ruangan");
+    XLSX.writeFile(wb, "Data_Ruangan.xlsx");
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -227,9 +452,11 @@ export default function RoomsPage() {
           <p className="text-text-secondary">Inventaris fasilitas ruangan untuk kegiatan training dan rapat.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
-            Import Excel
+          <Button variant="outline" className="gap-2" onClick={() => setIsImportModalOpen(true)}>
+            <Upload className="h-4 w-4" /> Import
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={handleExport}>
+            <Download className="h-4 w-4" /> Export
           </Button>
           <Button className="gap-2" onClick={openAddModal}>
             <Plus className="h-4 w-4" />
@@ -458,6 +685,153 @@ export default function RoomsPage() {
           )}
         </TableBody>
       </Table>
+
+      {/* ── Import Modal ──────────────────────────────────────────────────────── */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-3xl p-6 max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-xl font-bold text-navy flex items-center gap-2">
+                <FileUp className="h-5 w-5 text-sky" /> Import Data Ruangan
+              </h3>
+              <Button variant="ghost" size="icon" onClick={closeImportModal}><X className="h-5 w-5" /></Button>
+            </div>
+
+            <div className="flex items-center gap-2 mb-6 text-sm">
+              {[["upload", "Upload File"], ["preview", "Preview Data"], ["result", "Hasil Import"]].map(([step, label], i, arr) => (
+                <Fragment key={step}>
+                  <span className={`font-medium ${importStep === step ? "text-sky" : importStep === "result" || (importStep === "preview" && step === "upload") ? "text-text-secondary" : "text-text-secondary/40"}`}>
+                    {label}
+                  </span>
+                  {i < arr.length - 1 && <ChevronRight className="h-4 w-4 text-text-secondary/40" />}
+                </Fragment>
+              ))}
+            </div>
+
+            {/* Step 1: Upload */}
+            {importStep === "upload" && (
+              <div className="flex-1 flex flex-col gap-4">
+                <input ref={fileInputRef} type="file" accept=".xlsx, .xls" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ""; }} />
+
+                <div
+                  className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center gap-4 cursor-pointer transition-colors ${isDragging ? "border-sky bg-sky/5" : "border-border hover:border-sky/50 hover:bg-muted/30"}`}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                >
+                  <div className="w-14 h-14 rounded-full bg-sky/10 flex items-center justify-center">
+                    <Upload className="h-7 w-7 text-sky" />
+                  </div>
+                  <div className="text-center">
+                    <p className="font-semibold text-navy">Klik untuk upload atau drag & drop</p>
+                    <p className="text-sm text-text-secondary mt-1">Hanya file <strong>.xlsx</strong> yang didukung</p>
+                  </div>
+                </div>
+
+                <div className="bg-muted/40 rounded-lg p-4 text-sm text-text-secondary space-y-1">
+                  <p className="font-medium text-navy text-xs uppercase tracking-wide mb-2">Format kolom yang diperlukan:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {EXCEL_HEADERS.map((h) => (
+                      <span key={h} className="bg-background border border-border rounded px-2 py-0.5 text-xs font-mono">{h}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <Button variant="outline" className="gap-2 w-fit text-sky border-sky/30 hover:bg-sky/5" onClick={downloadTemplate}>
+                  <Download className="h-4 w-4" /> Download Template Excel
+                </Button>
+              </div>
+            )}
+
+            {/* Step 2: Preview */}
+            {importStep === "preview" && (
+              <div className="flex-1 flex flex-col gap-4 min-h-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-text-secondary">File: <strong className="text-navy">{importFileName}</strong></span>
+                    <span className="flex items-center gap-1 text-success font-medium"><CheckCircle2 className="h-4 w-4" />{importRows.filter(r => r._errors.length === 0).length} valid</span>
+                    {importRows.filter(r => r._errors.length > 0).length > 0 && (
+                      <span className="flex items-center gap-1 text-danger font-medium"><AlertCircle className="h-4 w-4" />{importRows.filter(r => r._errors.length > 0).length} error</span>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-sky text-xs" onClick={() => { setImportStep("upload"); setImportRows([]); }}>
+                    Ganti File
+                  </Button>
+                </div>
+
+                <div className="overflow-auto flex-1 border rounded-lg max-h-64">
+                  <Table>
+                    <TableHeader className="bg-muted/50 sticky top-0">
+                      <TableRow>
+                        <TableHead className="w-8">#</TableHead>
+                        <TableHead>Nama Ruangan</TableHead>
+                        <TableHead>Kapasitas</TableHead>
+                        <TableHead>Nama Barang</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Keterangan</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importRows.map((row, i) => (
+                        <TableRow key={i} className={row._errors.length > 0 ? "bg-danger/5" : ""}>
+                          <TableCell className="text-text-secondary text-xs">{i + 1}</TableCell>
+                          <TableCell className="font-mono text-xs">{row["Nama Ruangan"] || <span className="text-danger italic">kosong</span>}</TableCell>
+                          <TableCell>{row["Kapasitas"]}</TableCell>
+                          <TableCell>{row["Nama Barang"]}</TableCell>
+                          <TableCell>
+                            {row._errors.length === 0
+                              ? <Badge className="bg-success/10 text-success border-success/20 text-xs">Valid</Badge>
+                              : <Badge className="bg-danger/10 text-danger border-danger/20 text-xs">Error</Badge>
+                            }
+                          </TableCell>
+                          <TableCell className="text-xs text-danger">{row._errors.join(", ")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {importRows.filter(r => r._errors.length > 0).length > 0 && (
+                  <p className="text-xs text-text-secondary">
+                    Baris dengan error akan dilewati. Hanya baris valid yang akan diimport.
+                  </p>
+                )}
+
+                <div className="flex justify-end gap-3 pt-2 border-t">
+                  <Button variant="outline" onClick={closeImportModal}>Batal</Button>
+                  <Button
+                    className="bg-sky hover:bg-sky/90 text-white gap-2"
+                    disabled={importRows.filter(r => r._errors.length === 0).length === 0 || importing}
+                    onClick={handleConfirmImport}
+                  >
+                    {importing ? "Mengimport..." : `Import Ruangan`}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Result */}
+            {importStep === "result" && importResult && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-6 py-4">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${importResult.failed === 0 ? "bg-success/10" : "bg-warning/10"}`}>
+                  <CheckCircle2 className={`h-8 w-8 ${importResult.failed === 0 ? "text-success" : "text-warning"}`} />
+                </div>
+                <div className="text-center">
+                  <h4 className="text-lg font-bold text-navy mb-1">Import Selesai</h4>
+                  <p className="text-text-secondary text-sm">
+                    <strong className="text-success">{importResult.success} ruangan</strong> berhasil diimport
+                  </p>
+                </div>
+
+                <Button className="bg-sky hover:bg-sky/90 text-white" onClick={closeImportModal}>
+                  Selesai
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal Tambah / Edit Ruangan */}
       {isModalOpen && (
