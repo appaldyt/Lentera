@@ -640,6 +640,147 @@ async function main() {
     });
   }
 
+  // ── Vendors ────────────────────────────────────────────────────────────────
+
+  const vendorSeeds = [
+    {
+      id: "seed-vendor-001",
+      name: "PT Mitra Pelatihan Indonesia",
+      location: "Jakarta",
+      phone: "0812-3456-7890",
+      email: "info@mitrapelatihan.com",
+      topics: ["Leadership", "Komunikasi", "Team Building"],
+      method: "Hybrid",
+      status: "AKTIF",
+      priceMin: 3000000,
+      priceMax: 5000000,
+      rating: 4.5,
+      usedBefore: true,
+      notes: "Trainer sangat profesional dan berpengalaman. Cocok untuk level manajerial. Perlu konfirmasi H-7 sebelum pelaksanaan.",
+      legalDocUrl: "",
+    },
+    {
+      id: "seed-vendor-002",
+      name: "Budi Santoso, M.Psi",
+      location: "Bandung",
+      phone: "0821-9876-5432",
+      email: "budi.santoso@gmail.com",
+      topics: ["Service Excellence", "Team Building"],
+      method: "Offline",
+      status: "AKTIF",
+      priceMin: 2500000,
+      priceMax: 4000000,
+      rating: 4.2,
+      usedBefore: true,
+      notes: "Konsultan psikologi industri berpengalaman 10 tahun. Spesialis soft skill dan team dynamics.",
+      legalDocUrl: "",
+    },
+    {
+      id: "seed-vendor-003",
+      name: "Experia Training Center",
+      location: "Surabaya",
+      phone: "0856-1122-3344",
+      email: "hello@experia.id",
+      topics: ["Selling Skills", "Komunikasi", "Negosiasi"],
+      method: "Online",
+      status: "AKTIF",
+      priceMin: 1500000,
+      priceMax: 2500000,
+      rating: 4.0,
+      usedBefore: true,
+      notes: "Platform LMS lengkap dengan fitur assessment. Cocok untuk training massal secara daring.",
+      legalDocUrl: "",
+    },
+    {
+      id: "seed-vendor-004",
+      name: "PT Aviasi Training & Consulting",
+      location: "Jakarta",
+      phone: "0811-2233-4455",
+      email: "training@aviaticonsult.co.id",
+      topics: ["Aviation Safety", "SMS", "Crew Resource Management"],
+      method: "Hybrid",
+      status: "AKTIF",
+      priceMin: 5000000,
+      priceMax: 10000000,
+      rating: 4.8,
+      usedBefore: true,
+      notes: "Spesialis pelatihan keselamatan penerbangan. Trainer bersertifikat IATA dan ICAO. Wajib booking minimal 1 bulan sebelumnya.",
+      legalDocUrl: "",
+    },
+    {
+      id: "seed-vendor-005",
+      name: "Drs. Hendra Wijaya, MBA",
+      location: "Yogyakarta",
+      phone: "0878-5566-7788",
+      email: "hendra.wijaya.trainer@gmail.com",
+      topics: ["Finance for Non-Finance", "Budgeting", "Manajemen Risiko"],
+      method: "Offline",
+      status: "AKTIF",
+      priceMin: 3500000,
+      priceMax: 6000000,
+      rating: 4.3,
+      usedBefore: false,
+      notes: "Dosen aktif FEB UGM. Pengalaman sebagai CFO di perusahaan multinasional selama 15 tahun.",
+      legalDocUrl: "",
+    },
+    {
+      id: "seed-vendor-006",
+      name: "BrightSkills Academy",
+      location: "Jakarta",
+      phone: "021-5500-1234",
+      email: "contact@brightskills.id",
+      topics: ["Digital Literacy", "Data Analytics", "Microsoft Office"],
+      method: "Online",
+      status: "AKTIF",
+      priceMin: 800000,
+      priceMax: 1500000,
+      rating: 3.9,
+      usedBefore: false,
+      notes: "Platform e-learning dengan konten siap pakai. Cocok untuk upskilling karyawan level staf.",
+      legalDocUrl: "",
+    },
+    {
+      id: "seed-vendor-007",
+      name: "PT Talenta Maju Bersama",
+      location: "Tangerang",
+      phone: "0815-8899-0011",
+      email: "info@talentamaju.com",
+      topics: ["HR Management", "Rekrutmen", "Performance Management"],
+      method: "Hybrid",
+      status: "AKTIF",
+      priceMin: 4000000,
+      priceMax: 7000000,
+      rating: 4.1,
+      usedBefore: false,
+      notes: "Konsultan HR dengan pengalaman proyek di lebih dari 50 perusahaan nasional dan multinasional.",
+      legalDocUrl: "",
+    },
+    {
+      id: "seed-vendor-008",
+      name: "Indira Prasetyo, S.Hum",
+      location: "Semarang",
+      phone: "0856-3344-5566",
+      email: "indira.trainer@outlook.com",
+      topics: ["Komunikasi Efektif", "Public Speaking", "Customer Service"],
+      method: "Offline",
+      status: "TIDAK_AKTIF",
+      priceMin: 2000000,
+      priceMax: 3500000,
+      rating: 3.7,
+      usedBefore: false,
+      notes: "Sedang dalam periode istirahat s.d. Desember 2026. Dapat dihubungi untuk booking awal 2027.",
+      legalDocUrl: "",
+    },
+  ];
+
+  for (const data of vendorSeeds) {
+    await prisma.vendor.upsert({
+      where: { id: data.id },
+      update: {},
+      create: data,
+    });
+  }
+
   console.log("Seed complete.");
   console.log("  superadmin@ias.id  / admin123  (Super Admin)");
   console.log("  admin@ias.id       / admin123  (Admin)");
@@ -650,6 +791,7 @@ async function main() {
   console.log(`  Licenses: ${licenseSeeds.length} records seeded`);
   console.log(`  Budgets: ${budgetSeeds.length} records seeded`);
   console.log(`  Rooms: ${roomSeeds.length} records seeded`);
+  console.log(`  Vendors: ${vendorSeeds.length} records seeded`);
 }
 
 main()

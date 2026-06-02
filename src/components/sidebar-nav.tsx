@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, Calendar, Badge, CircleDollarSign, Building, Settings, Users, GraduationCap, ShieldCheck, History } from "lucide-react";
+import { LayoutDashboard, BookOpen, Calendar, Badge, CircleDollarSign, Building, Settings, Users, GraduationCap, ShieldCheck, History, Store } from "lucide-react";
 import { useUser } from "@/context/user-context";
 
 export function SidebarNav() {
@@ -30,6 +30,7 @@ export function SidebarNav() {
           <SidebarItem href="/training-history" icon={<History className="h-4 w-4" />} label="Riwayat Training" active={pathname === "/training-history"} />
           <SidebarItem href="/finance" icon={<CircleDollarSign className="h-4 w-4" />} label="Anggaran & Biaya" active={pathname === "/finance"} />
           <SidebarItem href="/rooms" icon={<Building className="h-4 w-4" />} label="Manajemen Ruangan" active={pathname === "/rooms"} />
+          <SidebarItem href="/vendors" icon={<Store className="h-4 w-4" />} label="Manajemen Vendor" active={pathname === "/vendors"} />
 
           {user.role === "SUPER_ADMIN" && (
             <>

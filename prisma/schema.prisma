@@ -153,6 +153,25 @@ model RoomFacility {
   updatedAt DateTime @updatedAt
 }
 
+model Vendor {
+  id           String   @id @default(cuid())
+  name         String
+  location     String
+  phone        String
+  email        String
+  topics       String[]
+  method       String   @default("Online")
+  status       String   @default("AKTIF")
+  priceMin     Int      @default(0)
+  priceMax     Int      @default(0)
+  rating       Float    @default(0)
+  usedBefore   Boolean  @default(false)
+  notes        String   @default("")
+  legalDocUrl  String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model License {
   id             String   @id @default(cuid())
   nik            String
