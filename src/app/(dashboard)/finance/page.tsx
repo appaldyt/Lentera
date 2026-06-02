@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Download, Plus, MoreHorizontal, Edit, Trash2, X, Wallet, ReceiptText, AlertTriangle } from "lucide-react";
+import { Search, Filter, Download, Plus, MoreHorizontal, Edit, Trash2, X, Wallet, ReceiptText, AlertTriangle, ChevronDown, ChevronUp, CornerDownRight, Link } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,36 @@ const EMPTY_FORM = {
   trainingName: "", budgetYear: new Date().getFullYear(), budgetMonth: new Date().getMonth() + 1,
   trainingType: "Mandatori", plannedAmount: 0, actualAmount: 0,
   invoiceDate: "", organizer: "", dueDate: "", status: "Belum Dibayar", approvalStatus: "Menunggu Persetujuan",
+  processDetails: [] as { id: string; tahap: string; status: string; tanggal: string; keterangan: string; linkBukti: string }[],
+};
+
+const getProcessDetails = (status: string) => {
+  const base = [
+    { no: 1, tahap: "Invoice Sent", status: "Selesai", tanggal: "2026-05-01", keterangan: "Dikirim via email ke klien" },
+    { no: 2, tahap: "Input Invoice", status: "Selesai", tanggal: "2026-05-02", keterangan: "Diinput ke sistem keuangan" },
+    { no: 3, tahap: "Verifikasi Finance 1", status: "Selesai", tanggal: "2026-05-03", keterangan: "Terverifikasi oleh staf" },
+    { no: 4, tahap: "Verifikasi Finance 2", status: "Menunggu", tanggal: "-", keterangan: "-" },
+    { no: 5, tahap: "Payment Status", status: "Belum", tanggal: "-", keterangan: "-" },
+  ];
+  if (status === "Lunas") {
+    return [
+      { no: 1, tahap: "Invoice Sent", status: "Selesai", tanggal: "2026-05-01", keterangan: "Dikirim via email ke klien" },
+      { no: 2, tahap: "Input Invoice", status: "Selesai", tanggal: "2026-05-02", keterangan: "Diinput ke sistem keuangan" },
+      { no: 3, tahap: "Verifikasi Finance 1", status: "Selesai", tanggal: "2026-05-03", keterangan: "Terverifikasi oleh staf" },
+      { no: 4, tahap: "Verifikasi Finance 2", status: "Selesai", tanggal: "2026-05-04", keterangan: "Terverifikasi oleh manajer" },
+      { no: 5, tahap: "Payment Status", status: "Selesai", tanggal: "2026-05-05", keterangan: "Pembayaran diterima" },
+    ];
+  } else if (status === "Belum Dibayar") {
+    return base;
+  } else {
+    return [
+      { no: 1, tahap: "Invoice Sent", status: "Selesai", tanggal: "2026-05-01", keterangan: "Dikirim via email ke klien" },
+      { no: 2, tahap: "Input Invoice", status: "Diproses", tanggal: "-", keterangan: "Sedang diinput" },
+      { no: 3, tahap: "Verifikasi Finance 1", status: "Belum", tanggal: "-", keterangan: "-" },
+      { no: 4, tahap: "Verifikasi Finance 2", status: "Belum", tanggal: "-", keterangan: "-" },
+      { no: 5, tahap: "Payment Status", status: "Belum", tanggal: "-", keterangan: "-" },
+    ];
+  }
 };
 
 export default function FinancePage() {
@@ -56,6 +86,7 @@ export default function FinancePage() {
   const [filterType, setFilterType] = useState("ALL");
   const [filterOrganizer, setFilterOrganizer] = useState("ALL");
   const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -111,6 +142,14 @@ export default function FinancePage() {
       dueDate: item.dueDate ?? "",
       status: item.status,
       approvalStatus: item.approvalStatus,
+      processDetails: getProcessDetails(item.status).map((d) => ({
+        id: Math.random().toString(36).substr(2, 9),
+        tahap: d.tahap,
+        status: d.status,
+        tanggal: d.tanggal === "-" ? "" : d.tanggal,
+        keterangan: d.keterangan === "-" ? "" : d.keterangan,
+        linkBukti: "",
+      })),
     });
     setIsEditModalOpen(true);
     setOpenActionId(null);
@@ -205,7 +244,36 @@ export default function FinancePage() {
   const uniqueOrganizers = Array.from(new Set(budgets.map((b) => b.organizer).filter(Boolean)));
   const uniqueYears = Array.from(new Set(budgets.map((b) => b.budgetYear))).sort((a, b) => b - a);
 
-  const FormFields = ({ data, setData }: { data: typeof EMPTY_FORM; setData: (d: typeof EMPTY_FORM) => void }) => (
+
+
+  const toggleRow = (id: string) => {
+    setExpandedRowId(expandedRowId === id ? null : id);
+  };
+
+  const FormFields = ({ data, setData, activeTab }: { data: typeof EMPTY_FORM; setData: (d: typeof EMPTY_FORM) => void; activeTab?: string }) => {
+    const handleAddDetail = () => {
+      setData({
+        ...data,
+        processDetails: [
+          ...data.processDetails,
+          { id: Math.random().toString(36).substr(2, 9), tahap: "", status: "Selesai", tanggal: "", keterangan: "", linkBukti: "" }
+        ]
+      });
+    };
+
+    const removeDetail = (index: number) => {
+      const newDetails = [...data.processDetails];
+      newDetails.splice(index, 1);
+      setData({ ...data, processDetails: newDetails });
+    };
+
+    const updateDetail = (index: number, field: string, value: string) => {
+      const newDetails = [...data.processDetails];
+      newDetails[index] = { ...newDetails[index], [field]: value };
+      setData({ ...data, processDetails: newDetails });
+    };
+
+    return (
     <>
       <div className="space-y-2">
         <label className="text-sm font-medium text-text-primary">Nama Training</label>
@@ -277,8 +345,81 @@ export default function FinancePage() {
           </select>
         </div>
       </div>
+
+      {activeTab === "BIAYA" && (
+        <div className="mt-8 pt-6 border-t border-border">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-semibold text-sm text-navy">Rincian Proses Pembayaran</h4>
+            <Button type="button" variant="outline" size="sm" className="text-sky border-sky/30 hover:bg-sky/5 text-xs h-8" onClick={handleAddDetail}>
+              <Plus className="h-3 w-3 mr-1" /> Tambah Baris
+            </Button>
+          </div>
+          
+          <div className="border border-border rounded-lg p-4 space-y-4">
+            {data.processDetails.length === 0 ? (
+              <p className="text-sm text-text-secondary text-center py-4">Belum ada rincian ditambahkan.</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_2fr_2fr_auto] gap-2 px-1">
+                  <span className="text-xs font-medium text-text-secondary">Tahapan Proses</span>
+                  <span className="text-xs font-medium text-text-secondary">Status</span>
+                  <span className="text-xs font-medium text-text-secondary">Tanggal</span>
+                  <span className="text-xs font-medium text-text-secondary">Keterangan</span>
+                  <span className="text-xs font-medium text-text-secondary">Link Bukti</span>
+                  <span className="w-8"></span>
+                </div>
+                
+                {data.processDetails.map((detail, index) => (
+                  <div key={detail.id} className="grid grid-cols-1 md:grid-cols-[2fr_1.5fr_1.5fr_2fr_2fr_auto] gap-2 items-start">
+                    <Input 
+                      placeholder="Tahapan"
+                      value={detail.tahap}
+                      onChange={(e) => updateDetail(index, "tahap", e.target.value)}
+                    />
+                    <select 
+                      className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                      value={detail.status}
+                      onChange={(e) => updateDetail(index, "status", e.target.value)}
+                    >
+                      <option value="Selesai">Selesai</option>
+                      <option value="Diproses">Diproses</option>
+                      <option value="Menunggu">Menunggu</option>
+                      <option value="Belum">Belum</option>
+                    </select>
+                    <Input 
+                      type="date"
+                      value={detail.tanggal}
+                      onChange={(e) => updateDetail(index, "tanggal", e.target.value)}
+                    />
+                    <Input 
+                      placeholder="Keterangan"
+                      value={detail.keterangan}
+                      onChange={(e) => updateDetail(index, "keterangan", e.target.value)}
+                    />
+                    <Input 
+                      placeholder="https://..."
+                      value={detail.linkBukti}
+                      onChange={(e) => updateDetail(index, "linkBukti", e.target.value)}
+                    />
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-9 w-9 text-text-secondary hover:text-danger hover:bg-danger/10"
+                      onClick={() => removeDetail(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
@@ -439,6 +580,7 @@ export default function FinancePage() {
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
+                  {activeTab === "BIAYA" && <TableHead className="w-10"></TableHead>}
                   <TableHead className="font-semibold text-text-secondary">Nama Training</TableHead>
                   {activeTab === "ANGGARAN" ? (
                     <>
@@ -462,53 +604,116 @@ export default function FinancePage() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={7} className="h-24 text-center text-text-secondary">Memuat data...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={activeTab === "BIAYA" ? 8 : 7} className="h-24 text-center text-text-secondary">Memuat data...</TableCell></TableRow>
                 ) : filteredBudgets.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="h-24 text-center text-text-secondary">Tidak ada data ditemukan.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={activeTab === "BIAYA" ? 8 : 7} className="h-24 text-center text-text-secondary">Tidak ada data ditemukan.</TableCell></TableRow>
                 ) : (
                   filteredBudgets.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-muted/30">
-                      <TableCell className="font-medium text-navy">{item.trainingName}</TableCell>
-                      {activeTab === "ANGGARAN" ? (
-                        <>
-                          <TableCell className="text-center text-text-secondary">{item.budgetYear}</TableCell>
-                          <TableCell className="text-center text-text-secondary">{monthNames[item.budgetMonth - 1]}</TableCell>
-                          <TableCell className="text-center"><Badge variant="outline" className="bg-background font-normal">{item.trainingType}</Badge></TableCell>
-                          <TableCell className="text-center font-medium text-text-secondary">{formatCurrency(item.plannedAmount)}</TableCell>
-                          <TableCell className="text-center">{getStatusBadge(item.approvalStatus)}</TableCell>
-                        </>
-                      ) : (
-                        <>
-                          <TableCell className="text-text-secondary">{item.organizer || "-"}</TableCell>
-                          <TableCell className="text-center text-text-secondary">{item.invoiceDate ?? "-"}</TableCell>
-                          <TableCell className={`text-center font-medium ${item.actualAmount === 0 ? "text-text-secondary" : "text-green-600"}`}>
-                            {item.actualAmount === 0 ? "Rp 0" : formatCurrency(item.actualAmount)}
+                    <React.Fragment key={item.id}>
+                      <TableRow className={`hover:bg-muted/30 transition-colors ${activeTab === "BIAYA" ? "cursor-pointer" : ""} ${expandedRowId === item.id ? "bg-sky/5" : ""}`} onClick={() => activeTab === "BIAYA" && toggleRow(item.id)}>
+                        {activeTab === "BIAYA" && (
+                          <TableCell className="text-center">
+                            {expandedRowId === item.id ? <ChevronUp className="h-4 w-4 text-sky" /> : <ChevronDown className="h-4 w-4 text-text-secondary" />}
                           </TableCell>
-                          <TableCell className="text-center text-text-secondary">{item.dueDate ?? "-"}</TableCell>
-                          <TableCell className="text-center">{getStatusBadge(item.status)}</TableCell>
-                        </>
+                        )}
+                        <TableCell className="font-medium text-navy">{item.trainingName}</TableCell>
+                        {activeTab === "ANGGARAN" ? (
+                          <>
+                            <TableCell className="text-center text-text-secondary">{item.budgetYear}</TableCell>
+                            <TableCell className="text-center text-text-secondary">{monthNames[item.budgetMonth - 1]}</TableCell>
+                            <TableCell className="text-center"><Badge variant="outline" className="bg-background font-normal">{item.trainingType}</Badge></TableCell>
+                            <TableCell className="text-center font-medium text-text-secondary">{formatCurrency(item.plannedAmount)}</TableCell>
+                            <TableCell className="text-center">{getStatusBadge(item.approvalStatus)}</TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell className="text-text-secondary">{item.organizer || "-"}</TableCell>
+                            <TableCell className="text-center text-text-secondary">{item.invoiceDate ?? "-"}</TableCell>
+                            <TableCell className={`text-center font-medium ${item.actualAmount === 0 ? "text-text-secondary" : "text-green-600"}`}>
+                              {item.actualAmount === 0 ? "Rp 0" : formatCurrency(item.actualAmount)}
+                            </TableCell>
+                            <TableCell className="text-center text-text-secondary">{item.dueDate ?? "-"}</TableCell>
+                            <TableCell className="text-center">{getStatusBadge(item.status)}</TableCell>
+                          </>
+                        )}
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="relative inline-block text-left">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary" onClick={() => setOpenActionId(openActionId === item.id ? null : item.id)}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                            {openActionId === item.id && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setOpenActionId(null)} />
+                                <Card className="absolute right-0 top-full mt-1 w-36 z-50 py-1 shadow-md border-border animate-in fade-in zoom-in-95 duration-100">
+                                  <button className="w-full text-left px-4 py-2 text-sm text-navy hover:bg-muted/50 flex items-center gap-2" onClick={() => handleOpenEdit(item)}>
+                                    <Edit className="h-4 w-4" /> Edit
+                                  </button>
+                                  <button className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger/10 flex items-center gap-2" onClick={() => { setDeletingItem(item); setIsDeleteModalOpen(true); setOpenActionId(null); }}>
+                                    <Trash2 className="h-4 w-4" /> Hapus
+                                  </button>
+                                </Card>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {activeTab === "BIAYA" && expandedRowId === item.id && (
+                        <TableRow className="bg-sky/5 hover:bg-sky/5 border-b border-border/50">
+                          <TableCell colSpan={8} className="p-0">
+                            <div className="p-4 m-4 bg-white/50 border border-border/50 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2 duration-200">
+                              <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+                                <Table>
+                                  <TableHeader className="bg-navy">
+                                    <TableRow className="hover:bg-navy">
+                                      <TableHead className="text-white w-20">No</TableHead>
+                                      <TableHead className="text-white">Tahapan Proses</TableHead>
+                                      <TableHead className="text-white">Status</TableHead>
+                                      <TableHead className="text-white">Tanggal</TableHead>
+                                      <TableHead className="text-white">Keterangan</TableHead>
+                                      <TableHead className="text-white text-right">Aksi</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {getProcessDetails(item.status).map((detail) => (
+                                      <TableRow key={detail.no} className="hover:bg-muted/30">
+                                        <TableCell className="font-medium text-text-secondary">
+                                          <div className="flex items-center gap-2">
+                                            <CornerDownRight className="h-4 w-4 text-text-secondary/40" />
+                                            <span>{detail.no}</span>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="font-medium text-navy">{detail.tahap}</TableCell>
+                                        <TableCell>
+                                          <Badge variant="outline" className={`font-normal border-none ${
+                                            detail.status === "Selesai" ? "bg-green-100 text-green-700" :
+                                            detail.status === "Diproses" || detail.status === "Menunggu" ? "bg-sky/10 text-sky" :
+                                            "bg-muted text-text-secondary"
+                                          }`}>
+                                            {detail.status}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-text-secondary">{detail.tanggal}</TableCell>
+                                        <TableCell className="text-text-secondary">{detail.keterangan}</TableCell>
+                                        <TableCell className="text-right">
+                                          <Button variant="ghost" size="sm" className="text-sky hover:text-sky/80 hover:bg-sky/10 text-xs h-7 gap-1">
+                                            <Link className="h-3 w-3" /> Lihat Bukti
+                                          </Button>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                                <div className="p-3 bg-muted/10 border-t border-border flex items-center">
+                                  <Button variant="ghost" size="sm" className="text-sky hover:text-sky/80 hover:bg-sky/10 text-xs font-medium gap-1" onClick={() => handleOpenEdit(item)}>
+                                    <Plus className="h-3 w-3" /> Update Status Proses
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       )}
-                      <TableCell className="text-center">
-                        <div className="relative inline-block text-left">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary" onClick={() => setOpenActionId(openActionId === item.id ? null : item.id)}>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                          {openActionId === item.id && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setOpenActionId(null)} />
-                              <Card className="absolute right-0 top-full mt-1 w-36 z-50 py-1 shadow-md border-border animate-in fade-in zoom-in-95 duration-100">
-                                <button className="w-full text-left px-4 py-2 text-sm text-navy hover:bg-muted/50 flex items-center gap-2" onClick={() => handleOpenEdit(item)}>
-                                  <Edit className="h-4 w-4" /> Edit
-                                </button>
-                                <button className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger/10 flex items-center gap-2" onClick={() => { setDeletingItem(item); setIsDeleteModalOpen(true); setOpenActionId(null); }}>
-                                  <Trash2 className="h-4 w-4" /> Hapus
-                                </button>
-                              </Card>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    </React.Fragment>
                   ))
                 )}
               </TableBody>
@@ -520,14 +725,14 @@ export default function FinancePage() {
       {/* Modal Tambah */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in p-4">
-          <Card className="w-full max-w-lg border-none shadow-xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+          <Card className={`w-full ${activeTab === "BIAYA" ? "max-w-4xl" : "max-w-lg"} border-none shadow-xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto`}>
             <div className="flex items-center justify-between border-b p-4">
               <h3 className="font-bold text-lg text-navy">{activeTab === "ANGGARAN" ? "Buat Perencanaan Anggaran" : "Buat Tagihan (Invoice)"}</h3>
               <Button variant="ghost" size="icon" onClick={() => setIsModalOpen(false)}><X className="h-4 w-4" /></Button>
             </div>
             <CardContent className="p-6">
               <form onSubmit={handleSave} className="space-y-4">
-                <FormFields data={formData} setData={setFormData} />
+                <FormFields data={formData} setData={setFormData} activeTab={activeTab} />
                 <div className="flex justify-end gap-3 mt-6">
                   <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
                   <Button type="submit" disabled={saving} className="bg-navy hover:bg-navy/90 text-surface">
@@ -543,14 +748,14 @@ export default function FinancePage() {
       {/* Modal Edit */}
       {isEditModalOpen && editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in p-4">
-          <Card className="w-full max-w-lg border-none shadow-xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+          <Card className={`w-full ${activeTab === "BIAYA" ? "max-w-4xl" : "max-w-lg"} border-none shadow-xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto`}>
             <div className="flex items-center justify-between border-b p-4">
               <h3 className="font-bold text-lg text-navy">Edit {activeTab === "ANGGARAN" ? "Perencanaan Anggaran" : "Tagihan"}</h3>
               <Button variant="ghost" size="icon" onClick={() => setIsEditModalOpen(false)}><X className="h-4 w-4" /></Button>
             </div>
             <CardContent className="p-6">
               <form onSubmit={handleUpdate} className="space-y-4">
-                <FormFields data={formData} setData={setFormData} />
+                <FormFields data={formData} setData={setFormData} activeTab={activeTab} />
                 <div className="flex justify-end gap-3 mt-6">
                   <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Batal</Button>
                   <Button type="submit" disabled={saving} className="bg-navy hover:bg-navy/90 text-surface">
