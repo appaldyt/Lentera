@@ -96,20 +96,35 @@ model Employee {
 }
 
 model Budget {
-  id             String    @id @default(cuid())
+  id             String          @id @default(cuid())
   trainingName   String
   budgetYear     Int
   budgetMonth    Int
-  trainingType   String    @default("Mandatori")
-  plannedAmount  Int       @default(0)
-  actualAmount   Int       @default(0)
+  trainingType   String          @default("Mandatori")
+  plannedAmount  Int             @default(0)
+  actualAmount   Int             @default(0)
   invoiceDate    DateTime?
-  organizer      String    @default("")
+  organizer      String          @default("")
   dueDate        DateTime?
-  status         String    @default("Belum Dibayar")
-  approvalStatus String    @default("Menunggu Persetujuan")
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  status         String          @default("Belum Dibayar")
+  approvalStatus String          @default("Menunggu Persetujuan")
+  processes      BudgetProcess[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model BudgetProcess {
+  id         String    @id @default(cuid())
+  budgetId   String
+  budget     Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  stepNo     Int
+  tahap      String
+  status     String    @default("Belum")
+  tanggal    DateTime?
+  keterangan String    @default("")
+  linkBukti  String    @default("")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model Room {

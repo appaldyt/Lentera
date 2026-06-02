@@ -460,6 +460,78 @@ async function main() {
     });
   }
 
+  // ── Budget Processes ────────────────────────────────────────────────────────
+
+  const DEFAULT_STEPS = ["Invoice Sent", "Input Invoice", "Verifikasi Finance 1", "Verifikasi Finance 2", "Payment Status"];
+
+  const budgetProcessSeeds: {
+    id: string; budgetId: string; stepNo: number; tahap: string;
+    status: string; tanggal: string | null; keterangan: string; linkBukti: string;
+  }[] = [];
+
+  const buildSteps = (
+    budgetId: string,
+    prefix: string,
+    variant: "lunas" | "belum" | "jatuh_tempo"
+  ) => {
+    const configs: { status: string; tanggal: string | null; keterangan: string }[] =
+      variant === "lunas"
+        ? [
+            { status: "Selesai", tanggal: "2026-05-01", keterangan: "Dikirim via email ke klien" },
+            { status: "Selesai", tanggal: "2026-05-02", keterangan: "Diinput ke sistem keuangan" },
+            { status: "Selesai", tanggal: "2026-05-03", keterangan: "Terverifikasi oleh staf" },
+            { status: "Selesai", tanggal: "2026-05-04", keterangan: "Terverifikasi oleh manajer" },
+            { status: "Selesai", tanggal: "2026-05-05", keterangan: "Pembayaran diterima" },
+          ]
+        : variant === "belum"
+        ? [
+            { status: "Selesai",  tanggal: "2026-05-01", keterangan: "Dikirim via email ke klien" },
+            { status: "Selesai",  tanggal: "2026-05-02", keterangan: "Diinput ke sistem keuangan" },
+            { status: "Selesai",  tanggal: "2026-05-03", keterangan: "Terverifikasi oleh staf" },
+            { status: "Menunggu", tanggal: null,         keterangan: "" },
+            { status: "Belum",    tanggal: null,         keterangan: "" },
+          ]
+        : [
+            { status: "Selesai",  tanggal: "2026-05-01", keterangan: "Dikirim via email ke klien" },
+            { status: "Diproses", tanggal: null,         keterangan: "Sedang diinput" },
+            { status: "Belum",    tanggal: null,         keterangan: "" },
+            { status: "Belum",    tanggal: null,         keterangan: "" },
+            { status: "Belum",    tanggal: null,         keterangan: "" },
+          ];
+
+    DEFAULT_STEPS.forEach((tahap, i) => {
+      budgetProcessSeeds.push({
+        id: `${prefix}-step-${i + 1}`,
+        budgetId,
+        stepNo: i + 1,
+        tahap,
+        ...configs[i],
+        linkBukti: "",
+      });
+    });
+  };
+
+  buildSteps("seed-bgt-001", "proc-001", "lunas");
+  buildSteps("seed-bgt-002", "proc-002", "belum");
+  buildSteps("seed-bgt-003", "proc-003", "lunas");
+  buildSteps("seed-bgt-004", "proc-004", "jatuh_tempo");
+  buildSteps("seed-bgt-005", "proc-005", "belum");
+  buildSteps("seed-bgt-006", "proc-006", "lunas");
+  buildSteps("seed-bgt-007", "proc-007", "belum");
+  buildSteps("seed-bgt-008", "proc-008", "lunas");
+
+  for (const data of budgetProcessSeeds) {
+    const { tanggal, ...rest } = data;
+    await prisma.budgetProcess.upsert({
+      where: { id: data.id },
+      update: {},
+      create: {
+        ...rest,
+        tanggal: tanggal ? new Date(tanggal + "T00:00:00.000Z") : null,
+      },
+    });
+  }
+
   // ── Rooms ──────────────────────────────────────────────────────────────────
 
   const roomSeeds = [

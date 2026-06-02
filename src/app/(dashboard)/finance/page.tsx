@@ -16,6 +16,16 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 
+interface BudgetProcess {
+  id: string;
+  stepNo: number;
+  tahap: string;
+  status: string;
+  tanggal: string | null;
+  keterangan: string;
+  linkBukti: string;
+}
+
 interface Budget {
   id: string;
   trainingName: string;
@@ -29,12 +39,27 @@ interface Budget {
   dueDate: string | null;
   status: string;
   approvalStatus: string;
+  processes: BudgetProcess[];
 }
 
 const monthNames = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
   "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ];
+
+const DEFAULT_PROCESS_STEPS = [
+  "Invoice Sent", "Input Invoice", "Verifikasi Finance 1", "Verifikasi Finance 2", "Payment Status",
+];
+
+const makeDefaultProcessDetails = () =>
+  DEFAULT_PROCESS_STEPS.map((tahap, i) => ({
+    id: `new-${i}-${Date.now()}`,
+    tahap,
+    status: "Belum",
+    tanggal: "",
+    keterangan: "",
+    linkBukti: "",
+  }));
 
 const EMPTY_FORM = {
   trainingName: "", budgetYear: new Date().getFullYear(), budgetMonth: new Date().getMonth() + 1,
@@ -43,34 +68,147 @@ const EMPTY_FORM = {
   processDetails: [] as { id: string; tahap: string; status: string; tanggal: string; keterangan: string; linkBukti: string }[],
 };
 
-const getProcessDetails = (status: string) => {
-  const base = [
-    { no: 1, tahap: "Invoice Sent", status: "Selesai", tanggal: "2026-05-01", keterangan: "Dikirim via email ke klien" },
-    { no: 2, tahap: "Input Invoice", status: "Selesai", tanggal: "2026-05-02", keterangan: "Diinput ke sistem keuangan" },
-    { no: 3, tahap: "Verifikasi Finance 1", status: "Selesai", tanggal: "2026-05-03", keterangan: "Terverifikasi oleh staf" },
-    { no: 4, tahap: "Verifikasi Finance 2", status: "Menunggu", tanggal: "-", keterangan: "-" },
-    { no: 5, tahap: "Payment Status", status: "Belum", tanggal: "-", keterangan: "-" },
-  ];
-  if (status === "Lunas") {
-    return [
-      { no: 1, tahap: "Invoice Sent", status: "Selesai", tanggal: "2026-05-01", keterangan: "Dikirim via email ke klien" },
-      { no: 2, tahap: "Input Invoice", status: "Selesai", tanggal: "2026-05-02", keterangan: "Diinput ke sistem keuangan" },
-      { no: 3, tahap: "Verifikasi Finance 1", status: "Selesai", tanggal: "2026-05-03", keterangan: "Terverifikasi oleh staf" },
-      { no: 4, tahap: "Verifikasi Finance 2", status: "Selesai", tanggal: "2026-05-04", keterangan: "Terverifikasi oleh manajer" },
-      { no: 5, tahap: "Payment Status", status: "Selesai", tanggal: "2026-05-05", keterangan: "Pembayaran diterima" },
-    ];
-  } else if (status === "Belum Dibayar") {
-    return base;
-  } else {
-    return [
-      { no: 1, tahap: "Invoice Sent", status: "Selesai", tanggal: "2026-05-01", keterangan: "Dikirim via email ke klien" },
-      { no: 2, tahap: "Input Invoice", status: "Diproses", tanggal: "-", keterangan: "Sedang diinput" },
-      { no: 3, tahap: "Verifikasi Finance 1", status: "Belum", tanggal: "-", keterangan: "-" },
-      { no: 4, tahap: "Verifikasi Finance 2", status: "Belum", tanggal: "-", keterangan: "-" },
-      { no: 5, tahap: "Payment Status", status: "Belum", tanggal: "-", keterangan: "-" },
-    ];
-  }
-};
+type FormData = typeof EMPTY_FORM;
+
+function FormFields({ data, setData, activeTab }: { data: FormData; setData: (d: FormData) => void; activeTab?: string }) {
+  const updateDetail = (index: number, field: string, value: string) => {
+    const newDetails = [...data.processDetails];
+    newDetails[index] = { ...newDetails[index], [field]: value };
+    setData({ ...data, processDetails: newDetails });
+  };
+
+  return (
+    <>
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-text-primary">Nama Training</label>
+        <Input required value={data.trainingName} onChange={(e) => setData({ ...data, trainingName: e.target.value })} placeholder="Nama program training" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">Tahun Anggaran</label>
+          <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.budgetYear} onChange={(e) => setData({ ...data, budgetYear: parseInt(e.target.value) })}>
+            {[2025, 2026, 2027].map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">Bulan</label>
+          <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.budgetMonth} onChange={(e) => setData({ ...data, budgetMonth: parseInt(e.target.value) })}>
+            {monthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">Jenis Anggaran</label>
+          <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.trainingType} onChange={(e) => setData({ ...data, trainingType: e.target.value })}>
+            <option value="Mandatori">Mandatori</option>
+            <option value="Non-Mandatori">Non-Mandatori</option>
+            <option value="Magang">Magang</option>
+            <option value="Honor Pelatih">Honor Pelatih</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">Rencana Anggaran (Rp)</label>
+          <Input type="number" min={0} value={data.plannedAmount} onChange={(e) => setData({ ...data, plannedAmount: parseInt(e.target.value) || 0 })} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">Penyelenggara</label>
+          <Input value={data.organizer} onChange={(e) => setData({ ...data, organizer: e.target.value })} placeholder="Nama penyelenggara" />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">Realisasi Biaya (Rp)</label>
+          <Input type="number" min={0} value={data.actualAmount} onChange={(e) => setData({ ...data, actualAmount: parseInt(e.target.value) || 0 })} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">Tgl. Invoice</label>
+          <Input type="date" value={data.invoiceDate} onChange={(e) => setData({ ...data, invoiceDate: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">Tgl. Jatuh Tempo</label>
+          <Input type="date" value={data.dueDate} onChange={(e) => setData({ ...data, dueDate: e.target.value })} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">Status Persetujuan</label>
+          <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.approvalStatus} onChange={(e) => setData({ ...data, approvalStatus: e.target.value })}>
+            <option value="Menunggu Persetujuan">Menunggu Persetujuan</option>
+            <option value="Disetujui">Disetujui</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">Status Pembayaran</label>
+          <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.status} onChange={(e) => setData({ ...data, status: e.target.value })}>
+            <option value="Lunas">Lunas</option>
+            <option value="Belum Dibayar">Belum Dibayar</option>
+            <option value="Jatuh Tempo">Jatuh Tempo</option>
+          </select>
+        </div>
+      </div>
+
+      {activeTab === "BIAYA" && (
+        <div className="mt-8 pt-6 border-t border-border">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-semibold text-sm text-navy">Rincian Proses Pembayaran</h4>
+          </div>
+          <div className="border border-border rounded-lg p-4 space-y-4">
+            {data.processDetails.length === 0 ? (
+              <p className="text-sm text-text-secondary text-center py-4">Belum ada rincian ditambahkan.</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_2fr_2fr] gap-2 px-1">
+                  <span className="text-xs font-medium text-text-secondary">Tahapan Proses</span>
+                  <span className="text-xs font-medium text-text-secondary">Status</span>
+                  <span className="text-xs font-medium text-text-secondary">Tanggal</span>
+                  <span className="text-xs font-medium text-text-secondary">Keterangan</span>
+                  <span className="text-xs font-medium text-text-secondary">Link Bukti</span>
+                </div>
+                {data.processDetails.map((detail, index) => (
+                  <div key={detail.id} className="grid grid-cols-1 md:grid-cols-[2fr_1.5fr_1.5fr_2fr_2fr] gap-2 items-start">
+                    <Input
+                      placeholder="Tahapan"
+                      value={detail.tahap}
+                      onChange={(e) => updateDetail(index, "tahap", e.target.value)}
+                    />
+                    <select
+                      className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                      value={detail.status}
+                      onChange={(e) => updateDetail(index, "status", e.target.value)}
+                    >
+                      <option value="Selesai">Selesai</option>
+                      <option value="Diproses">Diproses</option>
+                      <option value="Menunggu">Menunggu</option>
+                      <option value="Belum">Belum</option>
+                    </select>
+                    <Input
+                      type="date"
+                      value={detail.tanggal}
+                      onChange={(e) => updateDetail(index, "tanggal", e.target.value)}
+                    />
+                    <Input
+                      placeholder="Keterangan"
+                      value={detail.keterangan}
+                      onChange={(e) => updateDetail(index, "keterangan", e.target.value)}
+                    />
+                    <Input
+                      placeholder="https://..."
+                      value={detail.linkBukti}
+                      onChange={(e) => updateDetail(index, "linkBukti", e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 export default function FinancePage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -124,7 +262,10 @@ export default function FinancePage() {
   };
 
   const handleOpenAdd = () => {
-    setFormData(EMPTY_FORM);
+    setFormData({
+      ...EMPTY_FORM,
+      processDetails: activeTab === "BIAYA" ? makeDefaultProcessDetails() : [],
+    });
     setIsModalOpen(true);
   };
 
@@ -142,14 +283,16 @@ export default function FinancePage() {
       dueDate: item.dueDate ?? "",
       status: item.status,
       approvalStatus: item.approvalStatus,
-      processDetails: getProcessDetails(item.status).map((d) => ({
-        id: Math.random().toString(36).substr(2, 9),
-        tahap: d.tahap,
-        status: d.status,
-        tanggal: d.tanggal === "-" ? "" : d.tanggal,
-        keterangan: d.keterangan === "-" ? "" : d.keterangan,
-        linkBukti: "",
-      })),
+      processDetails: item.processes.length > 0
+        ? item.processes.map((p) => ({
+            id: p.id,
+            tahap: p.tahap,
+            status: p.status,
+            tanggal: p.tanggal ?? "",
+            keterangan: p.keterangan,
+            linkBukti: p.linkBukti,
+          }))
+        : makeDefaultProcessDetails(),
     });
     setIsEditModalOpen(true);
     setOpenActionId(null);
@@ -248,177 +391,6 @@ export default function FinancePage() {
 
   const toggleRow = (id: string) => {
     setExpandedRowId(expandedRowId === id ? null : id);
-  };
-
-  const FormFields = ({ data, setData, activeTab }: { data: typeof EMPTY_FORM; setData: (d: typeof EMPTY_FORM) => void; activeTab?: string }) => {
-    const handleAddDetail = () => {
-      setData({
-        ...data,
-        processDetails: [
-          ...data.processDetails,
-          { id: Math.random().toString(36).substr(2, 9), tahap: "", status: "Selesai", tanggal: "", keterangan: "", linkBukti: "" }
-        ]
-      });
-    };
-
-    const removeDetail = (index: number) => {
-      const newDetails = [...data.processDetails];
-      newDetails.splice(index, 1);
-      setData({ ...data, processDetails: newDetails });
-    };
-
-    const updateDetail = (index: number, field: string, value: string) => {
-      const newDetails = [...data.processDetails];
-      newDetails[index] = { ...newDetails[index], [field]: value };
-      setData({ ...data, processDetails: newDetails });
-    };
-
-    return (
-    <>
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-text-primary">Nama Training</label>
-        <Input required value={data.trainingName} onChange={(e) => setData({ ...data, trainingName: e.target.value })} placeholder="Nama program training" />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Tahun Anggaran</label>
-          <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.budgetYear} onChange={(e) => setData({ ...data, budgetYear: parseInt(e.target.value) })}>
-            {[2025, 2026, 2027].map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Bulan</label>
-          <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.budgetMonth} onChange={(e) => setData({ ...data, budgetMonth: parseInt(e.target.value) })}>
-            {monthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Jenis Anggaran</label>
-          <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.trainingType} onChange={(e) => setData({ ...data, trainingType: e.target.value })}>
-            <option value="Mandatori">Mandatori</option>
-            <option value="Non-Mandatori">Non-Mandatori</option>
-            <option value="Magang">Magang</option>
-            <option value="Honor Pelatih">Honor Pelatih</option>
-          </select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Rencana Anggaran (Rp)</label>
-          <Input type="number" min={0} value={data.plannedAmount} onChange={(e) => setData({ ...data, plannedAmount: parseInt(e.target.value) || 0 })} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Penyelenggara</label>
-          <Input value={data.organizer} onChange={(e) => setData({ ...data, organizer: e.target.value })} placeholder="Nama penyelenggara" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Realisasi Biaya (Rp)</label>
-          <Input type="number" min={0} value={data.actualAmount} onChange={(e) => setData({ ...data, actualAmount: parseInt(e.target.value) || 0 })} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Tgl. Invoice</label>
-          <Input type="date" value={data.invoiceDate} onChange={(e) => setData({ ...data, invoiceDate: e.target.value })} />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Tgl. Jatuh Tempo</label>
-          <Input type="date" value={data.dueDate} onChange={(e) => setData({ ...data, dueDate: e.target.value })} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Status Persetujuan</label>
-          <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.approvalStatus} onChange={(e) => setData({ ...data, approvalStatus: e.target.value })}>
-            <option value="Menunggu Persetujuan">Menunggu Persetujuan</option>
-            <option value="Disetujui">Disetujui</option>
-          </select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">Status Pembayaran</label>
-          <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.status} onChange={(e) => setData({ ...data, status: e.target.value })}>
-            <option value="Lunas">Lunas</option>
-            <option value="Belum Dibayar">Belum Dibayar</option>
-            <option value="Jatuh Tempo">Jatuh Tempo</option>
-          </select>
-        </div>
-      </div>
-
-      {activeTab === "BIAYA" && (
-        <div className="mt-8 pt-6 border-t border-border">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="font-semibold text-sm text-navy">Rincian Proses Pembayaran</h4>
-            <Button type="button" variant="outline" size="sm" className="text-sky border-sky/30 hover:bg-sky/5 text-xs h-8" onClick={handleAddDetail}>
-              <Plus className="h-3 w-3 mr-1" /> Tambah Baris
-            </Button>
-          </div>
-          
-          <div className="border border-border rounded-lg p-4 space-y-4">
-            {data.processDetails.length === 0 ? (
-              <p className="text-sm text-text-secondary text-center py-4">Belum ada rincian ditambahkan.</p>
-            ) : (
-              <div className="space-y-3">
-                <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_2fr_2fr_auto] gap-2 px-1">
-                  <span className="text-xs font-medium text-text-secondary">Tahapan Proses</span>
-                  <span className="text-xs font-medium text-text-secondary">Status</span>
-                  <span className="text-xs font-medium text-text-secondary">Tanggal</span>
-                  <span className="text-xs font-medium text-text-secondary">Keterangan</span>
-                  <span className="text-xs font-medium text-text-secondary">Link Bukti</span>
-                  <span className="w-8"></span>
-                </div>
-                
-                {data.processDetails.map((detail, index) => (
-                  <div key={detail.id} className="grid grid-cols-1 md:grid-cols-[2fr_1.5fr_1.5fr_2fr_2fr_auto] gap-2 items-start">
-                    <Input 
-                      placeholder="Tahapan"
-                      value={detail.tahap}
-                      onChange={(e) => updateDetail(index, "tahap", e.target.value)}
-                    />
-                    <select 
-                      className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
-                      value={detail.status}
-                      onChange={(e) => updateDetail(index, "status", e.target.value)}
-                    >
-                      <option value="Selesai">Selesai</option>
-                      <option value="Diproses">Diproses</option>
-                      <option value="Menunggu">Menunggu</option>
-                      <option value="Belum">Belum</option>
-                    </select>
-                    <Input 
-                      type="date"
-                      value={detail.tanggal}
-                      onChange={(e) => updateDetail(index, "tanggal", e.target.value)}
-                    />
-                    <Input 
-                      placeholder="Keterangan"
-                      value={detail.keterangan}
-                      onChange={(e) => updateDetail(index, "keterangan", e.target.value)}
-                    />
-                    <Input 
-                      placeholder="https://..."
-                      value={detail.linkBukti}
-                      onChange={(e) => updateDetail(index, "linkBukti", e.target.value)}
-                    />
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-9 w-9 text-text-secondary hover:text-danger hover:bg-danger/10"
-                      onClick={() => removeDetail(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </>
-  );
   };
 
   return (
@@ -674,33 +646,49 @@ export default function FinancePage() {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {getProcessDetails(item.status).map((detail) => (
-                                      <TableRow key={detail.no} className="hover:bg-muted/30">
-                                        <TableCell className="font-medium text-text-secondary">
-                                          <div className="flex items-center gap-2">
-                                            <CornerDownRight className="h-4 w-4 text-text-secondary/40" />
-                                            <span>{detail.no}</span>
-                                          </div>
-                                        </TableCell>
-                                        <TableCell className="font-medium text-navy">{detail.tahap}</TableCell>
-                                        <TableCell>
-                                          <Badge variant="outline" className={`font-normal border-none ${
-                                            detail.status === "Selesai" ? "bg-green-100 text-green-700" :
-                                            detail.status === "Diproses" || detail.status === "Menunggu" ? "bg-sky/10 text-sky" :
-                                            "bg-muted text-text-secondary"
-                                          }`}>
-                                            {detail.status}
-                                          </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-text-secondary">{detail.tanggal}</TableCell>
-                                        <TableCell className="text-text-secondary">{detail.keterangan}</TableCell>
-                                        <TableCell className="text-right">
-                                          <Button variant="ghost" size="sm" className="text-sky hover:text-sky/80 hover:bg-sky/10 text-xs h-7 gap-1">
-                                            <Link className="h-3 w-3" /> Lihat Bukti
-                                          </Button>
+                                    {item.processes.length === 0 ? (
+                                      <TableRow>
+                                        <TableCell colSpan={6} className="text-center py-4 text-text-secondary text-sm">
+                                          Belum ada data tahapan proses.
                                         </TableCell>
                                       </TableRow>
-                                    ))}
+                                    ) : (
+                                      item.processes.map((detail) => (
+                                        <TableRow key={detail.id} className="hover:bg-muted/30">
+                                          <TableCell className="font-medium text-text-secondary">
+                                            <div className="flex items-center gap-2">
+                                              <CornerDownRight className="h-4 w-4 text-text-secondary/40" />
+                                              <span>{detail.stepNo}</span>
+                                            </div>
+                                          </TableCell>
+                                          <TableCell className="font-medium text-navy">{detail.tahap}</TableCell>
+                                          <TableCell>
+                                            <Badge variant="outline" className={`font-normal border-none ${
+                                              detail.status === "Selesai" ? "bg-green-100 text-green-700" :
+                                              detail.status === "Diproses" || detail.status === "Menunggu" ? "bg-sky/10 text-sky" :
+                                              "bg-muted text-text-secondary"
+                                            }`}>
+                                              {detail.status}
+                                            </Badge>
+                                          </TableCell>
+                                          <TableCell className="text-text-secondary">{detail.tanggal ?? "-"}</TableCell>
+                                          <TableCell className="text-text-secondary">{detail.keterangan || "-"}</TableCell>
+                                          <TableCell className="text-right">
+                                            {detail.linkBukti ? (
+                                              <a href={detail.linkBukti} target="_blank" rel="noopener noreferrer">
+                                                <Button variant="ghost" size="sm" className="text-sky hover:text-sky/80 hover:bg-sky/10 text-xs h-7 gap-1">
+                                                  <Link className="h-3 w-3" /> Lihat Bukti
+                                                </Button>
+                                              </a>
+                                            ) : (
+                                              <Button variant="ghost" size="sm" className="text-sky hover:text-sky/80 hover:bg-sky/10 text-xs h-7 gap-1" disabled>
+                                                <Link className="h-3 w-3" /> Lihat Bukti
+                                              </Button>
+                                            )}
+                                          </TableCell>
+                                        </TableRow>
+                                      ))
+                                    )}
                                   </TableBody>
                                 </Table>
                                 <div className="p-3 bg-muted/10 border-t border-border flex items-center">
