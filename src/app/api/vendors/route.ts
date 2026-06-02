@@ -39,10 +39,23 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
 
     if (search) {
+      // topics is a PostgreSQL array — `has` requires exact match, so we use
+      // a raw subquery with unnest + ILIKE for case-insensitive partial search.
+      const topicMatches = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Vendor"
+        WHERE EXISTS (
+          SELECT 1 FROM unnest(topics) t WHERE t ILIKE ${"%" + search + "%"}
+        )
+      `;
+      const topicIds = topicMatches.map((v) => v.id);
+
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
         { location: { contains: search, mode: "insensitive" } },
-        { topics: { has: search } },
+        { phone: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+        { notes: { contains: search, mode: "insensitive" } },
+        ...(topicIds.length > 0 ? [{ id: { in: topicIds } }] : []),
       ];
     }
     if (method && method !== "Semua") where.method = method;

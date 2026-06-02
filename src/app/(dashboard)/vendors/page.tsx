@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import * as XLSX from "xlsx";
+
+const EXCEL_HEADERS = [
+  "Nama Vendor", "Lokasi", "Telepon", "Email", "Topik",
+  "Metode", "Status", "Harga Min", "Harga Max", "Rating",
+  "Pernah Dipakai", "Catatan", "Link Legalitas",
+];
 
 type Vendor = {
   id: string;
@@ -88,6 +95,10 @@ export default function VendorsPage() {
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [importRows, setImportRows] = useState<any[]>([]);
+  const [importFileName, setImportFileName] = useState("");
+  const [importResult, setImportResult] = useState<{ success: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,6 +106,9 @@ export default function VendorsPage() {
   const closeImportModal = () => {
     setIsImportModalOpen(false);
     setImportStep("upload");
+    setImportRows([]);
+    setImportFileName("");
+    setImportResult(null);
     setImporting(false);
   };
 
@@ -199,6 +213,143 @@ export default function VendorsPage() {
     setIsDeleteModalOpen(true);
   }
 
+  const handleFileSelect = async (file: File) => {
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+      alert("Hanya file Excel (.xlsx / .xls) yang didukung.");
+      return;
+    }
+    setImportFileName(file.name);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = XLSX.utils.sheet_to_json(worksheet) as any[];
+      const parsed = rows.map((row) => {
+        const errors: string[] = [];
+        if (!row["Nama Vendor"]) errors.push("Nama Vendor wajib diisi");
+        if (!row["Lokasi"]) errors.push("Lokasi wajib diisi");
+        if (!row["Telepon"]) errors.push("Telepon wajib diisi");
+        if (!row["Email"]) errors.push("Email wajib diisi");
+        return { ...row, _errors: errors };
+      });
+      setImportRows(parsed);
+      setImportStep("preview");
+    } catch {
+      alert("Gagal membaca file Excel.");
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  };
+
+  const handleConfirmImport = async () => {
+    const validRows = importRows.filter((r) => r._errors.length === 0);
+    if (validRows.length === 0) return;
+    setImporting(true);
+    try {
+      const data = validRows.map((row) => ({
+        name: row["Nama Vendor"],
+        location: row["Lokasi"] || "",
+        phone: row["Telepon"] || "",
+        email: row["Email"] || "",
+        topics: row["Topik"] ? String(row["Topik"]).split(",").map((t: string) => t.trim()).filter(Boolean) : [],
+        method: row["Metode"] || "Online",
+        status: row["Status"] || "AKTIF",
+        priceMin: parseInt(String(row["Harga Min"])) || 0,
+        priceMax: parseInt(String(row["Harga Max"])) || 0,
+        rating: parseFloat(String(row["Rating"])) || 0,
+        usedBefore: String(row["Pernah Dipakai"]).toLowerCase() === "ya",
+        notes: row["Catatan"] || "",
+        legalDocUrl: row["Link Legalitas"] || "",
+      }));
+      const res = await fetch("/api/vendors/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data }),
+      });
+      if (!res.ok) throw new Error("Gagal mengimport");
+      setImportResult({ success: data.length });
+      setImportStep("result");
+      fetchVendors();
+    } catch {
+      alert("Terjadi kesalahan saat mengimport.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleExport = () => {
+    if (vendors.length === 0) {
+      alert("Tidak ada data untuk dieksport.");
+      return;
+    }
+    const exportData = vendors.map((v) => ({
+      "Nama Vendor": v.name,
+      "Lokasi": v.location,
+      "Telepon": v.phone,
+      "Email": v.email,
+      "Topik": v.topics.join(", "),
+      "Metode": v.method,
+      "Status": v.status === "AKTIF" ? "Aktif" : "Tidak Aktif",
+      "Harga Min": v.priceMin,
+      "Harga Max": v.priceMax,
+      "Rating": v.rating,
+      "Pernah Dipakai": v.usedBefore ? "Ya" : "Tidak",
+      "Catatan": v.notes,
+      "Link Legalitas": v.legalDocUrl,
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    ws["!cols"] = [28, 16, 18, 28, 30, 10, 12, 14, 14, 8, 14, 35, 30].map((wch) => ({ wch }));
+    XLSX.utils.book_append_sheet(wb, ws, "Data Vendor");
+    XLSX.writeFile(wb, "Data_Vendor.xlsx");
+  };
+
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        "Nama Vendor": "PT Mitra Pelatihan Indonesia",
+        "Lokasi": "Jakarta",
+        "Telepon": "0812-3456-7890",
+        "Email": "info@mitrapelatihan.com",
+        "Topik": "Leadership, Komunikasi, Team Building",
+        "Metode": "Hybrid",
+        "Status": "AKTIF",
+        "Harga Min": 3000000,
+        "Harga Max": 5000000,
+        "Rating": 4.5,
+        "Pernah Dipakai": "Ya",
+        "Catatan": "Trainer profesional, perlu konfirmasi H-7",
+        "Link Legalitas": "",
+      },
+      {
+        "Nama Vendor": "Experia Training Center",
+        "Lokasi": "Surabaya",
+        "Telepon": "0856-1122-3344",
+        "Email": "hello@experia.id",
+        "Topik": "Selling Skills, Komunikasi",
+        "Metode": "Online",
+        "Status": "AKTIF",
+        "Harga Min": 1500000,
+        "Harga Max": 2500000,
+        "Rating": 4.0,
+        "Pernah Dipakai": "Tidak",
+        "Catatan": "",
+        "Link Legalitas": "",
+      },
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    ws["!cols"] = EXCEL_HEADERS.map((_, i) => ({ wch: i < 4 ? 28 : 18 }));
+    XLSX.utils.book_append_sheet(wb, ws, "Template Vendor");
+    XLSX.writeFile(wb, "Template_Import_Vendor.xlsx");
+  };
+
   async function confirmDelete() {
     if (!vendorToDelete) return;
     try {
@@ -222,7 +373,7 @@ export default function VendorsPage() {
           <Button variant="outline" className="gap-2 text-navy" onClick={() => setIsImportModalOpen(true)}>
             <Upload className="h-4 w-4" /> Import
           </Button>
-          <Button variant="outline" className="gap-2 text-navy">
+          <Button variant="outline" className="gap-2 text-navy" onClick={handleExport}>
             <Download className="h-4 w-4" /> Export
           </Button>
           <Button className="gap-2 bg-sky hover:bg-sky/90 text-white" onClick={openAdd}>
@@ -647,14 +798,20 @@ export default function VendorsPage() {
             {/* Step 1: Upload */}
             {importStep === "upload" && (
               <div className="flex-1 flex flex-col gap-4">
-                <input ref={fileInputRef} type="file" accept=".xlsx, .xls" className="hidden" onChange={() => setImportStep("preview")} />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ""; }}
+                />
 
                 <div
                   className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center gap-4 cursor-pointer transition-colors ${isDragging ? "border-sky bg-sky/5" : "border-border hover:border-sky/50 hover:bg-muted/30"}`}
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                   onDragLeave={() => setIsDragging(false)}
-                  onDrop={(e) => { e.preventDefault(); setIsDragging(false); setImportStep("preview"); }}
+                  onDrop={handleDrop}
                 >
                   <div className="w-14 h-14 rounded-full bg-sky/10 flex items-center justify-center">
                     <Upload className="h-7 w-7 text-sky" />
@@ -665,75 +822,105 @@ export default function VendorsPage() {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center mt-auto pt-4">
-                  <a href="#" className="text-sm text-sky hover:underline font-medium">Download Template Excel</a>
+                <div className="bg-muted/40 rounded-lg p-4 text-sm text-text-secondary space-y-1">
+                  <p className="font-medium text-navy text-xs uppercase tracking-wide mb-2">Format kolom yang diperlukan:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {EXCEL_HEADERS.map((h) => (
+                      <span key={h} className="bg-background border border-border rounded px-2 py-0.5 text-xs font-mono">{h}</span>
+                    ))}
+                  </div>
                 </div>
+
+                <Button variant="outline" className="gap-2 w-fit text-sky border-sky/30 hover:bg-sky/5" onClick={downloadTemplate}>
+                  <Download className="h-4 w-4" /> Download Template Excel
+                </Button>
               </div>
             )}
 
             {/* Step 2: Preview */}
             {importStep === "preview" && (
-              <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-                <div className="bg-sky/5 border border-sky/20 rounded-lg p-3 flex gap-3 text-sm">
-                  <AlertCircle className="h-5 w-5 text-sky shrink-0" />
-                  <div>
-                    <p className="font-medium text-navy">Data siap diimport</p>
-                    <p className="text-text-secondary">Terdapat 3 data vendor valid yang akan ditambahkan.</p>
+              <div className="flex-1 flex flex-col gap-4 min-h-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-text-secondary">File: <strong className="text-navy">{importFileName}</strong></span>
+                    <span className="flex items-center gap-1 text-success font-medium">
+                      <CheckCircle2 className="h-4 w-4" />{importRows.filter((r) => r._errors.length === 0).length} valid
+                    </span>
+                    {importRows.filter((r) => r._errors.length > 0).length > 0 && (
+                      <span className="flex items-center gap-1 text-danger font-medium">
+                        <AlertCircle className="h-4 w-4" />{importRows.filter((r) => r._errors.length > 0).length} error
+                      </span>
+                    )}
                   </div>
+                  <Button variant="ghost" size="sm" className="text-sky text-xs" onClick={() => { setImportStep("upload"); setImportRows([]); }}>
+                    Ganti File
+                  </Button>
                 </div>
-                
-                <div className="border border-border rounded-lg overflow-x-auto flex-1">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-text-secondary uppercase bg-muted/50">
+
+                <div className="overflow-auto flex-1 border rounded-lg max-h-64">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 sticky top-0">
                       <tr>
-                        <th className="px-4 py-3 font-medium">Nama Vendor</th>
-                        <th className="px-4 py-3 font-medium">Lokasi</th>
-                        <th className="px-4 py-3 font-medium">Email</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary w-8">#</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Nama Vendor</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Lokasi</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Email</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Metode</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Status</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Keterangan</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b border-border">
-                        <td className="px-4 py-3">PT Lentera Tech</td>
-                        <td className="px-4 py-3">Jakarta</td>
-                        <td className="px-4 py-3">info@lenteratech.id</td>
-                      </tr>
-                      <tr className="border-b border-border">
-                        <td className="px-4 py-3">Budi Setiawan</td>
-                        <td className="px-4 py-3">Bandung</td>
-                        <td className="px-4 py-3">budi@example.com</td>
-                      </tr>
-                      <tr className="border-b border-border">
-                        <td className="px-4 py-3">Agile Indonesia</td>
-                        <td className="px-4 py-3">Surabaya</td>
-                        <td className="px-4 py-3">hello@agile.co.id</td>
-                      </tr>
+                      {importRows.map((row, i) => (
+                        <tr key={i} className={`border-t border-border ${row._errors.length > 0 ? "bg-danger/5" : ""}`}>
+                          <td className="px-3 py-2 text-text-secondary text-xs">{i + 1}</td>
+                          <td className="px-3 py-2 font-mono text-xs">{row["Nama Vendor"] || <span className="text-danger italic">kosong</span>}</td>
+                          <td className="px-3 py-2 text-xs">{row["Lokasi"]}</td>
+                          <td className="px-3 py-2 text-xs">{row["Email"]}</td>
+                          <td className="px-3 py-2 text-xs">{row["Metode"] || "Online"}</td>
+                          <td className="px-3 py-2">
+                            {row._errors.length === 0
+                              ? <Badge className="bg-success/10 text-success border-success/20 text-xs">Valid</Badge>
+                              : <Badge className="bg-danger/10 text-danger border-danger/20 text-xs">Error</Badge>
+                            }
+                          </td>
+                          <td className="px-3 py-2 text-xs text-danger">{row._errors.join(", ")}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4 border-t border-border mt-2">
-                  <Button variant="outline" onClick={() => setImportStep("upload")}>Kembali</Button>
-                  <Button className="bg-sky hover:bg-sky/90 text-white" disabled={importing} onClick={() => {
-                    setImporting(true);
-                    setTimeout(() => {
-                      setImporting(false);
-                      setImportStep("result");
-                    }, 1500);
-                  }}>
-                    {importing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</> : "Import Data"}
+                {importRows.filter((r) => r._errors.length > 0).length > 0 && (
+                  <p className="text-xs text-text-secondary">Baris dengan error akan dilewati. Hanya baris valid yang akan diimport.</p>
+                )}
+
+                <div className="flex justify-end gap-3 pt-2 border-t">
+                  <Button variant="outline" onClick={closeImportModal}>Batal</Button>
+                  <Button
+                    className="bg-sky hover:bg-sky/90 text-white gap-2"
+                    disabled={importRows.filter((r) => r._errors.length === 0).length === 0 || importing}
+                    onClick={handleConfirmImport}
+                  >
+                    {importing && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {importing ? "Mengimport..." : `Import ${importRows.filter((r) => r._errors.length === 0).length} Vendor`}
                   </Button>
                 </div>
               </div>
             )}
 
             {/* Step 3: Result */}
-            {importStep === "result" && (
-              <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
-                <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mb-4">
+            {importStep === "result" && importResult && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-6 py-4">
+                <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
                   <CheckCircle2 className="h-8 w-8 text-success" />
                 </div>
-                <h3 className="text-xl font-bold text-navy mb-2">Import Berhasil!</h3>
-                <p className="text-text-secondary mb-8">3 data vendor telah berhasil ditambahkan ke dalam sistem.</p>
+                <div className="text-center">
+                  <h4 className="text-lg font-bold text-navy mb-1">Import Selesai</h4>
+                  <p className="text-text-secondary text-sm">
+                    <strong className="text-success">{importResult.success} vendor</strong> berhasil diimport ke dalam sistem.
+                  </p>
+                </div>
                 <Button className="bg-sky hover:bg-sky/90 text-white" onClick={closeImportModal}>
                   Selesai
                 </Button>
