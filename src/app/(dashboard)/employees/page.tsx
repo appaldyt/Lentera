@@ -26,6 +26,7 @@ interface Employee {
   workLocation: string;
   lob: string;
   employeeStatus: string;
+  bodLevel?: string;
 }
 
 interface ImportRow {
@@ -37,37 +38,36 @@ interface ImportRow {
   phone: string;
   workLocation: string;
   lob: string;
+  bodLevel: string;
   employeeStatus: string;
   _errors: string[];
 }
 
+const BOD_LEVELS = ["", "BOD", "BOD-1", "BOD-2", "BOD-3", "BOD-4", "BOD-5"];
+
 const EMPTY_FORM = {
   nik: "", name: "", division: "", position: "",
-  email: "", phone: "", workLocation: "CGK", lob: "", employeeStatus: "PKWTT",
+  email: "", phone: "", workLocation: "CGK", lob: "", employeeStatus: "PKWTT", bodLevel: "",
 };
 
-const CSV_HEADERS = ["NIK", "Nama", "Divisi", "Jabatan", "Email", "Telepon", "Lokasi Kerja", "LOB", "Status Karyawan"];
+const IMPORT_HEADERS = ["NIK", "Nama Karyawan", "Divisi", "Jabatan", "BOD Level", "Email", "No. Telepon", "Lokasi Kerja", "LOB", "Status Karyawan"];
 
-function parseCSV(text: string): ImportRow[] {
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim().split("\n");
-  if (lines.length < 2) return [];
+function parseXLSX(buffer: ArrayBuffer): ImportRow[] {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
 
-  // Skip header row
-  const dataLines = lines.slice(1);
-
-  return dataLines.map((line) => {
-    // Handle quoted fields
-    const cols: string[] = [];
-    let cur = "", inQuote = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') { inQuote = !inQuote; continue; }
-      if (ch === "," && !inQuote) { cols.push(cur.trim()); cur = ""; continue; }
-      cur += ch;
-    }
-    cols.push(cur.trim());
-
-    const [nik = "", name = "", division = "", position = "", email = "", phone = "", workLocation = "", lob = "", employeeStatus = "PKWTT"] = cols;
+  return rows.map((row) => {
+    const nik = String(row["NIK"] ?? "").trim();
+    const name = String(row["Nama Karyawan"] ?? "").trim();
+    const division = String(row["Divisi"] ?? "").trim();
+    const position = String(row["Jabatan"] ?? "").trim();
+    const bodLevel = String(row["BOD Level"] ?? "").trim();
+    const email = String(row["Email"] ?? "").trim();
+    const phone = String(row["No. Telepon"] ?? "").trim();
+    const workLocation = String(row["Lokasi Kerja"] ?? "").trim();
+    const lob = String(row["LOB"] ?? "").trim();
+    const employeeStatus = String(row["Status Karyawan"] ?? "").trim() || "PKWTT";
 
     const errors: string[] = [];
     if (!nik) errors.push("NIK wajib diisi");
@@ -77,24 +77,19 @@ function parseCSV(text: string): ImportRow[] {
     if (!division) errors.push("Divisi wajib diisi");
     if (!position) errors.push("Jabatan wajib diisi");
 
-    return { nik, name, division, position, email, phone, workLocation, lob, employeeStatus: employeeStatus || "PKWTT", _errors: errors };
+    return { nik, name, division, position, bodLevel, email, phone, workLocation, lob, employeeStatus, _errors: errors };
   }).filter((row) => row.nik || row.name || row.email);
 }
 
 function downloadTemplate() {
-  const rows = [
-    CSV_HEADERS.join(","),
-    'IAS-2024-0001,Nama Karyawan,Operations,Staff,nama@ias.id,0812-XXXX-XXXX,CGK,Ground Handling,PKWTT',
-    'IAS-2024-0002,Karyawan Dua,Finance,Officer,karyawan2@ias.id,0813-XXXX-XXXX,SUB,Food,PKWT',
-  ].join("\n");
-
-  const blob = new Blob([rows], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "template_import_karyawan.csv";
-  a.click();
-  URL.revokeObjectURL(url);
+  const sampleData = [
+    { NIK: "IAS-2024-0001", "Nama Karyawan": "Nama Karyawan", Divisi: "Operations", Jabatan: "Staff", "BOD Level": "BOD-1", Email: "nama@ias.id", "No. Telepon": "0812-XXXX-XXXX", "Lokasi Kerja": "CGK", LOB: "Ground Handling", "Status Karyawan": "PKWTT" },
+    { NIK: "IAS-2024-0002", "Nama Karyawan": "Karyawan Dua", Divisi: "Finance", Jabatan: "Officer", "BOD Level": "", Email: "karyawan2@ias.id", "No. Telepon": "0813-XXXX-XXXX", "Lokasi Kerja": "SUB", LOB: "Food", "Status Karyawan": "PKWT" },
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(sampleData, { header: IMPORT_HEADERS });
+  XLSX.utils.book_append_sheet(wb, ws, "Template Karyawan");
+  XLSX.writeFile(wb, "template_import_karyawan.xlsx");
 }
 
 export default function EmployeesPage() {
@@ -122,7 +117,8 @@ export default function EmployeesPage() {
   const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importFileName, setImportFileName] = useState("");
-  const [importResult, setImportResult] = useState<{ success: string[]; failed: { nik: string; reason: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ created: string[]; updated: string[]; failed: { nik: string; reason: string }[] } | null>(null);
+  const [existingNiks, setExistingNiks] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -168,7 +164,7 @@ export default function EmployeesPage() {
   };
 
   const handleEdit = (emp: Employee) => {
-    setFormData({ nik: emp.nik, name: emp.name, division: emp.division, position: emp.position, email: emp.email, phone: emp.phone, workLocation: emp.workLocation, lob: emp.lob, employeeStatus: emp.employeeStatus });
+    setFormData({ nik: emp.nik, name: emp.name, division: emp.division, position: emp.position, email: emp.email, phone: emp.phone, workLocation: emp.workLocation, lob: emp.lob, employeeStatus: emp.employeeStatus, bodLevel: emp.bodLevel ?? "" });
     setEditId(emp.id);
     setIsModalOpen(true);
     setOpenActionId(null);
@@ -196,19 +192,34 @@ export default function EmployeesPage() {
   // ── Import ─────────────────────────────────────────────────────────────────
 
   const handleFileSelect = (file: File) => {
-    if (!file.name.endsWith(".csv")) {
-      alert("Hanya file .csv yang didukung. Gunakan template yang disediakan.");
+    if (!file.name.endsWith(".xlsx")) {
+      alert("Hanya file .xlsx yang didukung. Gunakan template yang disediakan.");
       return;
     }
     setImportFileName(file.name);
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const rows = parseCSV(text);
+    reader.onload = async (e) => {
+      const buffer = e.target?.result as ArrayBuffer;
+      const rows = parseXLSX(buffer);
       setImportRows(rows);
+
+      // Cek NIK yang sudah ada untuk badge Baru/Update di preview
+      const niks = rows.map((r) => r.nik).filter(Boolean);
+      try {
+        const res = await fetch(`/api/employees/check-niks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ niks }),
+        });
+        const json = await res.json();
+        setExistingNiks(new Set(json.existing ?? []));
+      } catch {
+        setExistingNiks(new Set());
+      }
+
       setImportStep("preview");
     };
-    reader.readAsText(file, "UTF-8");
+    reader.readAsArrayBuffer(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -245,6 +256,7 @@ export default function EmployeesPage() {
     setImportRows([]);
     setImportFileName("");
     setImportResult(null);
+    setExistingNiks(new Set());
   };
 
   // ── Filter ─────────────────────────────────────────────────────────────────
@@ -283,11 +295,12 @@ export default function EmployeesPage() {
       "Nama Karyawan": emp.name,
       "Divisi": emp.division,
       "Jabatan": emp.position,
+      "BOD Level": emp.bodLevel ?? "",
       "Email": emp.email,
       "No. Telepon": emp.phone,
       "Lokasi Kerja": emp.workLocation,
       "LOB": emp.lob,
-      "Status Karyawan": emp.employeeStatus
+      "Status Karyawan": emp.employeeStatus,
     }));
 
     const wb = XLSX.utils.book_new();
@@ -373,6 +386,7 @@ export default function EmployeesPage() {
             <TableHead>Nama Karyawan</TableHead>
             <TableHead>Divisi</TableHead>
             <TableHead>Jabatan</TableHead>
+            <TableHead>BOD Level</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>No. Telepon</TableHead>
             <TableHead>Lokasi Kerja</TableHead>
@@ -383,9 +397,9 @@ export default function EmployeesPage() {
         </TableHeader>
         <TableBody>
           {loading ? (
-            <TableRow><TableCell colSpan={10} className="text-center py-10 text-text-secondary">Memuat data...</TableCell></TableRow>
+            <TableRow><TableCell colSpan={11} className="text-center py-10 text-text-secondary">Memuat data...</TableCell></TableRow>
           ) : filteredEmployees.length === 0 ? (
-            <TableRow><TableCell colSpan={10} className="text-center py-10 text-text-secondary">Tidak ada data karyawan ditemukan.</TableCell></TableRow>
+            <TableRow><TableCell colSpan={11} className="text-center py-10 text-text-secondary">Tidak ada data karyawan ditemukan.</TableCell></TableRow>
           ) : (
             paginatedEmployees.map((emp) => (
               <TableRow key={emp.id}>
@@ -393,6 +407,15 @@ export default function EmployeesPage() {
                 <TableCell className="font-medium">{emp.name}</TableCell>
                 <TableCell>{emp.division}</TableCell>
                 <TableCell>{emp.position}</TableCell>
+                <TableCell>
+                  {emp.bodLevel ? (
+                    <Badge variant="outline" className="border-sky/40 text-sky bg-sky/5 font-medium text-xs">
+                      {emp.bodLevel}
+                    </Badge>
+                  ) : (
+                    <span className="text-text-secondary text-sm">-</span>
+                  )}
+                </TableCell>
                 <TableCell>{emp.email}</TableCell>
                 <TableCell>{emp.phone}</TableCell>
                 <TableCell>{emp.workLocation}</TableCell>
@@ -495,7 +518,7 @@ export default function EmployeesPage() {
             {/* ── Step 1: Upload ── */}
             {importStep === "upload" && (
               <div className="flex-1 flex flex-col gap-4">
-                <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ""; }} />
+                <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ""; }} />
 
                 <div
                   className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center gap-4 cursor-pointer transition-colors ${isDragging ? "border-sky bg-sky/5" : "border-border hover:border-sky/50 hover:bg-muted/30"}`}
@@ -509,21 +532,21 @@ export default function EmployeesPage() {
                   </div>
                   <div className="text-center">
                     <p className="font-semibold text-navy">Klik untuk upload atau drag & drop</p>
-                    <p className="text-sm text-text-secondary mt-1">Hanya file <strong>.csv</strong> yang didukung</p>
+                    <p className="text-sm text-text-secondary mt-1">Hanya file <strong>.xlsx</strong> yang didukung</p>
                   </div>
                 </div>
 
                 <div className="bg-muted/40 rounded-lg p-4 text-sm text-text-secondary space-y-1">
                   <p className="font-medium text-navy text-xs uppercase tracking-wide mb-2">Format kolom yang diperlukan:</p>
                   <div className="flex flex-wrap gap-2">
-                    {CSV_HEADERS.map((h) => (
+                    {IMPORT_HEADERS.map((h) => (
                       <span key={h} className="bg-background border border-border rounded px-2 py-0.5 text-xs font-mono">{h}</span>
                     ))}
                   </div>
                 </div>
 
                 <Button variant="outline" className="gap-2 w-fit text-sky border-sky/30 hover:bg-sky/5" onClick={downloadTemplate}>
-                  <Download className="h-4 w-4" /> Download Template CSV
+                  <Download className="h-4 w-4" /> Download Template Excel
                 </Button>
               </div>
             )}
@@ -532,16 +555,20 @@ export default function EmployeesPage() {
             {importStep === "preview" && (
               <div className="flex-1 flex flex-col gap-4 min-h-0">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-sm">
+                  <div className="flex items-center gap-3 text-sm flex-wrap">
                     <span className="text-text-secondary">File: <strong className="text-navy">{importFileName}</strong></span>
                     <span className="flex items-center gap-1 text-success font-medium"><CheckCircle2 className="h-4 w-4" />{validImportCount} valid</span>
                     {invalidImportCount > 0 && (
                       <span className="flex items-center gap-1 text-danger font-medium"><AlertCircle className="h-4 w-4" />{invalidImportCount} error</span>
                     )}
                   </div>
-                  <Button variant="ghost" size="sm" className="text-sky text-xs" onClick={() => { setImportStep("upload"); setImportRows([]); }}>
+                  <Button variant="ghost" size="sm" className="text-sky text-xs" onClick={() => { setImportStep("upload"); setImportRows([]); setExistingNiks(new Set()); }}>
                     Ganti File
                   </Button>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+                  NIK yang sudah terdaftar akan <strong>ditimpa seluruh datanya</strong> sesuai file Excel ini.
                 </div>
 
                 <div className="overflow-auto flex-1 border rounded-lg">
@@ -554,7 +581,8 @@ export default function EmployeesPage() {
                         <TableHead>Divisi</TableHead>
                         <TableHead>Jabatan</TableHead>
                         <TableHead>Email</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Aksi</TableHead>
+                        <TableHead>Validasi</TableHead>
                         <TableHead>Keterangan</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -567,6 +595,12 @@ export default function EmployeesPage() {
                           <TableCell>{row.division}</TableCell>
                           <TableCell>{row.position}</TableCell>
                           <TableCell className="text-xs">{row.email}</TableCell>
+                          <TableCell>
+                            {existingNiks.has(row.nik)
+                              ? <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-xs">Update</Badge>
+                              : <Badge className="bg-sky/10 text-sky border-sky/30 text-xs">Baru</Badge>
+                            }
+                          </TableCell>
                           <TableCell>
                             {row._errors.length === 0
                               ? <Badge className="bg-success/10 text-success border-success/20 text-xs">Valid</Badge>
@@ -608,11 +642,35 @@ export default function EmployeesPage() {
                 <div className="text-center">
                   <h4 className="text-lg font-bold text-navy mb-1">Import Selesai</h4>
                   <p className="text-text-secondary text-sm">
-                    <strong className="text-success">{importResult.success.length} karyawan</strong> berhasil diimport
+                    {importResult.created.length > 0 && (
+                      <><strong className="text-success">{importResult.created.length} karyawan baru</strong> ditambahkan</>
+                    )}
+                    {importResult.created.length > 0 && importResult.updated.length > 0 && <>, </>}
+                    {importResult.updated.length > 0 && (
+                      <><strong className="text-sky">{importResult.updated.length} karyawan</strong> diperbarui</>
+                    )}
                     {importResult.failed.length > 0 && (
                       <>, <strong className="text-danger">{importResult.failed.length} gagal</strong></>
                     )}
                   </p>
+                </div>
+
+                <div className="flex gap-4 text-sm">
+                  {importResult.created.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-success/10 text-success rounded-lg px-3 py-2 font-medium">
+                      <CheckCircle2 className="h-4 w-4" /> {importResult.created.length} Baru
+                    </div>
+                  )}
+                  {importResult.updated.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-sky/10 text-sky rounded-lg px-3 py-2 font-medium">
+                      <CheckCircle2 className="h-4 w-4" /> {importResult.updated.length} Diperbarui
+                    </div>
+                  )}
+                  {importResult.failed.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-danger/10 text-danger rounded-lg px-3 py-2 font-medium">
+                      <AlertCircle className="h-4 w-4" /> {importResult.failed.length} Gagal
+                    </div>
+                  )}
                 </div>
 
                 {importResult.failed.length > 0 && (
@@ -666,6 +724,15 @@ export default function EmployeesPage() {
                   <Input required value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} placeholder="Contoh: Manager" />
                 </div>
                 <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">BOD Level</label>
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky" value={formData.bodLevel} onChange={(e) => setFormData({ ...formData, bodLevel: e.target.value })}>
+                    <option value="">Tidak Ada</option>
+                    {BOD_LEVELS.filter(Boolean).map((level) => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">Email</label>
                   <Input required type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@ias.id" />
                 </div>
@@ -681,7 +748,7 @@ export default function EmployeesPage() {
                   <label className="text-sm font-medium text-text-secondary">LOB (Line of Business)</label>
                   <Input required value={formData.lob} onChange={(e) => setFormData({ ...formData, lob: e.target.value })} placeholder="Contoh: Ground Handling" />
                 </div>
-                <div className="space-y-2 sm:col-span-2">
+                <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">Status Karyawan</label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky" value={formData.employeeStatus} onChange={(e) => setFormData({ ...formData, employeeStatus: e.target.value })}>
                     <option value="PKWT">PKWT</option>

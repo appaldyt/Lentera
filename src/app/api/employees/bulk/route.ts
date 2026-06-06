@@ -8,15 +8,25 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Data employees tidak valid" }, { status: 400 });
   }
 
-  const results: { success: string[]; failed: { nik: string; reason: string }[] } = {
-    success: [],
-    failed: [],
-  };
+  // Cek NIK mana yang sudah ada di DB (1 query untuk seluruh batch)
+  const incomingNiks = employees.map((e: { nik: string }) => e.nik);
+  const existing = await prisma.employee.findMany({
+    where: { nik: { in: incomingNiks } },
+    select: { nik: true },
+  });
+  const existingNiks = new Set(existing.map((e) => e.nik));
+
+  const results: {
+    created: string[];
+    updated: string[];
+    failed: { nik: string; reason: string }[];
+  } = { created: [], updated: [], failed: [] };
 
   for (const emp of employees) {
     try {
-      await prisma.employee.create({
-        data: {
+      await prisma.employee.upsert({
+        where: { nik: emp.nik },
+        create: {
           nik: emp.nik,
           name: emp.name,
           division: emp.division,
@@ -25,16 +35,33 @@ export async function POST(request: NextRequest) {
           phone: emp.phone ?? "",
           workLocation: emp.workLocation ?? "",
           lob: emp.lob ?? "",
+          bodLevel: emp.bodLevel ?? "",
+          employeeStatus: emp.employeeStatus ?? "PKWTT",
+        },
+        update: {
+          name: emp.name,
+          division: emp.division,
+          position: emp.position,
+          email: emp.email,
+          phone: emp.phone ?? "",
+          workLocation: emp.workLocation ?? "",
+          lob: emp.lob ?? "",
+          bodLevel: emp.bodLevel ?? "",
           employeeStatus: emp.employeeStatus ?? "PKWTT",
         },
       });
-      results.success.push(emp.nik);
+
+      if (existingNiks.has(emp.nik)) {
+        results.updated.push(emp.nik);
+      } else {
+        results.created.push(emp.nik);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       const isDupe = msg.includes("Unique constraint");
       results.failed.push({
         nik: emp.nik,
-        reason: isDupe ? "NIK atau email sudah terdaftar" : "Gagal menyimpan data",
+        reason: isDupe ? "Email sudah digunakan karyawan lain" : "Gagal menyimpan data",
       });
     }
   }

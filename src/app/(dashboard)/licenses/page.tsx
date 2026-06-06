@@ -46,7 +46,7 @@ const EMPTY_FORM = {
   issuedDate: "", expiryDate: "",
 };
 
-const CSV_HEADERS = [
+const IMPORT_HEADERS = [
   "NIK", "Nama", "Jabatan", "Lokasi Kerja", "Status Karyawan",
   "LOB", "Nama Lisensi", "No Lisensi", "Kategori", "Tanggal Terbit", "Tanggal Kadaluwarsa",
 ];
@@ -58,26 +58,23 @@ interface ImportRow {
   _errors: string[];
 }
 
-function parseCSV(text: string): ImportRow[] {
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim().split("\n");
-  if (lines.length < 2) return [];
-  return lines.slice(1).map((line) => {
-    const cols: string[] = [];
-    let cur = "", inQuote = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') { inQuote = !inQuote; continue; }
-      if (ch === "," && !inQuote) { cols.push(cur.trim()); cur = ""; continue; }
-      cur += ch;
-    }
-    cols.push(cur.trim());
+function parseXLSX(buffer: ArrayBuffer): ImportRow[] {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
 
-    const [
-      nik = "", name = "", position = "", workLocation = "",
-      employeeStatus = "PKWTT", lob = "", licenseName = "",
-      licenseNumber = "-", category = "Operasional",
-      issuedDate = "", expiryDate = "",
-    ] = cols;
+  return rows.map((row) => {
+    const nik = String(row["NIK"] ?? "").trim();
+    const name = String(row["Nama"] ?? "").trim();
+    const position = String(row["Jabatan"] ?? "").trim();
+    const workLocation = String(row["Lokasi Kerja"] ?? "").trim();
+    const employeeStatus = String(row["Status Karyawan"] ?? "").trim() || "PKWTT";
+    const lob = String(row["LOB"] ?? "").trim();
+    const licenseName = String(row["Nama Lisensi"] ?? "").trim();
+    const licenseNumber = String(row["No Lisensi"] ?? "").trim() || "-";
+    const category = String(row["Kategori"] ?? "").trim() || "Operasional";
+    const issuedDate = String(row["Tanggal Terbit"] ?? "").trim();
+    const expiryDate = String(row["Tanggal Kadaluwarsa"] ?? "").trim();
 
     const errors: string[] = [];
     if (!nik) errors.push("NIK wajib diisi");
@@ -87,27 +84,22 @@ function parseCSV(text: string): ImportRow[] {
     if (!expiryDate) errors.push("Tanggal Kadaluwarsa wajib diisi");
 
     return {
-      nik, name, position, workLocation, employeeStatus: employeeStatus || "PKWTT",
-      lob, licenseName, licenseNumber: licenseNumber || "-",
-      category: category || "Operasional", issuedDate, expiryDate,
-      _errors: errors,
+      nik, name, position, workLocation, employeeStatus,
+      lob, licenseName, licenseNumber,
+      category, issuedDate, expiryDate, _errors: errors,
     };
   }).filter((r) => r.nik || r.name || r.licenseName);
 }
 
 function downloadTemplate() {
-  const rows = [
-    CSV_HEADERS.join(","),
-    'IAS-2024-0001,Budi Santoso,Aviation Safety Inspector,CGK,PKWTT,Ground Handling,Aircraft Maintenance Engineer (AME),AME-2024-001,Operasional,2024-01-15,2027-01-15',
-    'IAS-2024-0002,Siti Rahma,Flight Instructor,SUB,PKWT,Aviation Security,Basic Aviation Security (AVSEC),AVSEC-2024-002,Operasional,2024-03-10,2026-03-10',
-  ].join("\n");
-  const blob = new Blob([rows], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "template_import_lisensi.csv";
-  a.click();
-  URL.revokeObjectURL(url);
+  const sampleData = [
+    { NIK: "IAS-2024-0001", Nama: "Budi Santoso", Jabatan: "Aviation Safety Inspector", "Lokasi Kerja": "CGK", "Status Karyawan": "PKWTT", LOB: "Ground Handling", "Nama Lisensi": "Aircraft Maintenance Engineer (AME)", "No Lisensi": "AME-2024-001", Kategori: "Operasional", "Tanggal Terbit": "2024-01-15", "Tanggal Kadaluwarsa": "2027-01-15" },
+    { NIK: "IAS-2024-0002", Nama: "Siti Rahma", Jabatan: "Flight Instructor", "Lokasi Kerja": "SUB", "Status Karyawan": "PKWT", LOB: "Aviation Security", "Nama Lisensi": "Basic Aviation Security (AVSEC)", "No Lisensi": "AVSEC-2024-002", Kategori: "Operasional", "Tanggal Terbit": "2024-03-10", "Tanggal Kadaluwarsa": "2026-03-10" },
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(sampleData, { header: IMPORT_HEADERS });
+  XLSX.utils.book_append_sheet(wb, ws, "Template Lisensi");
+  XLSX.writeFile(wb, "template_import_lisensi.xlsx");
 }
 
 export default function LicensesPage() {
@@ -135,7 +127,8 @@ export default function LicensesPage() {
   const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importFileName, setImportFileName] = useState("");
-  const [importResult, setImportResult] = useState<{ success: string[]; failed: { nik: string; licenseName: string; reason: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ created: string[]; updated: string[]; failed: { nik: string; licenseName: string; reason: string }[] } | null>(null);
+  const [existingLicenseKeys, setExistingLicenseKeys] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -230,19 +223,36 @@ export default function LicensesPage() {
   // ── Import ─────────────────────────────────────────────────────────────────
 
   const handleFileSelect = (file: File) => {
-    if (!file.name.endsWith(".csv")) {
-      alert("Hanya file .csv yang didukung. Gunakan template yang disediakan.");
+    if (!file.name.endsWith(".xlsx")) {
+      alert("Hanya file .xlsx yang didukung. Gunakan template yang disediakan.");
       return;
     }
     setImportFileName(file.name);
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const rows = parseCSV(text);
+    reader.onload = async (e) => {
+      const buffer = e.target?.result as ArrayBuffer;
+      const rows = parseXLSX(buffer);
       setImportRows(rows);
+
+      // Cek kombinasi (NIK + Nama Lisensi) yang sudah ada untuk badge Baru/Update
+      const keys = rows
+        .filter((r) => r.nik && r.licenseName)
+        .map((r) => ({ nik: r.nik, licenseName: r.licenseName }));
+      try {
+        const res = await fetch("/api/licenses/check-keys", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keys }),
+        });
+        const json = await res.json();
+        setExistingLicenseKeys(new Set(json.existing ?? []));
+      } catch {
+        setExistingLicenseKeys(new Set());
+      }
+
       setImportStep("preview");
     };
-    reader.readAsText(file, "UTF-8");
+    reader.readAsArrayBuffer(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -278,6 +288,7 @@ export default function LicensesPage() {
     setImportRows([]);
     setImportFileName("");
     setImportResult(null);
+    setExistingLicenseKeys(new Set());
   };
 
   const validImportCount = importRows.filter((r) => r._errors.length === 0).length;
@@ -334,18 +345,18 @@ export default function LicensesPage() {
       "Nama": item.employee.name,
       "Jabatan": item.employee.position,
       "Lokasi Kerja": item.employee.workLocation,
-      "LOB": item.employee.lob,
       "Status Karyawan": item.employee.employeeStatus,
-      "Jenis Lisensi": item.category,
-      "No Lisensi": item.licenseNumber || "-",
+      "LOB": item.employee.lob,
       "Nama Lisensi": item.licenseName,
+      "No Lisensi": item.licenseNumber || "-",
+      "Kategori": item.category,
       "Tanggal Terbit": item.issuedDate,
-      "Kadaluwarsa": item.expiryDate,
-      "Status": item.status === "ACTIVE" ? "Aktif" : 
+      "Tanggal Kadaluwarsa": item.expiryDate,
+      "Status": item.status === "ACTIVE" ? "Aktif" :
                 item.status === "EXPIRING_5_MONTHS" ? "Berakhir < 5 Bulan" :
                 item.status === "EXPIRING_3_MONTHS" ? "Berakhir < 3 Bulan" :
                 item.status === "EXPIRING_1_MONTH" ? "Berakhir < 1 Bulan" :
-                item.status === "EXPIRED" ? "Kadaluwarsa" : item.status
+                item.status === "EXPIRED" ? "Kadaluwarsa" : item.status,
     }));
 
     const wb = XLSX.utils.book_new();
@@ -610,7 +621,7 @@ export default function LicensesPage() {
             {/* Step 1: Upload */}
             {importStep === "upload" && (
               <div className="flex-1 flex flex-col gap-4">
-                <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ""; }} />
+                <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ""; }} />
                 <div
                   className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center gap-4 cursor-pointer transition-colors ${isDragging ? "border-sky bg-sky/5" : "border-border hover:border-sky/50 hover:bg-muted/30"}`}
                   onClick={() => fileInputRef.current?.click()}
@@ -623,19 +634,19 @@ export default function LicensesPage() {
                   </div>
                   <div className="text-center">
                     <p className="font-semibold text-navy">Klik untuk upload atau drag &amp; drop</p>
-                    <p className="text-sm text-text-secondary mt-1">Hanya file <strong>.csv</strong> yang didukung</p>
+                    <p className="text-sm text-text-secondary mt-1">Hanya file <strong>.xlsx</strong> yang didukung</p>
                   </div>
                 </div>
                 <div className="bg-muted/40 rounded-lg p-4 text-sm text-text-secondary">
                   <p className="font-medium text-navy text-xs uppercase tracking-wide mb-2">Format kolom yang diperlukan:</p>
                   <div className="flex flex-wrap gap-2">
-                    {CSV_HEADERS.map((h) => (
+                    {IMPORT_HEADERS.map((h) => (
                       <span key={h} className="bg-background border border-border rounded px-2 py-0.5 text-xs font-mono">{h}</span>
                     ))}
                   </div>
                 </div>
                 <Button variant="outline" className="gap-2 w-fit text-sky border-sky/30 hover:bg-sky/5" onClick={downloadTemplate}>
-                  <Download className="h-4 w-4" /> Download Template CSV
+                  <Download className="h-4 w-4" /> Download Template Excel
                 </Button>
               </div>
             )}
@@ -644,17 +655,22 @@ export default function LicensesPage() {
             {importStep === "preview" && (
               <div className="flex-1 flex flex-col gap-4 min-h-0">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-sm">
+                  <div className="flex items-center gap-3 text-sm flex-wrap">
                     <span className="text-text-secondary">File: <strong className="text-navy">{importFileName}</strong></span>
                     <span className="flex items-center gap-1 text-success font-medium"><CheckCircle2 className="h-4 w-4" />{validImportCount} valid</span>
                     {invalidImportCount > 0 && (
                       <span className="flex items-center gap-1 text-danger font-medium"><AlertCircle className="h-4 w-4" />{invalidImportCount} error</span>
                     )}
                   </div>
-                  <Button variant="ghost" size="sm" className="text-sky text-xs" onClick={() => { setImportStep("upload"); setImportRows([]); }}>
+                  <Button variant="ghost" size="sm" className="text-sky text-xs" onClick={() => { setImportStep("upload"); setImportRows([]); setExistingLicenseKeys(new Set()); }}>
                     Ganti File
                   </Button>
                 </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+                  Kombinasi NIK + Nama Lisensi yang sudah terdaftar akan <strong>ditimpa seluruh datanya</strong> sesuai file Excel ini.
+                </div>
+
                 <div className="overflow-auto flex-1 border rounded-lg">
                   <Table>
                     <TableHeader className="bg-muted/50 sticky top-0">
@@ -663,30 +679,38 @@ export default function LicensesPage() {
                         <TableHead>NIK</TableHead>
                         <TableHead>Nama</TableHead>
                         <TableHead>Nama Lisensi</TableHead>
-                        <TableHead>Kategori</TableHead>
                         <TableHead>Kadaluwarsa</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Aksi</TableHead>
+                        <TableHead>Validasi</TableHead>
                         <TableHead>Keterangan</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {importRows.map((row, i) => (
-                        <TableRow key={i} className={row._errors.length > 0 ? "bg-danger/5" : ""}>
-                          <TableCell className="text-text-secondary text-xs">{i + 1}</TableCell>
-                          <TableCell className="font-mono text-xs">{row.nik || <span className="text-danger italic">kosong</span>}</TableCell>
-                          <TableCell>{row.name || <span className="text-danger italic">kosong</span>}</TableCell>
-                          <TableCell className="font-medium text-navy">{row.licenseName || <span className="text-danger italic">kosong</span>}</TableCell>
-                          <TableCell>{row.category}</TableCell>
-                          <TableCell className="text-xs">{row.expiryDate}</TableCell>
-                          <TableCell>
-                            {row._errors.length === 0
-                              ? <Badge className="bg-success/10 text-success border-success/20 text-xs">Valid</Badge>
-                              : <Badge className="bg-danger/10 text-danger border-danger/20 text-xs">Error</Badge>
-                            }
-                          </TableCell>
-                          <TableCell className="text-xs text-danger">{row._errors.join(", ")}</TableCell>
-                        </TableRow>
-                      ))}
+                      {importRows.map((row, i) => {
+                        const key = `${row.nik}|${row.licenseName}`;
+                        return (
+                          <TableRow key={i} className={row._errors.length > 0 ? "bg-danger/5" : ""}>
+                            <TableCell className="text-text-secondary text-xs">{i + 1}</TableCell>
+                            <TableCell className="font-mono text-xs">{row.nik || <span className="text-danger italic">kosong</span>}</TableCell>
+                            <TableCell>{row.name || <span className="text-danger italic">kosong</span>}</TableCell>
+                            <TableCell className="font-medium text-navy">{row.licenseName || <span className="text-danger italic">kosong</span>}</TableCell>
+                            <TableCell className="text-xs">{row.expiryDate}</TableCell>
+                            <TableCell>
+                              {existingLicenseKeys.has(key)
+                                ? <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-xs">Update</Badge>
+                                : <Badge className="bg-sky/10 text-sky border-sky/30 text-xs">Baru</Badge>
+                              }
+                            </TableCell>
+                            <TableCell>
+                              {row._errors.length === 0
+                                ? <Badge className="bg-success/10 text-success border-success/20 text-xs">Valid</Badge>
+                                : <Badge className="bg-danger/10 text-danger border-danger/20 text-xs">Error</Badge>
+                              }
+                            </TableCell>
+                            <TableCell className="text-xs text-danger">{row._errors.join(", ")}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -717,12 +741,37 @@ export default function LicensesPage() {
                 <div className="text-center">
                   <h4 className="text-lg font-bold text-navy mb-1">Import Selesai</h4>
                   <p className="text-text-secondary text-sm">
-                    <strong className="text-success">{importResult.success.length} lisensi</strong> berhasil diimport
+                    {importResult.created.length > 0 && (
+                      <><strong className="text-success">{importResult.created.length} lisensi baru</strong> ditambahkan</>
+                    )}
+                    {importResult.created.length > 0 && importResult.updated.length > 0 && <>, </>}
+                    {importResult.updated.length > 0 && (
+                      <><strong className="text-sky">{importResult.updated.length} lisensi</strong> diperbarui</>
+                    )}
                     {importResult.failed.length > 0 && (
                       <>, <strong className="text-danger">{importResult.failed.length} gagal</strong></>
                     )}
                   </p>
                 </div>
+
+                <div className="flex gap-4 text-sm">
+                  {importResult.created.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-success/10 text-success rounded-lg px-3 py-2 font-medium">
+                      <CheckCircle2 className="h-4 w-4" /> {importResult.created.length} Baru
+                    </div>
+                  )}
+                  {importResult.updated.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-sky/10 text-sky rounded-lg px-3 py-2 font-medium">
+                      <CheckCircle2 className="h-4 w-4" /> {importResult.updated.length} Diperbarui
+                    </div>
+                  )}
+                  {importResult.failed.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-danger/10 text-danger rounded-lg px-3 py-2 font-medium">
+                      <AlertCircle className="h-4 w-4" /> {importResult.failed.length} Gagal
+                    </div>
+                  )}
+                </div>
+
                 {importResult.failed.length > 0 && (
                   <div className="w-full bg-danger/5 border border-danger/20 rounded-lg p-4 text-sm">
                     <p className="font-medium text-danger mb-2 flex items-center gap-1">

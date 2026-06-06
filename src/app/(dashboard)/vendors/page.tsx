@@ -98,7 +98,8 @@ export default function VendorsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [importRows, setImportRows] = useState<any[]>([]);
   const [importFileName, setImportFileName] = useState("");
-  const [importResult, setImportResult] = useState<{ success: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ created: string[]; updated: string[]; failed: { name: string; reason: string }[] } | null>(null);
+  const [existingVendorNames, setExistingVendorNames] = useState<Set<string>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,6 +113,7 @@ export default function VendorsPage() {
     setImportFileName("");
     setImportResult(null);
     setImporting(false);
+    setExistingVendorNames(new Set());
   };
 
   const [search, setSearch] = useState("");
@@ -237,6 +239,21 @@ export default function VendorsPage() {
         return { ...row, _errors: errors };
       });
       setImportRows(parsed);
+
+      // Cek nama vendor yang sudah ada untuk badge Baru/Update
+      const names = [...new Set(parsed.map((r: { "Nama Vendor"?: string }) => r["Nama Vendor"]).filter(Boolean))];
+      try {
+        const res = await fetch("/api/vendors/check-names", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ names }),
+        });
+        const json = await res.json();
+        setExistingVendorNames(new Set(json.existing ?? []));
+      } catch {
+        setExistingVendorNames(new Set());
+      }
+
       setImportStep("preview");
     } catch {
       alert("Gagal membaca file Excel.");
@@ -275,8 +292,8 @@ export default function VendorsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data }),
       });
-      if (!res.ok) throw new Error("Gagal mengimport");
-      setImportResult({ success: data.length });
+      const result = await res.json();
+      setImportResult(result);
       setImportStep("result");
       fetchVendors();
     } catch {
@@ -891,7 +908,7 @@ export default function VendorsPage() {
             {importStep === "preview" && (
               <div className="flex-1 flex flex-col gap-4 min-h-0">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-sm">
+                  <div className="flex items-center gap-3 text-sm flex-wrap">
                     <span className="text-text-secondary">File: <strong className="text-navy">{importFileName}</strong></span>
                     <span className="flex items-center gap-1 text-success font-medium">
                       <CheckCircle2 className="h-4 w-4" />{importRows.filter((r) => r._errors.length === 0).length} valid
@@ -902,9 +919,13 @@ export default function VendorsPage() {
                       </span>
                     )}
                   </div>
-                  <Button variant="ghost" size="sm" className="text-sky text-xs" onClick={() => { setImportStep("upload"); setImportRows([]); }}>
+                  <Button variant="ghost" size="sm" className="text-sky text-xs" onClick={() => { setImportStep("upload"); setImportRows([]); setExistingVendorNames(new Set()); }}>
                     Ganti File
                   </Button>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+                  Nama vendor yang sudah terdaftar akan <strong>ditimpa seluruh datanya</strong> sesuai file Excel ini.
                 </div>
 
                 <div className="overflow-auto flex-1 border rounded-lg max-h-64">
@@ -916,7 +937,8 @@ export default function VendorsPage() {
                         <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Lokasi</th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Email</th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Metode</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Status</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Aksi</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Validasi</th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-text-secondary">Keterangan</th>
                       </tr>
                     </thead>
@@ -928,6 +950,12 @@ export default function VendorsPage() {
                           <td className="px-3 py-2 text-xs">{row["Lokasi"]}</td>
                           <td className="px-3 py-2 text-xs">{row["Email"]}</td>
                           <td className="px-3 py-2 text-xs">{row["Metode"] || "Online"}</td>
+                          <td className="px-3 py-2">
+                            {existingVendorNames.has(row["Nama Vendor"])
+                              ? <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-xs">Update</Badge>
+                              : <Badge className="bg-sky/10 text-sky border-sky/30 text-xs">Baru</Badge>
+                            }
+                          </td>
                           <td className="px-3 py-2">
                             {row._errors.length === 0
                               ? <Badge className="bg-success/10 text-success border-success/20 text-xs">Valid</Badge>
@@ -962,15 +990,58 @@ export default function VendorsPage() {
             {/* Step 3: Result */}
             {importStep === "result" && importResult && (
               <div className="flex-1 flex flex-col items-center justify-center gap-6 py-4">
-                <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
-                  <CheckCircle2 className="h-8 w-8 text-success" />
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${importResult.failed.length === 0 ? "bg-success/10" : "bg-warning/10"}`}>
+                  <CheckCircle2 className={`h-8 w-8 ${importResult.failed.length === 0 ? "text-success" : "text-warning"}`} />
                 </div>
                 <div className="text-center">
                   <h4 className="text-lg font-bold text-navy mb-1">Import Selesai</h4>
                   <p className="text-text-secondary text-sm">
-                    <strong className="text-success">{importResult.success} vendor</strong> berhasil diimport ke dalam sistem.
+                    {importResult.created.length > 0 && (
+                      <><strong className="text-success">{importResult.created.length} vendor baru</strong> ditambahkan</>
+                    )}
+                    {importResult.created.length > 0 && importResult.updated.length > 0 && <>, </>}
+                    {importResult.updated.length > 0 && (
+                      <><strong className="text-sky">{importResult.updated.length} vendor</strong> diperbarui</>
+                    )}
+                    {importResult.failed.length > 0 && (
+                      <>, <strong className="text-danger">{importResult.failed.length} gagal</strong></>
+                    )}
                   </p>
                 </div>
+
+                <div className="flex gap-4 text-sm">
+                  {importResult.created.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-success/10 text-success rounded-lg px-3 py-2 font-medium">
+                      <CheckCircle2 className="h-4 w-4" /> {importResult.created.length} Baru
+                    </div>
+                  )}
+                  {importResult.updated.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-sky/10 text-sky rounded-lg px-3 py-2 font-medium">
+                      <CheckCircle2 className="h-4 w-4" /> {importResult.updated.length} Diperbarui
+                    </div>
+                  )}
+                  {importResult.failed.length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-danger/10 text-danger rounded-lg px-3 py-2 font-medium">
+                      <AlertCircle className="h-4 w-4" /> {importResult.failed.length} Gagal
+                    </div>
+                  )}
+                </div>
+
+                {importResult.failed.length > 0 && (
+                  <div className="w-full bg-danger/5 border border-danger/20 rounded-lg p-4 text-sm">
+                    <p className="font-medium text-danger mb-2 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" /> Data yang gagal diimport:
+                    </p>
+                    <ul className="space-y-1">
+                      {importResult.failed.map((f, i) => (
+                        <li key={i} className="text-text-secondary">
+                          <span className="font-medium text-navy">{f.name}</span>: {f.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <Button className="bg-sky hover:bg-sky/90 text-white" onClick={closeImportModal}>
                   Selesai
                 </Button>
