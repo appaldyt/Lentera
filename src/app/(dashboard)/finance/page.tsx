@@ -79,6 +79,20 @@ function FormFields({ data, setData, activeTab }: { data: FormData; setData: (d:
     setData({ ...data, processDetails: newDetails });
   };
 
+  const removeDetail = (index: number) => {
+    const newDetails = [...data.processDetails];
+    newDetails.splice(index, 1);
+    setData({ ...data, processDetails: newDetails });
+  };
+
+  const addDetail = () => {
+    const newDetails = [
+      ...data.processDetails,
+      { id: `new-${Date.now()}`, tahap: "", status: "Belum", tanggal: "", keterangan: "", linkBukti: "" },
+    ];
+    setData({ ...data, processDetails: newDetails });
+  };
+
   return (
     <>
       <div className="space-y-2">
@@ -156,21 +170,25 @@ function FormFields({ data, setData, activeTab }: { data: FormData; setData: (d:
         <div className="mt-8 pt-6 border-t border-border">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-semibold text-sm text-navy">Rincian Proses Pembayaran</h4>
+            <Button type="button" variant="outline" size="sm" className="gap-2 text-sky border-sky/30 hover:bg-sky/5" onClick={addDetail}>
+              <Plus className="h-4 w-4" /> Tambah Baris
+            </Button>
           </div>
           <div className="border border-border rounded-lg p-4 space-y-4">
             {data.processDetails.length === 0 ? (
               <p className="text-sm text-text-secondary text-center py-4">Belum ada rincian ditambahkan.</p>
             ) : (
               <div className="space-y-3">
-                <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_2fr_2fr] gap-2 px-1">
+                <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_2fr_2fr_auto] gap-2 px-1">
                   <span className="text-xs font-medium text-text-secondary">Tahapan Proses</span>
                   <span className="text-xs font-medium text-text-secondary">Status</span>
                   <span className="text-xs font-medium text-text-secondary">Tanggal</span>
                   <span className="text-xs font-medium text-text-secondary">Keterangan</span>
                   <span className="text-xs font-medium text-text-secondary">Link Bukti</span>
+                  <span className="w-8"></span>
                 </div>
                 {data.processDetails.map((detail, index) => (
-                  <div key={detail.id} className="grid grid-cols-1 md:grid-cols-[2fr_1.5fr_1.5fr_2fr_2fr] gap-2 items-start">
+                  <div key={detail.id} className="grid grid-cols-1 md:grid-cols-[2fr_1.5fr_1.5fr_2fr_2fr_auto] gap-2 items-start">
                     <Input
                       placeholder="Tahapan"
                       value={detail.tahap}
@@ -201,6 +219,15 @@ function FormFields({ data, setData, activeTab }: { data: FormData; setData: (d:
                       value={detail.linkBukti}
                       onChange={(e) => updateDetail(index, "linkBukti", e.target.value)}
                     />
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-9 w-9 text-text-secondary hover:text-navy hover:bg-muted"
+                      onClick={() => removeDetail(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
