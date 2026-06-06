@@ -138,6 +138,8 @@ export default function LicensesPage() {
   const [importResult, setImportResult] = useState<{ success: string[]; failed: { nik: string; licenseName: string; reason: string }[] } | null>(null);
   const [importing, setImporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     fetch("/api/licenses")
@@ -281,6 +283,8 @@ export default function LicensesPage() {
   const validImportCount = importRows.filter((r) => r._errors.length === 0).length;
   const invalidImportCount = importRows.filter((r) => r._errors.length > 0).length;
 
+  React.useEffect(() => { setCurrentPage(1); }, [searchTerm, activeTab, filterColNama, filterColLokasi, filterColLisensi, filterColStatus]);
+
   const filteredLicenses = licenses.filter((item) => {
     const q = searchTerm.toLowerCase();
     const matchSearch =
@@ -294,6 +298,12 @@ export default function LicensesPage() {
     const matchStatus = filterColStatus === "ALL" || item.status === filterColStatus;
     return matchSearch && matchTab && matchNama && matchLokasi && matchLisensi && matchStatus;
   });
+
+  const totalPages = Math.ceil(filteredLicenses.length / ITEMS_PER_PAGE);
+  const paginatedLicenses = filteredLicenses.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -487,7 +497,7 @@ export default function LicensesPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredLicenses.map((item) => (
+                  paginatedLicenses.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/30">
                       <TableCell className="font-medium">{item.employee.nik}</TableCell>
                       <TableCell>{item.employee.name}</TableCell>
@@ -530,6 +540,47 @@ export default function LicensesPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination */}
+          {!loading && filteredLicenses.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-border/50">
+              <p className="text-sm text-text-secondary">
+                Menampilkan{" "}
+                <span className="font-medium text-navy">
+                  {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredLicenses.length)}
+                </span>{" "}
+                dari <span className="font-medium text-navy">{filteredLicenses.length}</span> lisensi
+              </p>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</Button>
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>‹</Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((item, idx) =>
+                    item === "..." ? (
+                      <span key={`e-${idx}`} className="px-2 text-text-secondary text-sm">…</span>
+                    ) : (
+                      <Button
+                        key={item}
+                        variant={currentPage === item ? "default" : "outline"}
+                        size="sm"
+                        className={`h-8 w-8 p-0${currentPage === item ? " bg-navy text-surface" : ""}`}
+                        onClick={() => setCurrentPage(item as number)}
+                      >
+                        {item}
+                      </Button>
+                    )
+                  )}
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>›</Button>
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

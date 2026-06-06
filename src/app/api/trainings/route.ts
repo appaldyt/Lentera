@@ -8,6 +8,7 @@ function serializeTraining(t: Awaited<ReturnType<typeof fetchTrainings>>[number]
     name: t.name,
     description: t.description,
     jobFamilies: t.jobFamilies,
+    classification: t.classification,
     trainingType: t.trainingType,
     organizer: t.organizer,
     room: t.room,
@@ -58,7 +59,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const {
-    name, description, jobFamilies, trainingType, organizer, room,
+    name, description, jobFamilies, classification, trainingType, organizer, room,
     startDate, endDate, duration, cost, status,
   } = body;
 
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
       jobFamilies: Array.isArray(jobFamilies)
         ? jobFamilies
         : (jobFamilies as string ?? "").split(",").map((s: string) => s.trim()).filter(Boolean),
+      classification: classification ?? "",
       trainingType: trainingType ?? "MANDATORY",
       organizer,
       room,

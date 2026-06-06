@@ -11,6 +11,7 @@ function serializeFull(t: Awaited<ReturnType<typeof fetchOne>>) {
     name: t.name,
     description: t.description,
     jobFamilies: t.jobFamilies,
+    classification: t.classification,
     trainingType: t.trainingType,
     organizer: t.organizer,
     room: t.room,
@@ -61,37 +62,43 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 }
 
 export async function PUT(request: NextRequest, { params }: Ctx) {
-  const { id } = await params;
-  const body = await request.json();
-  const {
-    name, description, jobFamilies, trainingType, organizer, room,
-    startDate, endDate, duration, cost, status,
-  } = body;
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const {
+      name, description, jobFamilies, classification, trainingType, organizer, room,
+      startDate, endDate, duration, cost, status,
+    } = body;
 
-  const training = await prisma.training.update({
-    where: { id },
-    data: {
-      name,
-      description: description ?? null,
-      jobFamilies: Array.isArray(jobFamilies)
-        ? jobFamilies
-        : (jobFamilies as string ?? "").split(",").map((s: string) => s.trim()).filter(Boolean),
-      trainingType,
-      organizer,
-      room,
-      startDate: parseDate(startDate)!,
-      endDate: parseDate(endDate),
-      duration,
-      cost,
-      status,
-    },
-    include: {
-      preparations: { orderBy: { createdAt: "asc" } },
-      participants: { orderBy: { createdAt: "asc" } },
-    },
-  });
+    const training = await prisma.training.update({
+      where: { id },
+      data: {
+        name,
+        description: description ?? null,
+        jobFamilies: Array.isArray(jobFamilies)
+          ? jobFamilies
+          : (jobFamilies as string ?? "").split(",").map((s: string) => s.trim()).filter(Boolean),
+        classification: classification ?? "",
+        trainingType,
+        organizer,
+        room,
+        startDate: parseDate(startDate)!,
+        endDate: parseDate(endDate),
+        duration,
+        cost,
+        status,
+      },
+      include: {
+        preparations: { orderBy: { createdAt: "asc" } },
+        participants: { orderBy: { createdAt: "asc" } },
+      },
+    });
 
-  return Response.json({ training: serializeFull(training) });
+    return Response.json({ training: serializeFull(training) });
+  } catch (error) {
+    console.error("PUT /api/trainings/[id] error:", error);
+    return Response.json({ error: "Gagal memperbarui data training" }, { status: 500 });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {

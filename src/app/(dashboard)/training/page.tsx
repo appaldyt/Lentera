@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, ChevronDown, ChevronRight, X, Pencil, Trash2, MoreHorizontal, Eye } from "lucide-react";
+import { Plus, Search, Filter, ChevronDown, ChevronRight, X, Pencil, Trash2, MoreHorizontal, Eye, ArrowUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -20,6 +20,7 @@ interface Training {
   name: string;
   description: string | null;
   jobFamilies: string[];
+  classification: string;
   trainingType: string;
   organizer: string;
   room: string;
@@ -51,12 +52,12 @@ function getStatusBadge(status: string) {
 
 function getTypeBadge(type: string) {
   if (type === "MANDATORY")
-    return <Badge variant="default" className="bg-navy text-surface">Mandatori</Badge>;
-  return <Badge variant="outline" className="text-text-secondary border-text-secondary">Non-Mandatori</Badge>;
+    return <Badge variant="default" className="bg-navy text-surface">Mandatory</Badge>;
+  return <Badge variant="outline" className="text-text-secondary border-text-secondary">Non-Mandatory</Badge>;
 }
 
 const emptyForm = {
-  name: "", description: "", jobFamilies: "", trainingType: "MANDATORY",
+  name: "", description: "", jobFamilies: "", classification: "", trainingType: "MANDATORY",
   organizer: "", room: "", startDate: "", endDate: "", duration: "", cost: "", status: "PLANNING",
 };
 
@@ -70,7 +71,12 @@ export default function TrainingManagementPage() {
   const [filterJenis, setFilterJenis] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const [sortField, setSortField] = useState("tanggal");
+  const [sortDir, setSortDir] = useState("desc");
   const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit" | "delete">("add");
@@ -110,6 +116,7 @@ export default function TrainingManagementPage() {
         name: training.name,
         description: training.description ?? "",
         jobFamilies: training.jobFamilies.join(", "),
+        classification: training.classification ?? "",
         trainingType: training.trainingType,
         organizer: training.organizer,
         room: training.room,
@@ -158,9 +165,12 @@ export default function TrainingManagementPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (res.ok)
+      if (res.ok) {
+        const data = await res.json();
         setTrainings((prev) => prev.map((t) => t.id === editingId ? data.training : t));
+      } else {
+        alert("Gagal menyimpan data. Silakan coba lagi.");
+      }
     }
 
     setSaving(false);
@@ -170,6 +180,8 @@ export default function TrainingManagementPage() {
   const toggleRow = (id: string) => {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+
+  React.useEffect(() => { setCurrentPage(1); }, [searchTerm, filterMonth, filterYear, filterJenis, filterStatus, sortField, sortDir]);
 
   const filteredTrainings = trainings.filter((t) => {
     if (searchTerm) {
@@ -187,17 +199,42 @@ export default function TrainingManagementPage() {
     return monthMatch && yearMatch && jenisMatch && statusMatch;
   });
 
+  const STATUS_ORDER: Record<string, number> = { PLANNING: 0, ONGOING: 1, COMPLETED: 2, CANCELLED: 3 };
+
+  const sortedTrainings = [...filteredTrainings].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === "nama") {
+      cmp = a.name.localeCompare(b.name, "id");
+    } else if (sortField === "tanggal") {
+      cmp = (a.startDate ?? "").localeCompare(b.startDate ?? "");
+    } else if (sortField === "status") {
+      cmp = (STATUS_ORDER[a.status] ?? 0) - (STATUS_ORDER[b.status] ?? 0);
+    } else if (sortField === "klasifikasi") {
+      cmp = (a.classification ?? "").localeCompare(b.classification ?? "", "id");
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  const isSortActive = sortField !== "tanggal" || sortDir !== "desc";
+
+  const totalPages = Math.ceil(sortedTrainings.length / ITEMS_PER_PAGE);
+  const paginatedTrainings = sortedTrainings.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const handleExport = () => {
-    if (filteredTrainings.length === 0) {
+    if (sortedTrainings.length === 0) {
       alert("Tidak ada data untuk dieksport");
       return;
     }
 
     // 1. Data Training
-    const trainingData = filteredTrainings.map((t, idx) => ({
+    const trainingData = sortedTrainings.map((t, idx) => ({
       "No": idx + 1,
+      "ID Training": t.id,
       "Nama Training": t.name,
-      "Jenis": t.trainingType === "MANDATORY" ? "Mandatori" : "Non-Mandatori",
+      "Jenis": t.trainingType === "MANDATORY" ? "Mandatory" : "Non-Mandatory",
       "Penyelenggara": t.organizer,
       "Ruangan": t.room,
       "Tanggal Mulai": t.startDate,
@@ -205,15 +242,17 @@ export default function TrainingManagementPage() {
       "Durasi": t.duration,
       "Biaya": t.cost,
       "Status": t.status,
+      "Klasifikasi": t.classification,
       "Job Family": t.jobFamilies.join(", "),
       "Keterangan": t.description || "-"
     }));
 
     // 2. Data Sub-task
     const subtaskData: any[] = [];
-    filteredTrainings.forEach((t) => {
+    sortedTrainings.forEach((t) => {
       t.preparations.forEach((p, idx) => {
         subtaskData.push({
+          "ID Training": t.id,
           "Nama Training": t.name,
           "No": idx + 1,
           "Sub-task": p.activityName,
@@ -231,9 +270,10 @@ export default function TrainingManagementPage() {
 
     // 3. Data Peserta
     const participantData: any[] = [];
-    filteredTrainings.forEach((t) => {
+    sortedTrainings.forEach((t) => {
       t.participants?.forEach((p, idx) => {
         participantData.push({
+          "ID Training": t.id,
           "Nama Training": t.name,
           "No": idx + 1,
           "NIK": p.nik,
@@ -313,10 +353,82 @@ export default function TrainingManagementPage() {
             <option value="2027">2027</option>
           </select>
           <div className="relative">
-            <Button variant="outline" className="gap-2" onClick={() => setIsFilterOpen(!isFilterOpen)}>
+            <Button
+              variant="outline"
+              className={cn("gap-2", isSortActive && "border-sky text-sky")}
+              onClick={() => { setIsSortOpen(!isSortOpen); setIsFilterOpen(false); }}
+            >
+              <ArrowUpDown className="h-4 w-4" /> Urutkan
+              {isSortActive && <span className="h-1.5 w-1.5 rounded-full bg-sky" />}
+            </Button>
+
+            {isSortOpen && (
+              <Card className="absolute right-0 top-[calc(100%+8px)] w-72 z-50 p-4 shadow-xl border-border animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-semibold text-navy text-sm flex items-center gap-2">
+                    <ArrowUpDown className="h-4 w-4" /> Urutkan Data
+                  </h4>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setIsSortOpen(false)}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-text-secondary">Urutkan Berdasarkan</label>
+                    <select
+                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                      value={sortField}
+                      onChange={(e) => setSortField(e.target.value)}
+                    >
+                      <option value="tanggal">Tanggal Mulai</option>
+                      <option value="nama">Nama Training</option>
+                      <option value="status">Status</option>
+                      <option value="klasifikasi">Klasifikasi</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-text-secondary">Urutan</label>
+                    <select
+                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                      value={sortDir}
+                      onChange={(e) => setSortDir(e.target.value)}
+                    >
+                      {sortField === "tanggal" && <>
+                        <option value="desc">Terbaru ke Terlama</option>
+                        <option value="asc">Terlama ke Terbaru</option>
+                      </>}
+                      {sortField === "status" && <>
+                        <option value="asc">Planning → Cancelled</option>
+                        <option value="desc">Cancelled → Planning</option>
+                      </>}
+                      {(sortField === "nama" || sortField === "klasifikasi") && <>
+                        <option value="asc">A → Z</option>
+                        <option value="desc">Z → A</option>
+                      </>}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-6">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => { setSortField("tanggal"); setSortDir("desc"); }}
+                  >
+                    Reset
+                  </Button>
+                  <Button className="flex-1 bg-sky hover:bg-sky/90 text-white" onClick={() => setIsSortOpen(false)}>
+                    Terapkan
+                  </Button>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          <div className="relative">
+            <Button variant="outline" className="gap-2" onClick={() => { setIsFilterOpen(!isFilterOpen); setIsSortOpen(false); }}>
               <Filter className="h-4 w-4" /> Filter
             </Button>
-            
+
             {isFilterOpen && (
               <Card className="absolute right-0 top-[calc(100%+8px)] w-80 z-50 p-4 shadow-xl border-border animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
@@ -336,8 +448,8 @@ export default function TrainingManagementPage() {
                       onChange={(e) => setFilterJenis(e.target.value)}
                     >
                       <option value="ALL">Semua Jenis</option>
-                      <option value="MANDATORY">Mandatori</option>
-                      <option value="NON_MANDATORY">Non-Mandatori</option>
+                      <option value="MANDATORY">Mandatory</option>
+                      <option value="NON_MANDATORY">Non-Mandatory</option>
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -381,11 +493,9 @@ export default function TrainingManagementPage() {
               <TableHead className="w-12 text-navy" />
               <TableHead className="font-semibold text-navy">Nama Training</TableHead>
               <TableHead className="font-semibold text-navy">Jenis</TableHead>
+              <TableHead className="font-semibold text-navy">Klasifikasi</TableHead>
               <TableHead className="font-semibold text-navy">Penyelenggara</TableHead>
-              <TableHead className="font-semibold text-navy">Ruangan</TableHead>
               <TableHead className="font-semibold text-navy">Tanggal</TableHead>
-              <TableHead className="font-semibold text-navy">Durasi</TableHead>
-              <TableHead className="font-semibold text-navy">Biaya</TableHead>
               <TableHead className="font-semibold text-navy">Status</TableHead>
               <TableHead className="text-right font-semibold text-navy">Aksi</TableHead>
             </TableRow>
@@ -393,17 +503,17 @@ export default function TrainingManagementPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-text-secondary">
+                <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
                   Memuat data...
                 </TableCell>
               </TableRow>
-            ) : filteredTrainings.length === 0 ? (
+            ) : sortedTrainings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-text-secondary">
+                <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
                   {trainings.length === 0 ? "Belum ada data training." : "Tidak ada data yang sesuai dengan filter."}
                 </TableCell>
               </TableRow>
-            ) : filteredTrainings.map((training) => {
+            ) : paginatedTrainings.map((training) => {
               const isExpanded = expandedRows[training.id];
               return (
                 <React.Fragment key={training.id}>
@@ -430,11 +540,9 @@ export default function TrainingManagementPage() {
                       </div>
                     </TableCell>
                     <TableCell>{getTypeBadge(training.trainingType)}</TableCell>
-                    <TableCell>{training.organizer}</TableCell>
-                    <TableCell>{training.room}</TableCell>
-                    <TableCell>{training.startDate}</TableCell>
-                    <TableCell>{training.duration}</TableCell>
-                    <TableCell>{training.cost}</TableCell>
+                    <TableCell className="text-sm text-text-secondary">{training.classification || "-"}</TableCell>
+                    <TableCell className="text-sm">{training.organizer || "-"}</TableCell>
+                    <TableCell className="text-sm">{training.startDate}</TableCell>
                     <TableCell>{getStatusBadge(training.status)}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -468,7 +576,7 @@ export default function TrainingManagementPage() {
 
                   {isExpanded && (
                     <TableRow className="bg-sky-light/5 hover:bg-sky-light/5 border-b">
-                      <TableCell colSpan={10} className="p-0 border-b">
+                      <TableCell colSpan={8} className="p-0 border-b">
                         <div className="bg-background">
                           <TrainingPreparationsTable
                             trainingId={training.id}
@@ -486,6 +594,79 @@ export default function TrainingManagementPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {!loading && sortedTrainings.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1">
+          <p className="text-sm text-text-secondary">
+            Menampilkan{" "}
+            <span className="font-medium text-navy">
+              {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, sortedTrainings.length)}
+            </span>{" "}
+            dari <span className="font-medium text-navy">{sortedTrainings.length}</span> training
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+            >
+              «
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              ‹
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === "..." ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-text-secondary text-sm">…</span>
+                ) : (
+                  <Button
+                    key={item}
+                    variant={currentPage === item ? "default" : "outline"}
+                    size="sm"
+                    className={cn("h-8 w-8 p-0", currentPage === item && "bg-navy text-surface")}
+                    onClick={() => setCurrentPage(item as number)}
+                  >
+                    {item}
+                  </Button>
+                )
+              )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              ›
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+            >
+              »
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {isModalOpen && (
@@ -528,6 +709,10 @@ export default function TrainingManagementPage() {
                     />
                   </div>
                   <div className="space-y-2 col-span-2">
+                    <label className="text-sm font-medium text-text-secondary">Klasifikasi</label>
+                    <Input value={formData.classification} onChange={(e) => setFormData({ ...formData, classification: e.target.value })} placeholder="Contoh: INJ Group, IAS Group, Flagship Program, KPI Corporate" />
+                  </div>
+                  <div className="space-y-2 col-span-2">
                     <label className="text-sm font-medium text-text-secondary">Job Family (pisahkan dengan koma)</label>
                     <Input value={formData.jobFamilies} onChange={(e) => setFormData({ ...formData, jobFamilies: e.target.value })} placeholder="Contoh: People Management, Aviation Security" />
                   </div>
@@ -535,8 +720,8 @@ export default function TrainingManagementPage() {
                     <label className="text-sm font-medium text-text-secondary">Jenis Training</label>
                     <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
                       value={formData.trainingType} onChange={(e) => setFormData({ ...formData, trainingType: e.target.value })}>
-                      <option value="MANDATORY">Mandatori</option>
-                      <option value="NON_MANDATORY">Non-Mandatori</option>
+                      <option value="MANDATORY">Mandatory</option>
+                      <option value="NON_MANDATORY">Non-Mandatory</option>
                     </select>
                   </div>
                   <div className="space-y-2">

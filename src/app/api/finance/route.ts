@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
         trainingName,
         budgetYear: parseInt(budgetYear),
         budgetMonth: parseInt(budgetMonth),
-        trainingType: trainingType ?? "Mandatori",
+        trainingType: trainingType ?? "Mandatory",
         plannedAmount: parseInt(plannedAmount) || 0,
         actualAmount: parseInt(actualAmount) || 0,
         invoiceDate: invoiceDate ? parseDate(invoiceDate) : null,

@@ -107,8 +107,8 @@ export default function DashboardPage() {
   );
 
   const trainingBerjalan = filteredTrainings.filter((t) => t.status === "ONGOING").length;
-  const totalMandatori = filteredTrainings.filter((t) => t.trainingType === "MANDATORY").length;
-  const nonMandatori = filteredTrainings.filter((t) => t.trainingType === "NON_MANDATORY").length;
+  const totalMandatory = filteredTrainings.filter((t) => t.trainingType === "MANDATORY").length;
+  const nonMandatory = filteredTrainings.filter((t) => t.trainingType === "NON_MANDATORY").length;
   const totalAnggaran = (filteredBudgets.reduce((s, b) => s + b.plannedAmount, 0) / 1_000_000).toFixed(1);
   const anggaranTerpakai = (filteredBudgets.reduce((s, b) => s + b.actualAmount, 0) / 1_000_000).toFixed(1);
   const pesertaTerdaftar = filteredLH.length;
@@ -352,22 +352,22 @@ export default function DashboardPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Total Mandatori</CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Total Mandatory</CardTitle>
                 <BookOpen className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : totalMandatori}</div>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : totalMandatory}</div>
                 <p className="text-xs text-text-secondary mt-1">Berdasarkan filter saat ini</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Non Mandatori</CardTitle>
+                <CardTitle className="text-sm font-medium text-text-secondary">Non Mandatory</CardTitle>
                 <Bookmark className="h-4 w-4 text-indigo-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : nonMandatori}</div>
+                <div className="text-2xl font-bold text-navy">{loading ? "—" : nonMandatory}</div>
                 <p className="text-xs text-text-secondary mt-1">Berdasarkan filter saat ini</p>
               </CardContent>
             </Card>

@@ -65,7 +65,7 @@ const makeDefaultProcessDetails = () =>
 
 const EMPTY_FORM = {
   trainingName: "", budgetYear: new Date().getFullYear(), budgetMonth: new Date().getMonth() + 1,
-  trainingType: "Mandatori", plannedAmount: 0, actualAmount: 0,
+  trainingType: "Mandatory", plannedAmount: 0, actualAmount: 0,
   invoiceDate: "", organizer: "", dueDate: "", status: "Belum Dibayar", approvalStatus: "Menunggu Persetujuan",
   processDetails: [] as { id: string; tahap: string; status: string; tanggal: string; keterangan: string; linkBukti: string }[],
 };
@@ -117,8 +117,8 @@ function FormFields({ data, setData, activeTab }: { data: FormData; setData: (d:
         <div className="space-y-2">
           <label className="text-sm font-medium text-text-primary">Jenis Anggaran</label>
           <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.trainingType} onChange={(e) => setData({ ...data, trainingType: e.target.value })}>
-            <option value="Mandatori">Mandatori</option>
-            <option value="Non-Mandatori">Non-Mandatori</option>
+            <option value="Mandatory">Mandatory</option>
+            <option value="Non-Mandatory">Non-Mandatory</option>
             <option value="Magang">Magang</option>
             <option value="Honor Pelatih">Honor Pelatih</option>
           </select>
@@ -254,6 +254,8 @@ export default function FinancePage() {
   const [filterOrganizer, setFilterOrganizer] = useState("ALL");
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -412,6 +414,14 @@ export default function FinancePage() {
 
     return matchSearch && matchStatus && matchYear && matchMonth && matchType && matchOrganizer;
   });
+
+  React.useEffect(() => { setCurrentPage(1); setExpandedRowId(null); }, [searchTerm, activeTab, filterStatus, filterYear, filterMonth, filterType, filterOrganizer]);
+
+  const totalPages = Math.ceil(filteredBudgets.length / ITEMS_PER_PAGE);
+  const paginatedBudgets = filteredBudgets.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const uniqueOrganizers = Array.from(new Set(budgets.map((b) => b.organizer).filter(Boolean)));
   const uniqueYears = Array.from(new Set(budgets.map((b) => b.budgetYear))).sort((a, b) => b - a);
@@ -593,8 +603,8 @@ export default function FinancePage() {
                         <label className="text-xs font-medium text-text-secondary">Jenis Anggaran</label>
                         <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
                           <option value="ALL">Semua Jenis</option>
-                          <option value="Mandatori">Mandatori</option>
-                          <option value="Non-Mandatori">Non-Mandatori</option>
+                          <option value="Mandatory">Mandatory</option>
+                          <option value="Non-Mandatory">Non-Mandatory</option>
                           <option value="Magang">Magang</option>
                           <option value="Honor Pelatih">Honor Pelatih</option>
                         </select>
@@ -668,7 +678,7 @@ export default function FinancePage() {
                 ) : filteredBudgets.length === 0 ? (
                   <TableRow><TableCell colSpan={activeTab === "BIAYA" ? 8 : 7} className="h-24 text-center text-text-secondary">Tidak ada data ditemukan.</TableCell></TableRow>
                 ) : (
-                  filteredBudgets.map((item) => (
+                  paginatedBudgets.map((item) => (
                     <React.Fragment key={item.id}>
                       <TableRow className={`hover:bg-muted/30 transition-colors ${activeTab === "BIAYA" ? "cursor-pointer" : ""} ${expandedRowId === item.id ? "bg-sky/5" : ""}`} onClick={() => activeTab === "BIAYA" && toggleRow(item.id)}>
                         {activeTab === "BIAYA" && (
@@ -798,6 +808,48 @@ export default function FinancePage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination */}
+          {!loading && filteredBudgets.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-border/50">
+              <p className="text-sm text-text-secondary">
+                Menampilkan{" "}
+                <span className="font-medium text-navy">
+                  {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredBudgets.length)}
+                </span>{" "}
+                dari <span className="font-medium text-navy">{filteredBudgets.length}</span>{" "}
+                {activeTab === "ANGGARAN" ? "anggaran" : "tagihan"}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</Button>
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>‹</Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((item, idx) =>
+                    item === "..." ? (
+                      <span key={`e-${idx}`} className="px-2 text-text-secondary text-sm">…</span>
+                    ) : (
+                      <Button
+                        key={item}
+                        variant={currentPage === item ? "default" : "outline"}
+                        size="sm"
+                        className={`h-8 w-8 p-0${currentPage === item ? " bg-navy text-surface" : ""}`}
+                        onClick={() => setCurrentPage(item as number)}
+                      >
+                        {item}
+                      </Button>
+                    )
+                  )}
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>›</Button>
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

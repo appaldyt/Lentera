@@ -27,6 +27,7 @@ interface TrainingDetail {
   name: string;
   description: string | null;
   jobFamilies: string[];
+  classification: string;
   trainingType: string;
   organizer: string;
   room: string;
@@ -340,6 +341,11 @@ const handleFileSelect = (file: File) => {
           </div>
           <p className="text-sm text-text-secondary">ID: {training.id} • {training.description}</p>
           <div className="flex flex-wrap gap-1 mt-2">
+            {training.classification && (
+              <Badge variant="outline" className="text-xs px-2 py-0.5 bg-sky/10 text-sky border-sky/30">
+                {training.classification}
+              </Badge>
+            )}
             {training.jobFamilies.map((jf, idx) => (
               <Badge key={idx} variant="outline" className="text-xs px-2 py-0.5 bg-muted/30 text-text-secondary border-border/50">
                 {jf}

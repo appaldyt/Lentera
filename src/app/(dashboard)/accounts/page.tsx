@@ -93,6 +93,9 @@ function AccountsContent() {
   const [filterRole, setFilterRole] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
@@ -223,6 +226,14 @@ function AccountsContent() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterRole, filterStatus]);
+
+  const totalPages = Math.ceil(filteredAccounts.length / ITEMS_PER_PAGE);
+  const paginatedAccounts = filteredAccounts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const totalSuperAdmin = accounts.filter((a) => a.role === "SUPER_ADMIN").length;
   const totalAdmin = accounts.filter((a) => a.role === "ADMIN").length;
   const totalUser = accounts.filter((a) => a.role === "USER").length;
@@ -337,7 +348,7 @@ function AccountsContent() {
           )}
         </div>
         <p className="text-sm text-text-secondary sm:ml-auto">
-          Menampilkan <strong>{filteredAccounts.length}</strong> dari {accounts.length} akun
+          <strong>{filteredAccounts.length}</strong> dari {accounts.length} akun
           {" · "}
           <span className="text-success font-medium">{totalAktif} aktif</span>
         </p>
@@ -370,7 +381,7 @@ function AccountsContent() {
               </TableCell>
             </TableRow>
           ) : (
-            filteredAccounts.map((acc) => {
+            paginatedAccounts.map((acc) => {
               const badge = ROLE_BADGE[acc.role];
               return (
                 <TableRow key={acc.id}>
@@ -434,6 +445,47 @@ function AccountsContent() {
           )}
         </TableBody>
       </Table>
+
+      {/* Pagination */}
+      {!loading && filteredAccounts.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 py-2">
+          <p className="text-sm text-text-secondary">
+            Menampilkan{" "}
+            <span className="font-medium text-navy">
+              {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredAccounts.length)}
+            </span>{" "}
+            dari <span className="font-medium text-navy">{filteredAccounts.length}</span> akun
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</Button>
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>‹</Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === "..." ? (
+                  <span key={`e-${idx}`} className="px-2 text-text-secondary text-sm">…</span>
+                ) : (
+                  <Button
+                    key={item}
+                    variant={currentPage === item ? "default" : "outline"}
+                    size="sm"
+                    className={`h-8 w-8 p-0${currentPage === item ? " bg-navy text-surface" : ""}`}
+                    onClick={() => setCurrentPage(item as number)}
+                  >
+                    {item}
+                  </Button>
+                )
+              )}
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>›</Button>
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</Button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Tambah / Edit Akun */}
       {isModalOpen && (

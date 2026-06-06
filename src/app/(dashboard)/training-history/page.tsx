@@ -11,6 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { History } from "lucide-react";
 import { SearchFilter } from "./search-filter";
+import { HistoryPagination } from "./pagination";
+
+const ITEMS_PER_PAGE = 10;
 
 export default async function TrainingHistoryPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -19,6 +22,7 @@ export default async function TrainingHistoryPage(props: {
   const search = typeof searchParams.search === "string" ? searchParams.search : "";
   const year = typeof searchParams.year === "string" && searchParams.year !== "ALL" ? parseInt(searchParams.year) : null;
   const month = typeof searchParams.month === "string" && searchParams.month !== "ALL" ? parseInt(searchParams.month) : null;
+  const page = typeof searchParams.page === "string" ? Math.max(1, parseInt(searchParams.page) || 1) : 1;
 
   const whereClause: any = {
     training: {
@@ -52,16 +56,18 @@ export default async function TrainingHistoryPage(props: {
     };
   }
 
-  // Fetch participants where the training status is COMPLETED and matches search query
-  const historyData = await prisma.trainingParticipant.findMany({
-    where: whereClause,
-    include: {
-      training: true,
-    },
-    orderBy: {
-      trainingDate: "desc",
-    },
-  });
+  const [historyData, totalCount] = await Promise.all([
+    prisma.trainingParticipant.findMany({
+      where: whereClause,
+      include: { training: true },
+      orderBy: { trainingDate: "desc" },
+      skip: (page - 1) * ITEMS_PER_PAGE,
+      take: ITEMS_PER_PAGE,
+    }),
+    prisma.trainingParticipant.count({ where: whereClause }),
+  ]);
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   const formatDate = (date: Date | null) => {
     if (!date) return "-";
@@ -148,6 +154,16 @@ export default async function TrainingHistoryPage(props: {
           </Table>
         </CardContent>
       </Card>
+
+      {totalCount > 0 && (
+        <HistoryPagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          itemsPerPage={ITEMS_PER_PAGE}
+          searchParams={searchParams as Record<string, string>}
+        />
+      )}
     </div>
   );
 }

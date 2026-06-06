@@ -44,6 +44,8 @@ export function SearchFilter() {
       if (month !== "ALL") params.set("month", month);
       else params.delete("month");
 
+      params.delete("page");
+
       router.replace(`${pathname}?${params.toString()}`);
     });
   };

@@ -102,6 +102,8 @@ export default function VendorsPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const closeImportModal = () => {
     setIsImportModalOpen(false);
@@ -142,6 +144,7 @@ export default function VendorsPage() {
   }, [search, filterMethod, filterStatus, filterUsed, filterRating]);
 
   useEffect(() => {
+    setCurrentPage(1);
     fetchVendors();
   }, [fetchVendors]);
 
@@ -350,6 +353,12 @@ export default function VendorsPage() {
     XLSX.writeFile(wb, "Template_Import_Vendor.xlsx");
   };
 
+  const totalPages = Math.ceil(vendors.length / ITEMS_PER_PAGE);
+  const paginatedVendors = vendors.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   async function confirmDelete() {
     if (!vendorToDelete) return;
     try {
@@ -556,7 +565,7 @@ export default function VendorsPage() {
         ) : vendors.length === 0 ? (
           <div className="text-center py-16 text-text-secondary">Tidak ada vendor yang ditemukan.</div>
         ) : (
-          vendors.map((v) => (
+          paginatedVendors.map((v) => (
             <div key={v.id} className="grid grid-cols-12 gap-4 p-5 border-b border-border items-center hover:bg-slate-50 transition-colors last:border-b-0">
               <div className="col-span-3 space-y-2">
                 <h4 className="font-bold text-navy text-[15px] leading-tight">{v.name}</h4>
@@ -621,6 +630,47 @@ export default function VendorsPage() {
           ))
         )}
       </div>
+
+      {/* Pagination */}
+      {!loading && vendors.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 py-2">
+          <p className="text-sm text-text-secondary">
+            Menampilkan{" "}
+            <span className="font-medium text-navy">
+              {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, vendors.length)}
+            </span>{" "}
+            dari <span className="font-medium text-navy">{vendors.length}</span> vendor
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</Button>
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>‹</Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === "..." ? (
+                  <span key={`e-${idx}`} className="px-2 text-text-secondary text-sm">…</span>
+                ) : (
+                  <Button
+                    key={item}
+                    variant={currentPage === item ? "default" : "outline"}
+                    size="sm"
+                    className={`h-8 w-8 p-0${currentPage === item ? " bg-navy text-surface" : ""}`}
+                    onClick={() => setCurrentPage(item as number)}
+                  >
+                    {item}
+                  </Button>
+                )
+              )}
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>›</Button>
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</Button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Tambah / Edit Vendor */}
       {isModalOpen && (

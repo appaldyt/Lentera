@@ -35,6 +35,7 @@ model Training {
   name         String
   description  String?
   jobFamilies  String[]
+  classification String                @default("")
   trainingType String                @default("MANDATORY")
   organizer    String
   room         String

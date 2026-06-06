@@ -113,6 +113,8 @@ export default function RoomsPage() {
   const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
   const [importing, setImporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const handleFileSelect = async (file: File) => {
     if (!file.name.match(/\.(xlsx|xls)$/)) {
@@ -388,6 +390,8 @@ export default function RoomsPage() {
     }
   };
 
+  useEffect(() => { setCurrentPage(1); setExpandedRows({}); }, [searchTerm, filterOwnership]);
+
   const filteredRooms = rooms.filter((room) => {
     const matchesSearch =
       room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -395,6 +399,12 @@ export default function RoomsPage() {
     const matchesOwnership = filterOwnership === "ALL" || room.ownership === filterOwnership;
     return matchesSearch && matchesOwnership;
   });
+
+  const totalPages = Math.ceil(filteredRooms.length / ITEMS_PER_PAGE);
+  const paginatedRooms = filteredRooms.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const handleExport = () => {
     if (filteredRooms.length === 0) {
@@ -540,7 +550,7 @@ export default function RoomsPage() {
               </TableCell>
             </TableRow>
           ) : (
-            filteredRooms.map((room) => (
+            paginatedRooms.map((room) => (
               <Fragment key={room.id}>
                 <TableRow
                   className="cursor-pointer hover:bg-muted/50"
@@ -685,6 +695,47 @@ export default function RoomsPage() {
           )}
         </TableBody>
       </Table>
+
+      {/* Pagination */}
+      {!loading && filteredRooms.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 py-2">
+          <p className="text-sm text-text-secondary">
+            Menampilkan{" "}
+            <span className="font-medium text-navy">
+              {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredRooms.length)}
+            </span>{" "}
+            dari <span className="font-medium text-navy">{filteredRooms.length}</span> ruangan
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</Button>
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>‹</Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === "..." ? (
+                  <span key={`e-${idx}`} className="px-2 text-text-secondary text-sm">…</span>
+                ) : (
+                  <Button
+                    key={item}
+                    variant={currentPage === item ? "default" : "outline"}
+                    size="sm"
+                    className={`h-8 w-8 p-0${currentPage === item ? " bg-navy text-surface" : ""}`}
+                    onClick={() => setCurrentPage(item as number)}
+                  >
+                    {item}
+                  </Button>
+                )
+              )}
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>›</Button>
+            <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</Button>
+          </div>
+        </div>
+      )}
 
       {/* ── Import Modal ──────────────────────────────────────────────────────── */}
       {isImportModalOpen && (
