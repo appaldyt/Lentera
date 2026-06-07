@@ -11,26 +11,53 @@ export async function POST(request: NextRequest) {
 
     const results: {
       created: string[];
+      updated: string[];
       failed: { nik: string; reason: string }[];
-    } = { created: [], failed: [] };
+    } = { created: [], updated: [], failed: [] };
 
     for (const e of entries) {
-      if (!e.nik || !e.name || !e.hours) {
-        results.failed.push({ nik: e.nik ?? "-", reason: "NIK, Nama, dan Total Jam wajib diisi" });
+      if (!e.nik || !e.hours) {
+        results.failed.push({ nik: e.nik ?? "-", reason: "NIK dan Total Jam wajib diisi" });
         continue;
       }
       try {
-        await prisma.selfLearning.create({
-          data: {
-            nik: e.nik,
-            name: e.name,
-            department: e.department ?? "",
-            year: e.year ?? "",
-            platform: e.platform ?? "",
-            hours: parseFloat(e.hours) || 0,
-          },
+        const employee = await prisma.employee.findUnique({
+          where: { nik: e.nik },
+          select: { name: true, division: true },
         });
-        results.created.push(e.nik);
+        if (!employee) {
+          results.failed.push({ nik: e.nik, reason: "NIK tidak ditemukan di data karyawan" });
+          continue;
+        }
+
+        const year = e.year ?? "";
+        const platform = e.platform ?? "";
+        const hours = parseFloat(e.hours) || 0;
+
+        const existing = await prisma.selfLearning.findFirst({
+          where: { nik: e.nik, year, platform },
+          select: { id: true },
+        });
+
+        if (existing) {
+          await prisma.selfLearning.update({
+            where: { id: existing.id },
+            data: { hours },
+          });
+          results.updated.push(e.nik);
+        } else {
+          await prisma.selfLearning.create({
+            data: {
+              nik: e.nik,
+              name: employee.name,
+              department: employee.division,
+              year,
+              platform,
+              hours,
+            },
+          });
+          results.created.push(e.nik);
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         results.failed.push({ nik: e.nik, reason: msg });

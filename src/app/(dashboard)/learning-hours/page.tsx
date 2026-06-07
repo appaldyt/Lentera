@@ -47,7 +47,7 @@ const EMPTY_SELF_FORM: Omit<SelfLearningEntry, "id"> = {
 };
 
 const SELF_IMPORT_HEADERS = [
-  "NIK", "Nama Karyawan", "Divisi", "Tahun", "Platform", "Total Jam Belajar",
+  "No", "NIK", "Nama Karyawan", "Divisi", "Tahun", "Platform", "Total Jam Belajar",
 ];
 
 interface SelfLearningImportRow {
@@ -58,33 +58,32 @@ interface SelfLearningImportRow {
   platform: string;
   hours: number;
   _errors: string[];
+  _status: "baru" | "update" | "error";
 }
 
 function parseSelfLearningXLSX(buffer: ArrayBuffer): SelfLearningImportRow[] {
   const wb = XLSX.read(buffer, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+  // Kolom No, Nama Karyawan, Divisi diabaikan — nama & divisi diambil dari data karyawan via NIK
   return rows.map((row) => {
     const nik = String(row["NIK"] ?? "").trim();
-    const name = String(row["Nama Karyawan"] ?? "").trim();
-    const department = String(row["Divisi"] ?? "").trim();
     const year = String(row["Tahun"] ?? "").trim();
     const platform = String(row["Platform"] ?? "").trim();
     const hours = parseFloat(String(row["Total Jam Belajar"] ?? "")) || 0;
     const VALID_PLATFORMS = ["LMS", "LinkedIn Learning"];
     const errors: string[] = [];
     if (!nik) errors.push("NIK wajib diisi");
-    if (!name) errors.push("Nama wajib diisi");
     if (!hours) errors.push("Total Jam Belajar wajib diisi");
     if (platform && !VALID_PLATFORMS.includes(platform)) errors.push(`Platform harus "LMS" atau "LinkedIn Learning"`);
-    return { nik, name, department, year, platform, hours, _errors: errors };
-  }).filter((row) => row.nik || row.name);
+    return { nik, name: "", department: "", year, platform, hours, _errors: errors, _status: "baru" as const };
+  }).filter((row) => row.nik || row.hours > 0);
 }
 
 function downloadSelfLearningTemplate() {
   const sampleData = [
-    { NIK: "IAS-2024-0001", "Nama Karyawan": "Andi Saputra", Divisi: "Operations", Tahun: "2026", Platform: "LMS", "Total Jam Belajar": 8 },
-    { NIK: "IAS-2024-0002", "Nama Karyawan": "Budi Santoso", Divisi: "Finance", Tahun: "2026", Platform: "LinkedIn Learning", "Total Jam Belajar": 12 },
+    { No: 1, NIK: "IAS-2024-0001", "Nama Karyawan": "Andi Saputra", Divisi: "Operations", Tahun: "2026", Platform: "LMS", "Total Jam Belajar": 8 },
+    { No: 2, NIK: "IAS-2024-0002", "Nama Karyawan": "Budi Santoso", Divisi: "Finance", Tahun: "2026", Platform: "LinkedIn Learning", "Total Jam Belajar": 12 },
   ];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(sampleData, { header: SELF_IMPORT_HEADERS });
@@ -414,7 +413,7 @@ function SelfLearningTab() {
   const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
   const [importRows, setImportRows] = useState<SelfLearningImportRow[]>([]);
   const [importFileName, setImportFileName] = useState("");
-  const [importResult, setImportResult] = useState<{ added: number; failed: string[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ added: number; updated: number; failed: { nik: string; reason: string }[] } | null>(null);
   const [importing, setImporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -493,20 +492,46 @@ function SelfLearningTab() {
     setImportResult(null);
   };
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     if (!file.name.endsWith(".xlsx")) {
       alert("Hanya file .xlsx yang didukung. Gunakan template yang disediakan.");
       return;
     }
     setImportFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const buffer = e.target?.result as ArrayBuffer;
-      const rows = parseSelfLearningXLSX(buffer);
-      setImportRows(rows);
-      setImportStep("preview");
-    };
-    reader.readAsArrayBuffer(file);
+    const buffer = await file.arrayBuffer();
+    const rows = parseSelfLearningXLSX(buffer);
+
+    // Lookup nama & divisi dari data karyawan berdasarkan NIK
+    const niks = [...new Set(rows.map((r) => r.nik).filter(Boolean))];
+    let empMap: Record<string, { name: string; division: string }> = {};
+    try {
+      const res = await fetch("/api/employees/check-niks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ niks }),
+      });
+      const json = await res.json();
+      for (const emp of (json.employees ?? [])) {
+        empMap[emp.nik] = { name: emp.name, division: emp.division };
+      }
+    } catch { /* biarkan error NIK tidak ditemukan ditangani di bawah */ }
+
+    const enriched = rows.map((row) => {
+      const emp = empMap[row.nik];
+      const errors = [...row._errors];
+      if (row.nik && !emp) errors.push("NIK tidak ditemukan di data karyawan");
+
+      const hasError = errors.length > 0;
+      const isExisting = !hasError && entries.some(
+        (e) => e.nik === row.nik && e.year === row.year && e.platform === row.platform
+      );
+      const status: SelfLearningImportRow["_status"] = hasError ? "error" : isExisting ? "update" : "baru";
+
+      return { ...row, name: emp?.name ?? "", department: emp?.division ?? "", _errors: errors, _status: status };
+    });
+
+    setImportRows(enriched);
+    setImportStep("preview");
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -527,11 +552,17 @@ function SelfLearningTab() {
         body: JSON.stringify({ entries: validRows }),
       });
       const json = await res.json();
-      const failed = [
-        ...importRows.filter((r) => r._errors.length > 0).map((r) => r.nik || r.name),
-        ...(json.failed ?? []).map((f: { nik: string }) => f.nik),
+      const failed: { nik: string; reason: string }[] = [
+        ...importRows.filter((r) => r._errors.length > 0).map((r) => ({
+          nik: r.nik || r.name,
+          reason: r._errors.join(", "),
+        })),
+        ...(json.failed ?? []).map((f: { nik: string; reason: string }) => ({
+          nik: f.nik,
+          reason: f.reason,
+        })),
       ];
-      setImportResult({ added: (json.created ?? []).length, failed });
+      setImportResult({ added: (json.created ?? []).length, updated: (json.updated ?? []).length, failed });
       // Reload from API to get server-assigned IDs
       const listRes = await fetch("/api/self-learning");
       const listJson = await listRes.json();
@@ -544,8 +575,10 @@ function SelfLearningTab() {
     }
   };
 
-  const validImportCount = importRows.filter((r) => r._errors.length === 0).length;
-  const invalidImportCount = importRows.filter((r) => r._errors.length > 0).length;
+  const newImportCount = importRows.filter((r) => r._status === "baru").length;
+  const updateImportCount = importRows.filter((r) => r._status === "update").length;
+  const validImportCount = newImportCount + updateImportCount;
+  const invalidImportCount = importRows.filter((r) => r._status === "error").length;
 
   return (
     <div className="space-y-5">
@@ -607,13 +640,14 @@ function SelfLearningTab() {
                 </div>
 
                 <div className="bg-muted/40 rounded-lg p-4 text-sm text-text-secondary space-y-2">
-                  <p className="font-medium text-navy text-xs uppercase tracking-wide">Format kolom yang diperlukan:</p>
+                  <p className="font-medium text-navy text-xs uppercase tracking-wide">Format kolom (sama dengan hasil Export):</p>
                   <div className="flex flex-wrap gap-2">
                     {SELF_IMPORT_HEADERS.map((h) => (
-                      <span key={h} className="bg-background border border-border rounded px-2 py-0.5 text-xs font-mono">{h}</span>
+                      <span key={h} className={`border rounded px-2 py-0.5 text-xs font-mono ${["Nama Karyawan", "Divisi", "No"].includes(h) ? "bg-muted/60 border-border text-text-secondary/60" : "bg-background border-border"}`}>{h}</span>
                     ))}
                   </div>
-                  <p className="text-xs text-text-secondary">Kolom <strong>Platform</strong> hanya menerima nilai: <code className="bg-background border border-border rounded px-1">LMS</code> atau <code className="bg-background border border-border rounded px-1">LinkedIn Learning</code></p>
+                  <p className="text-xs text-text-secondary">Kolom <strong>Nama Karyawan</strong> dan <strong>Divisi</strong> otomatis diambil dari data karyawan — nilai di file diabaikan.</p>
+                  <p className="text-xs text-text-secondary">Kolom <strong>Platform</strong> hanya menerima: <code className="bg-background border border-border rounded px-1">LMS</code> atau <code className="bg-background border border-border rounded px-1">LinkedIn Learning</code></p>
                 </div>
 
                 <Button variant="outline" className="gap-2 w-fit text-sky border-sky/30 hover:bg-sky/5" onClick={downloadSelfLearningTemplate}>
@@ -628,7 +662,12 @@ function SelfLearningTab() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 text-sm flex-wrap">
                     <span className="text-text-secondary">File: <strong className="text-navy">{importFileName}</strong></span>
-                    <span className="flex items-center gap-1 text-success font-medium"><CheckCircle2 className="h-4 w-4" />{validImportCount} valid</span>
+                    {newImportCount > 0 && (
+                      <span className="flex items-center gap-1 text-success font-medium"><CheckCircle2 className="h-4 w-4" />{newImportCount} baru</span>
+                    )}
+                    {updateImportCount > 0 && (
+                      <span className="flex items-center gap-1 text-sky font-medium"><CheckCircle2 className="h-4 w-4" />{updateImportCount} update</span>
+                    )}
                     {invalidImportCount > 0 && (
                       <span className="flex items-center gap-1 text-destructive font-medium"><AlertCircle className="h-4 w-4" />{invalidImportCount} error</span>
                     )}
@@ -655,10 +694,14 @@ function SelfLearningTab() {
                     </TableHeader>
                     <TableBody>
                       {importRows.map((row, i) => (
-                        <TableRow key={i} className={row._errors.length > 0 ? "bg-destructive/5" : ""}>
+                        <TableRow key={i} className={row._status === "error" ? "bg-destructive/5" : row._status === "update" ? "bg-sky/5" : ""}>
                           <TableCell className="text-text-secondary text-xs">{i + 1}</TableCell>
                           <TableCell className="font-mono text-xs">{row.nik || <span className="text-destructive italic">kosong</span>}</TableCell>
-                          <TableCell className="text-sm">{row.name || <span className="text-destructive italic">kosong</span>}</TableCell>
+                          <TableCell className="text-sm">
+                            {row.name
+                              ? <span className="text-navy">{row.name}</span>
+                              : <span className="text-text-secondary italic text-xs">-</span>}
+                          </TableCell>
                           <TableCell className="text-sm text-text-secondary">{row.department || "-"}</TableCell>
                           <TableCell className="text-sm text-center text-text-secondary">{row.year || "-"}</TableCell>
                           <TableCell className="text-sm text-text-secondary">{row.platform || "-"}</TableCell>
@@ -666,12 +709,14 @@ function SelfLearningTab() {
                             {row.hours > 0 ? row.hours : <span className="text-destructive italic">0</span>}
                           </TableCell>
                           <TableCell className="text-center">
-                            {row._errors.length === 0
-                              ? <Badge className="bg-success/10 text-success border-success/20 text-xs">Valid</Badge>
-                              : <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-xs">Error</Badge>
-                            }
+                            {row._status === "baru" && <Badge className="bg-success/10 text-success border-success/20 text-xs">Baru</Badge>}
+                            {row._status === "update" && <Badge className="bg-sky/10 text-sky border-sky/20 text-xs">Update</Badge>}
+                            {row._status === "error" && <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-xs">Error</Badge>}
                           </TableCell>
-                          <TableCell className="text-xs text-destructive">{row._errors.join(", ")}</TableCell>
+                          <TableCell className="text-xs">
+                            {row._status === "update" && <span className="text-sky">Jam belajar akan diperbarui</span>}
+                            {row._status === "error" && <span className="text-destructive">{row._errors.join(", ")}</span>}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -699,32 +744,58 @@ function SelfLearningTab() {
 
             {/* ── Step 3: Result ── */}
             {importStep === "result" && importResult && (
-              <div className="flex-1 flex flex-col items-center justify-center gap-6 py-4">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center bg-success/10">
-                  <CheckCircle2 className="h-8 w-8 text-success" />
-                </div>
-                <div className="text-center">
-                  <h4 className="text-lg font-bold text-navy mb-1">Import Selesai</h4>
-                  <p className="text-text-secondary text-sm">
-                    <strong className="text-success">{importResult.added} entri</strong> berhasil ditambahkan
-                    {importResult.failed.length > 0 && (
-                      <>, <strong className="text-destructive">{importResult.failed.length} dilewati</strong> karena error</>
-                    )}
-                  </p>
-                </div>
-
-                <div className="flex gap-4 text-sm">
-                  <div className="flex items-center gap-1.5 bg-success/10 text-success rounded-lg px-3 py-2 font-medium">
-                    <CheckCircle2 className="h-4 w-4" /> {importResult.added} Ditambahkan
+              <div className="flex-1 flex flex-col gap-5 py-2 min-h-0">
+                {/* Icon + ringkasan */}
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center bg-success/10">
+                    <CheckCircle2 className="h-7 w-7 text-success" />
                   </div>
-                  {importResult.failed.length > 0 && (
-                    <div className="flex items-center gap-1.5 bg-destructive/10 text-destructive rounded-lg px-3 py-2 font-medium">
-                      <AlertCircle className="h-4 w-4" /> {importResult.failed.length} Dilewati
-                    </div>
-                  )}
+                  <h4 className="text-lg font-bold text-navy">Import Selesai</h4>
+                  <div className="flex gap-3 text-sm flex-wrap justify-center">
+                    {importResult.added > 0 && (
+                      <div className="flex items-center gap-1.5 bg-success/10 text-success rounded-lg px-3 py-2 font-medium">
+                        <CheckCircle2 className="h-4 w-4" /> {importResult.added} Ditambahkan
+                      </div>
+                    )}
+                    {importResult.updated > 0 && (
+                      <div className="flex items-center gap-1.5 bg-sky/10 text-sky rounded-lg px-3 py-2 font-medium">
+                        <CheckCircle2 className="h-4 w-4" /> {importResult.updated} Diperbarui
+                      </div>
+                    )}
+                    {importResult.failed.length > 0 && (
+                      <div className="flex items-center gap-1.5 bg-destructive/10 text-destructive rounded-lg px-3 py-2 font-medium">
+                        <AlertCircle className="h-4 w-4" /> {importResult.failed.length} Dilewati
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                {/* Tabel detail yang dilewati */}
+                {importResult.failed.length > 0 && (
+                  <div className="flex-1 min-h-0 flex flex-col gap-2">
+                    <p className="text-xs font-medium text-text-secondary uppercase tracking-wide">Detail Dilewati</p>
+                    <div className="overflow-auto border rounded-lg flex-1">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 border-b">
+                          <tr>
+                            <th className="text-left px-3 py-2 text-xs font-medium text-text-secondary">NIK</th>
+                            <th className="text-left px-3 py-2 text-xs font-medium text-text-secondary">Alasan Dilewati</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importResult.failed.map((f, i) => (
+                            <tr key={i} className="border-t">
+                              <td className="px-3 py-2 font-mono text-xs text-navy">{f.nik}</td>
+                              <td className="px-3 py-2 text-xs text-destructive">{f.reason}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2 border-t justify-end">
                   <Button variant="outline" onClick={closeImportModal}>Tutup</Button>
                   <Button className="bg-sky hover:bg-sky/90 text-white" onClick={() => { closeImportModal(); }}>
                     Selesai

@@ -185,6 +185,8 @@ model SelfLearning {
   hours      Float    @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@unique([nik, year, platform])
 }
 
 model License {

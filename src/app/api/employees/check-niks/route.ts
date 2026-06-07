@@ -10,8 +10,11 @@ export async function POST(request: NextRequest) {
 
   const found = await prisma.employee.findMany({
     where: { nik: { in: niks } },
-    select: { nik: true },
+    select: { nik: true, name: true, division: true },
   });
 
-  return Response.json({ existing: found.map((e) => e.nik) });
+  return Response.json({
+    existing: found.map((e) => e.nik),
+    employees: found,
+  });
 }

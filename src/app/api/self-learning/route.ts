@@ -29,16 +29,26 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "NIK, Nama, dan Total Jam wajib diisi" }, { status: 400 });
     }
 
-    const entry = await prisma.selfLearning.create({
-      data: {
-        nik,
-        name,
-        department: department ?? "",
-        year: year ?? "",
-        platform: platform ?? "",
-        hours: parseFloat(hours) || 0,
-      },
+    const yr = year ?? "";
+    const plt = platform ?? "";
+    const hrs = parseFloat(hours) || 0;
+
+    const existing = await prisma.selfLearning.findFirst({
+      where: { nik, year: yr, platform: plt },
+      select: { id: true },
     });
+
+    let entry;
+    if (existing) {
+      entry = await prisma.selfLearning.update({
+        where: { id: existing.id },
+        data: { hours: hrs },
+      });
+    } else {
+      entry = await prisma.selfLearning.create({
+        data: { nik, name, department: department ?? "", year: yr, platform: plt, hours: hrs },
+      });
+    }
 
     return Response.json({ entry }, { status: 201 });
   } catch (err) {
