@@ -22,7 +22,7 @@ function serializeProcess(p: ProcessRow) {
 function serializeBudget(b: {
   id: string; trainingName: string; budgetYear: number; budgetMonth: number;
   trainingType: string; plannedAmount: number; actualAmount: number;
-  invoiceDate: Date | null; organizer: string; dueDate: Date | null;
+  invoiceNumber: string; invoiceDate: Date | null; organizer: string; dueDate: Date | null;
   status: string; approvalStatus: string; processes: ProcessRow[];
 }) {
   return {
@@ -33,6 +33,7 @@ function serializeBudget(b: {
     trainingType: b.trainingType,
     plannedAmount: b.plannedAmount,
     actualAmount: b.actualAmount,
+    invoiceNumber: b.invoiceNumber || null,
     invoiceDate: b.invoiceDate ? formatDate(b.invoiceDate) : null,
     organizer: b.organizer,
     dueDate: b.dueDate ? formatDate(b.dueDate) : null,
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
   try {
     const {
       trainingName, budgetYear, budgetMonth, trainingType,
-      plannedAmount, actualAmount, invoiceDate, organizer,
+      plannedAmount, actualAmount, invoiceNumber, invoiceDate, organizer,
       dueDate, status, approvalStatus, processDetails,
     } = await request.json();
 
@@ -91,6 +92,7 @@ export async function POST(request: NextRequest) {
         trainingType: trainingType ?? "Mandatory",
         plannedAmount: parseInt(plannedAmount) || 0,
         actualAmount: parseInt(actualAmount) || 0,
+        invoiceNumber: invoiceNumber ?? "",
         invoiceDate: invoiceDate ? parseDate(invoiceDate) : null,
         organizer: organizer ?? "",
         dueDate: dueDate ? parseDate(dueDate) : null,

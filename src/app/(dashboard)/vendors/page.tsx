@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx";
 
-const EXCEL_HEADERS = [
+const IMPORT_HEADERS = [
   "Nama Vendor", "Lokasi", "Telepon", "Email", "Topik",
   "Metode", "Status", "Harga Min", "Harga Max", "Rating",
   "Pernah Dipakai", "Catatan", "Link Legalitas",
@@ -55,6 +55,93 @@ const EMPTY_FORM = {
   legalDocUrl: "",
 };
 
+interface VendorImportRow {
+  name: string;
+  location: string;
+  phone: string;
+  email: string;
+  topicsRaw: string;
+  method: string;
+  status: string;
+  priceMin: string;
+  priceMax: string;
+  rating: string;
+  usedBefore: string;
+  notes: string;
+  legalDocUrl: string;
+  _errors: string[];
+}
+
+function parseXLSX(buffer: ArrayBuffer): VendorImportRow[] {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+
+  return rows.map((row) => {
+    const name = String(row["Nama Vendor"] ?? "").trim();
+    const location = String(row["Lokasi"] ?? "").trim();
+    const phone = String(row["Telepon"] ?? "").trim();
+    const email = String(row["Email"] ?? "").trim();
+    const topicsRaw = String(row["Topik"] ?? "").trim();
+    const method = String(row["Metode"] ?? "").trim() || "Online";
+    const status = String(row["Status"] ?? "").trim();
+    const priceMin = String(row["Harga Min"] ?? "").trim();
+    const priceMax = String(row["Harga Max"] ?? "").trim();
+    const rating = String(row["Rating"] ?? "").trim();
+    const usedBefore = String(row["Pernah Dipakai"] ?? "").trim();
+    const notes = String(row["Catatan"] ?? "").trim();
+    const legalDocUrl = String(row["Link Legalitas"] ?? "").trim();
+
+    const errors: string[] = [];
+    if (!name) errors.push("Nama Vendor wajib diisi");
+    if (!location) errors.push("Lokasi wajib diisi");
+    if (!phone) errors.push("Telepon wajib diisi");
+    if (!email) errors.push("Email wajib diisi");
+
+    return { name, location, phone, email, topicsRaw, method, status, priceMin, priceMax, rating, usedBefore, notes, legalDocUrl, _errors: errors };
+  }).filter((row) => row.name || row.email);
+}
+
+function downloadTemplate() {
+  const sampleData = [
+    {
+      "Nama Vendor": "PT Mitra Pelatihan Indonesia",
+      "Lokasi": "Jakarta",
+      "Telepon": "0812-3456-7890",
+      "Email": "info@mitrapelatihan.com",
+      "Topik": "Leadership, Komunikasi, Team Building",
+      "Metode": "Hybrid",
+      "Status": "Aktif",
+      "Harga Min": 3000000,
+      "Harga Max": 5000000,
+      "Rating": 4.5,
+      "Pernah Dipakai": "Ya",
+      "Catatan": "Trainer profesional, perlu konfirmasi H-7",
+      "Link Legalitas": "",
+    },
+    {
+      "Nama Vendor": "Experia Training Center",
+      "Lokasi": "Surabaya",
+      "Telepon": "0856-1122-3344",
+      "Email": "hello@experia.id",
+      "Topik": "Selling Skills, Komunikasi",
+      "Metode": "Online",
+      "Status": "Aktif",
+      "Harga Min": 1500000,
+      "Harga Max": 2500000,
+      "Rating": 4.0,
+      "Pernah Dipakai": "Tidak",
+      "Catatan": "",
+      "Link Legalitas": "",
+    },
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(sampleData, { header: IMPORT_HEADERS });
+  ws["!cols"] = IMPORT_HEADERS.map((_, i) => ({ wch: i < 4 ? 28 : 18 }));
+  XLSX.utils.book_append_sheet(wb, ws, "Template Vendor");
+  XLSX.writeFile(wb, "Template_Import_Vendor.xlsx");
+}
+
 function formatRupiah(val: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
 }
@@ -95,8 +182,7 @@ export default function VendorsPage() {
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [importRows, setImportRows] = useState<any[]>([]);
+  const [importRows, setImportRows] = useState<VendorImportRow[]>([]);
   const [importFileName, setImportFileName] = useState("");
   const [importResult, setImportResult] = useState<{ created: string[]; updated: string[]; failed: { name: string; reason: string }[] } | null>(null);
   const [existingVendorNames, setExistingVendorNames] = useState<Set<string>>(new Set());
@@ -218,30 +304,19 @@ export default function VendorsPage() {
     setIsDeleteModalOpen(true);
   }
 
-  const handleFileSelect = async (file: File) => {
-    if (!file.name.match(/\.(xlsx|xls)$/)) {
-      alert("Hanya file Excel (.xlsx / .xls) yang didukung.");
+  const handleFileSelect = (file: File) => {
+    if (!file.name.endsWith(".xlsx")) {
+      alert("Hanya file .xlsx yang didukung. Gunakan template yang disediakan.");
       return;
     }
     setImportFileName(file.name);
-    try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rows = XLSX.utils.sheet_to_json(worksheet) as any[];
-      const parsed = rows.map((row) => {
-        const errors: string[] = [];
-        if (!row["Nama Vendor"]) errors.push("Nama Vendor wajib diisi");
-        if (!row["Lokasi"]) errors.push("Lokasi wajib diisi");
-        if (!row["Telepon"]) errors.push("Telepon wajib diisi");
-        if (!row["Email"]) errors.push("Email wajib diisi");
-        return { ...row, _errors: errors };
-      });
-      setImportRows(parsed);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const buffer = e.target?.result as ArrayBuffer;
+      const rows = parseXLSX(buffer);
+      setImportRows(rows);
 
-      // Cek nama vendor yang sudah ada untuk badge Baru/Update
-      const names = [...new Set(parsed.map((r: { "Nama Vendor"?: string }) => r["Nama Vendor"]).filter(Boolean))];
+      const names = rows.map((r) => r.name).filter(Boolean);
       try {
         const res = await fetch("/api/vendors/check-names", {
           method: "POST",
@@ -255,9 +330,8 @@ export default function VendorsPage() {
       }
 
       setImportStep("preview");
-    } catch {
-      alert("Gagal membaca file Excel.");
-    }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -273,19 +347,19 @@ export default function VendorsPage() {
     setImporting(true);
     try {
       const data = validRows.map((row) => ({
-        name: row["Nama Vendor"],
-        location: row["Lokasi"] || "",
-        phone: row["Telepon"] || "",
-        email: row["Email"] || "",
-        topics: row["Topik"] ? String(row["Topik"]).split(",").map((t: string) => t.trim()).filter(Boolean) : [],
-        method: row["Metode"] || "Online",
-        status: row["Status"] || "AKTIF",
-        priceMin: parseInt(String(row["Harga Min"])) || 0,
-        priceMax: parseInt(String(row["Harga Max"])) || 0,
-        rating: parseFloat(String(row["Rating"])) || 0,
-        usedBefore: String(row["Pernah Dipakai"]).toLowerCase() === "ya",
-        notes: row["Catatan"] || "",
-        legalDocUrl: row["Link Legalitas"] || "",
+        name: row.name,
+        location: row.location,
+        phone: row.phone,
+        email: row.email,
+        topics: row.topicsRaw.split(",").map((t) => t.trim()).filter(Boolean),
+        method: row.method,
+        status: row.status,
+        priceMin: parseInt(row.priceMin) || 0,
+        priceMax: parseInt(row.priceMax) || 0,
+        rating: parseFloat(row.rating) || 0,
+        usedBefore: row.usedBefore.toLowerCase() === "ya",
+        notes: row.notes,
+        legalDocUrl: row.legalDocUrl,
       }));
       const res = await fetch("/api/vendors/bulk", {
         method: "POST",
@@ -328,46 +402,6 @@ export default function VendorsPage() {
     ws["!cols"] = [28, 16, 18, 28, 30, 10, 12, 14, 14, 8, 14, 35, 30].map((wch) => ({ wch }));
     XLSX.utils.book_append_sheet(wb, ws, "Data Vendor");
     XLSX.writeFile(wb, "Data_Vendor.xlsx");
-  };
-
-  const downloadTemplate = () => {
-    const templateData = [
-      {
-        "Nama Vendor": "PT Mitra Pelatihan Indonesia",
-        "Lokasi": "Jakarta",
-        "Telepon": "0812-3456-7890",
-        "Email": "info@mitrapelatihan.com",
-        "Topik": "Leadership, Komunikasi, Team Building",
-        "Metode": "Hybrid",
-        "Status": "AKTIF",
-        "Harga Min": 3000000,
-        "Harga Max": 5000000,
-        "Rating": 4.5,
-        "Pernah Dipakai": "Ya",
-        "Catatan": "Trainer profesional, perlu konfirmasi H-7",
-        "Link Legalitas": "",
-      },
-      {
-        "Nama Vendor": "Experia Training Center",
-        "Lokasi": "Surabaya",
-        "Telepon": "0856-1122-3344",
-        "Email": "hello@experia.id",
-        "Topik": "Selling Skills, Komunikasi",
-        "Metode": "Online",
-        "Status": "AKTIF",
-        "Harga Min": 1500000,
-        "Harga Max": 2500000,
-        "Rating": 4.0,
-        "Pernah Dipakai": "Tidak",
-        "Catatan": "",
-        "Link Legalitas": "",
-      },
-    ];
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    ws["!cols"] = EXCEL_HEADERS.map((_, i) => ({ wch: i < 4 ? 28 : 18 }));
-    XLSX.utils.book_append_sheet(wb, ws, "Template Vendor");
-    XLSX.writeFile(wb, "Template_Import_Vendor.xlsx");
   };
 
   const totalPages = Math.ceil(vendors.length / ITEMS_PER_PAGE);
@@ -892,7 +926,7 @@ export default function VendorsPage() {
                 <div className="bg-muted/40 rounded-lg p-4 text-sm text-text-secondary space-y-1">
                   <p className="font-medium text-navy text-xs uppercase tracking-wide mb-2">Format kolom yang diperlukan:</p>
                   <div className="flex flex-wrap gap-2">
-                    {EXCEL_HEADERS.map((h) => (
+                    {IMPORT_HEADERS.map((h) => (
                       <span key={h} className="bg-background border border-border rounded px-2 py-0.5 text-xs font-mono">{h}</span>
                     ))}
                   </div>
@@ -946,12 +980,12 @@ export default function VendorsPage() {
                       {importRows.map((row, i) => (
                         <tr key={i} className={`border-t border-border ${row._errors.length > 0 ? "bg-danger/5" : ""}`}>
                           <td className="px-3 py-2 text-text-secondary text-xs">{i + 1}</td>
-                          <td className="px-3 py-2 font-mono text-xs">{row["Nama Vendor"] || <span className="text-danger italic">kosong</span>}</td>
-                          <td className="px-3 py-2 text-xs">{row["Lokasi"]}</td>
-                          <td className="px-3 py-2 text-xs">{row["Email"]}</td>
-                          <td className="px-3 py-2 text-xs">{row["Metode"] || "Online"}</td>
+                          <td className="px-3 py-2 font-mono text-xs">{row.name || <span className="text-danger italic">kosong</span>}</td>
+                          <td className="px-3 py-2 text-xs">{row.location}</td>
+                          <td className="px-3 py-2 text-xs">{row.email}</td>
+                          <td className="px-3 py-2 text-xs">{row.method}</td>
                           <td className="px-3 py-2">
-                            {existingVendorNames.has(row["Nama Vendor"])
+                            {existingVendorNames.has(row.name)
                               ? <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-xs">Update</Badge>
                               : <Badge className="bg-sky/10 text-sky border-sky/30 text-xs">Baru</Badge>
                             }

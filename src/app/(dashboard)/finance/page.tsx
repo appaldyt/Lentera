@@ -36,6 +36,7 @@ interface Budget {
   trainingType: string;
   plannedAmount: number;
   actualAmount: number;
+  invoiceNumber: string | null;
   invoiceDate: string | null;
   organizer: string;
   dueDate: string | null;
@@ -66,7 +67,7 @@ const makeDefaultProcessDetails = () =>
 const EMPTY_FORM = {
   trainingName: "", budgetYear: new Date().getFullYear(), budgetMonth: new Date().getMonth() + 1,
   trainingType: "Mandatory", plannedAmount: 0, actualAmount: 0,
-  invoiceDate: "", organizer: "", dueDate: "", status: "Belum Dibayar", approvalStatus: "Menunggu Persetujuan",
+  invoiceNumber: "", invoiceDate: "", organizer: "", dueDate: "", status: "Belum Dibayar", approvalStatus: "Menunggu Persetujuan",
   processDetails: [] as { id: string; tahap: string; status: string; tanggal: string; keterangan: string; linkBukti: string }[],
 };
 
@@ -140,9 +141,15 @@ function FormFields({ data, setData, activeTab }: { data: FormData; setData: (d:
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
+          <label className="text-sm font-medium text-text-primary">No. Invoice</label>
+          <Input value={data.invoiceNumber} onChange={(e) => setData({ ...data, invoiceNumber: e.target.value })} placeholder="Contoh: INV-2026-0001" />
+        </div>
+        <div className="space-y-2">
           <label className="text-sm font-medium text-text-primary">Tgl. Invoice</label>
           <Input type="date" value={data.invoiceDate} onChange={(e) => setData({ ...data, invoiceDate: e.target.value })} />
         </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium text-text-primary">Tgl. Jatuh Tempo</label>
           <Input type="date" value={data.dueDate} onChange={(e) => setData({ ...data, dueDate: e.target.value })} />
@@ -309,6 +316,7 @@ export default function FinancePage() {
       trainingType: item.trainingType,
       plannedAmount: item.plannedAmount,
       actualAmount: item.actualAmount,
+      invoiceNumber: item.invoiceNumber ?? "",
       invoiceDate: item.invoiceDate ?? "",
       organizer: item.organizer,
       dueDate: item.dueDate ?? "",
@@ -344,6 +352,10 @@ export default function FinancePage() {
         body: JSON.stringify(body),
       });
       const json = await res.json();
+      if (!res.ok) {
+        alert(`Gagal menyimpan: ${json.error ?? "Terjadi kesalahan"}`);
+        return;
+      }
       setBudgets((prev) => [json.budget, ...prev]);
       setIsModalOpen(false);
     } finally {
@@ -367,6 +379,10 @@ export default function FinancePage() {
         body: JSON.stringify(body),
       });
       const json = await res.json();
+      if (!res.ok) {
+        alert(`Gagal menyimpan: ${json.error ?? "Terjadi kesalahan"}`);
+        return;
+      }
       setBudgets((prev) => prev.map((b) => (b.id === editingItem.id ? json.budget : b)));
       setIsEditModalOpen(false);
       setEditingItem(null);
@@ -453,6 +469,7 @@ export default function FinancePage() {
         "No": idx + 1,
         "Nama Training": item.trainingName,
         "Penyelenggara": item.organizer || "-",
+        "No. Invoice": item.invoiceNumber || "-",
         "Tgl. Invoice": item.invoiceDate || "-",
         "Realisasi Biaya": item.actualAmount,
         "Tgl. Jatuh Tempo": item.dueDate || "-",
@@ -663,6 +680,7 @@ export default function FinancePage() {
                   ) : (
                     <>
                       <TableHead className="font-semibold text-text-secondary">Penyelenggara</TableHead>
+                      <TableHead className="font-semibold text-text-secondary text-center">No. Invoice</TableHead>
                       <TableHead className="font-semibold text-text-secondary text-center">Tgl. Invoice</TableHead>
                       <TableHead className="font-semibold text-text-secondary text-center">Realisasi Biaya</TableHead>
                       <TableHead className="font-semibold text-text-secondary text-center">Tgl. Jatuh Tempo</TableHead>
@@ -674,9 +692,9 @@ export default function FinancePage() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={activeTab === "BIAYA" ? 8 : 7} className="h-24 text-center text-text-secondary">Memuat data...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={activeTab === "BIAYA" ? 9 : 7} className="h-24 text-center text-text-secondary">Memuat data...</TableCell></TableRow>
                 ) : filteredBudgets.length === 0 ? (
-                  <TableRow><TableCell colSpan={activeTab === "BIAYA" ? 8 : 7} className="h-24 text-center text-text-secondary">Tidak ada data ditemukan.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={activeTab === "BIAYA" ? 9 : 7} className="h-24 text-center text-text-secondary">Tidak ada data ditemukan.</TableCell></TableRow>
                 ) : (
                   paginatedBudgets.map((item) => (
                     <React.Fragment key={item.id}>
@@ -698,6 +716,7 @@ export default function FinancePage() {
                         ) : (
                           <>
                             <TableCell className="text-text-secondary">{item.organizer || "-"}</TableCell>
+                            <TableCell className="text-center text-text-secondary font-mono text-sm">{item.invoiceNumber || "-"}</TableCell>
                             <TableCell className="text-center text-text-secondary">{item.invoiceDate ?? "-"}</TableCell>
                             <TableCell className={`text-center font-medium ${item.actualAmount === 0 ? "text-text-secondary" : "text-green-600"}`}>
                               {item.actualAmount === 0 ? "Rp 0" : formatCurrency(item.actualAmount)}

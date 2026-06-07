@@ -105,6 +105,7 @@ model Budget {
   trainingType   String          @default("Mandatori")
   plannedAmount  Int             @default(0)
   actualAmount   Int             @default(0)
+  invoiceNumber  String          @default("")
   invoiceDate    DateTime?
   organizer      String          @default("")
   dueDate        DateTime?
@@ -172,6 +173,18 @@ model Vendor {
   legalDocUrl  String   @default("")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model SelfLearning {
+  id         String   @id @default(cuid())
+  nik        String
+  name       String
+  department String   @default("")
+  year       String   @default("")
+  platform   String   @default("")
+  hours      Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model License {
