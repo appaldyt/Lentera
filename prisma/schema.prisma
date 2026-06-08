@@ -207,3 +207,14 @@ model License {
 
   @@unique([nik, licenseName])
 }
+
+model AnnualBudget {
+  id           String   @id @default(cuid())
+  year         Int      @unique
+  approvedDate String   @default("")
+  amount       Float    @default(0)
+  link         String   @default("")
+  notes        String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

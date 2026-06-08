@@ -280,10 +280,8 @@ export default function FinancePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Data State for Tab 2 (Anggaran Induk - MOCK)
-  const [annualBudgets, setAnnualBudgets] = useState<AnnualBudget[]>([
-    { id: '1', year: 2026, approvedDate: '2026-01-10', amount: 4000000000, link: 'https://docs.google.com/spreadsheets/d/12345', notes: 'Anggaran tahun 2026 disetujui BOD' }
-  ]);
+  // Data State for Tab 2 (Anggaran Induk - API)
+  const [annualBudgets, setAnnualBudgets] = useState<AnnualBudget[]>([]);
   const [isAnnualModalOpen, setIsAnnualModalOpen] = useState(false);
   const [editingAnnualId, setEditingAnnualId] = useState<string | null>(null);
   const [annualFormData, setAnnualFormData] = useState({ year: new Date().getFullYear(), approvedDate: '', amount: 0, link: '', notes: '' });
@@ -320,6 +318,11 @@ export default function FinancePage() {
       .then((json) => setBudgets(json.budgets ?? []))
       .catch(() => setBudgets([]))
       .finally(() => setLoading(false));
+      
+    fetch("/api/finance/annual")
+      .then((r) => r.json())
+      .then((json) => setAnnualBudgets(json.annualBudgets ?? []))
+      .catch(() => setAnnualBudgets([]));
   }, []);
 
   const formatCurrency = (amount: number) =>
@@ -446,16 +449,42 @@ export default function FinancePage() {
     }
   };
 
-  const handleSaveAnnualBudget = (e: React.FormEvent) => {
+  const handleSaveAnnualBudget = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingAnnualId) {
-      setAnnualBudgets(prev => prev.map(b => b.id === editingAnnualId ? { ...annualFormData, id: editingAnnualId } : b));
-    } else {
-      const newId = Date.now().toString();
-      setAnnualBudgets(prev => [{ ...annualFormData, id: newId }, ...prev]);
+    setSaving(true);
+    try {
+      if (editingAnnualId) {
+        const res = await fetch(`/api/finance/annual/${editingAnnualId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(annualFormData),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          alert(`Gagal menyimpan: ${json.error}`);
+          return;
+        }
+        setAnnualBudgets(prev => prev.map(b => b.id === editingAnnualId ? json.budget : b));
+      } else {
+        const res = await fetch("/api/finance/annual", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(annualFormData),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          alert(`Gagal menyimpan: ${json.error}`);
+          return;
+        }
+        setAnnualBudgets(prev => [json.budget, ...prev]);
+      }
+      setIsAnnualModalOpen(false);
+      setEditingAnnualId(null);
+    } catch (err) {
+      alert("Terjadi kesalahan sistem");
+    } finally {
+      setSaving(false);
     }
-    setIsAnnualModalOpen(false);
-    setEditingAnnualId(null);
   };
 
   const handleOpenEditAnnual = (item: AnnualBudget) => {
@@ -470,11 +499,26 @@ export default function FinancePage() {
     setIsAnnualModalOpen(true);
   };
 
-  const confirmDeleteAnnual = () => {
+  const confirmDeleteAnnual = async () => {
     if (!deletingAnnualItem) return;
-    setAnnualBudgets(prev => prev.filter(b => b.id !== deletingAnnualItem.id));
-    setIsAnnualDeleteModalOpen(false);
-    setDeletingAnnualItem(null);
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/finance/annual/${deletingAnnualItem.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        alert(`Gagal menghapus: ${json.error}`);
+        return;
+      }
+      setAnnualBudgets(prev => prev.filter(b => b.id !== deletingAnnualItem.id));
+      setIsAnnualDeleteModalOpen(false);
+      setDeletingAnnualItem(null);
+    } catch (err) {
+      alert("Terjadi kesalahan sistem");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filteredBudgets = budgets.filter((item) => {
