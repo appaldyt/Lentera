@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { nik, name, department, year, platform, hours } = await request.json();
+    const { nik, name, department, bodLevel, year, platform, hours } = await request.json();
 
     if (!nik || !name || !hours) {
       return Response.json({ error: "NIK, Nama, dan Total Jam wajib diisi" }, { status: 400 });
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       entry = await prisma.selfLearning.create({
-        data: { nik, name, department: department ?? "", year: yr, platform: plt, hours: hrs },
+        data: { nik, name, department: department ?? "", bodLevel: bodLevel ?? "", year: yr, platform: plt, hours: hrs },
       });
     }
 

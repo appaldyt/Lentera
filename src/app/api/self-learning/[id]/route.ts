@@ -7,7 +7,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { nik, name, department, year, platform, hours } = await request.json();
+    const { nik, name, department, bodLevel, year, platform, hours } = await request.json();
 
     if (!nik || !name || !hours) {
       return Response.json({ error: "NIK, Nama, dan Total Jam wajib diisi" }, { status: 400 });
@@ -19,6 +19,7 @@ export async function PUT(
         nik,
         name,
         department: department ?? "",
+        bodLevel: bodLevel ?? "",
         year: year ?? "",
         platform: platform ?? "",
         hours: parseFloat(hours) || 0,

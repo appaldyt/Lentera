@@ -29,6 +29,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
           nik: p.nik,
           name: p.name,
           department: p.department,
+          bodLevel: p.bodLevel || "",
           trainingDate: parseDate(p.trainingDate)!,
           attendedHours: p.attendedHours !== undefined ? Number(p.attendedHours) : 0,
         },
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
         nik: participant.nik,
         name: participant.name,
         department: participant.department,
+        bodLevel: participant.bodLevel,
         trainingDate: formatDate(participant.trainingDate),
         attendedHours: participant.attendedHours,
       });

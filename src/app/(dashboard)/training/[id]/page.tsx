@@ -18,6 +18,7 @@ interface Participant {
   nik: string;
   name: string;
   department: string;
+  bodLevel: string;
   trainingDate: string | null;
   attendedHours: number;
 }
@@ -55,6 +56,7 @@ interface ImportRow {
   nik: string;
   name: string;
   department: string;
+  bodLevel: string;
   trainingDate: string;
   attendedHours: number;
   _errors: string[];
@@ -89,6 +91,7 @@ function parseExcel(buffer: ArrayBuffer, allEmployees: any[]): ImportRow[] {
       nik, 
       name: emp?.name || "", 
       department: emp?.division || "", 
+      bodLevel: emp?.bodLevel || "",
       trainingDate, 
       attendedHours, 
       _errors: errors 
@@ -123,7 +126,7 @@ export default function TrainingDetailPage({ params }: { params: Promise<{ id: s
 
   // Add form state
   const [searchNik, setSearchNik] = useState("");
-  const [foundEmployee, setFoundEmployee] = useState<{ nik: string; name: string; department: string } | null>(null);
+  const [foundEmployee, setFoundEmployee] = useState<{ nik: string; name: string; department: string; bodLevel: string } | null>(null);
   const [trainingDateInput, setTrainingDateInput] = useState("");
   const [editAttendedHours, setEditAttendedHours] = useState<number | string>(0);
   const [errorMsg, setErrorMsg] = useState("");
@@ -176,7 +179,7 @@ export default function TrainingDetailPage({ params }: { params: Promise<{ id: s
     setErrorMsg("");
     if (nik.length >= 8) {
       const emp = allEmployees.find((e) => e.nik === nik);
-      setFoundEmployee(emp ? { nik: emp.nik, name: emp.name, department: emp.division } : null);
+      setFoundEmployee(emp ? { nik: emp.nik, name: emp.name, department: emp.division, bodLevel: emp.bodLevel || "" } : null);
       if (!emp) setErrorMsg("Karyawan tidak ditemukan.");
     } else {
       setFoundEmployee(null);
@@ -193,6 +196,7 @@ export default function TrainingDetailPage({ params }: { params: Promise<{ id: s
         nik: foundEmployee.nik,
         name: foundEmployee.name,
         department: foundEmployee.department,
+        bodLevel: foundEmployee.bodLevel,
         trainingDate: trainingDateInput,
         attendedHours: Number(editAttendedHours),
       }),
@@ -416,6 +420,7 @@ const handleFileSelect = (file: File) => {
                 <TableHead className="font-semibold text-navy">NIK</TableHead>
                 <TableHead className="font-semibold text-navy">Nama Karyawan</TableHead>
                 <TableHead className="font-semibold text-navy">Divisi</TableHead>
+                <TableHead className="font-semibold text-navy">BOD Level</TableHead>
                 <TableHead className="font-semibold text-navy">Tanggal Training</TableHead>
                 <TableHead className="font-semibold text-navy">Jam Kehadiran</TableHead>
                 <TableHead className="text-right font-semibold text-navy">Aksi</TableHead>
@@ -429,6 +434,7 @@ const handleFileSelect = (file: File) => {
                   <TableCell>
                     <Badge variant="outline" className="font-normal bg-background">{par.department}</Badge>
                   </TableCell>
+                  <TableCell>{par.bodLevel || "-"}</TableCell>
                   <TableCell>{par.trainingDate}</TableCell>
                   <TableCell>{par.attendedHours} Jam</TableCell>
                   <TableCell className="text-right">
@@ -505,6 +511,10 @@ const handleFileSelect = (file: File) => {
                     <Input value={editingParticipant.department} disabled className="bg-muted/50 text-text-secondary" />
                   </div>
                   <div className="space-y-2">
+                    <Label>BOD Level</Label>
+                    <Input value={editingParticipant.bodLevel || "-"} disabled className="bg-muted/50 text-text-secondary" />
+                  </div>
+                  <div className="space-y-2">
                     <Label>Tanggal Training</Label>
                     <Input type="date" value={trainingDateInput} onChange={(e) => setTrainingDateInput(e.target.value)} />
                   </div>
@@ -536,6 +546,10 @@ const handleFileSelect = (file: File) => {
                   <div className="space-y-2">
                     <Label>Divisi</Label>
                     <Input value={foundEmployee?.department ?? ""} disabled className="bg-muted/50 text-text-secondary" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>BOD Level</Label>
+                    <Input value={foundEmployee?.bodLevel ?? ""} disabled className="bg-muted/50 text-text-secondary" />
                   </div>
                   <div className="space-y-2">
                     <Label>Tanggal Training</Label>
@@ -638,6 +652,7 @@ const handleFileSelect = (file: File) => {
                         <TableHead>NIK</TableHead>
                         <TableHead>Nama</TableHead>
                         <TableHead>Divisi</TableHead>
+                        <TableHead>BOD Level</TableHead>
                         <TableHead>Tanggal</TableHead>
                         <TableHead>Jam</TableHead>
                         <TableHead>Status</TableHead>
@@ -651,6 +666,7 @@ const handleFileSelect = (file: File) => {
                           <TableCell className="font-mono text-xs">{row.nik || <span className="text-danger italic">kosong</span>}</TableCell>
                           <TableCell>{row.name || <span className="text-danger italic">kosong</span>}</TableCell>
                           <TableCell>{row.department}</TableCell>
+                          <TableCell>{row.bodLevel || "-"}</TableCell>
                           <TableCell>{row.trainingDate}</TableCell>
                           <TableCell>{row.attendedHours}</TableCell>
                           <TableCell>

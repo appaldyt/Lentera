@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       try {
         const employee = await prisma.employee.findUnique({
           where: { nik: e.nik },
-          select: { name: true, division: true },
+          select: { name: true, division: true, bodLevel: true },
         });
         if (!employee) {
           results.failed.push({ nik: e.nik, reason: "NIK tidak ditemukan di data karyawan" });
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         if (existing) {
           await prisma.selfLearning.update({
             where: { id: existing.id },
-            data: { hours },
+            data: { hours, bodLevel: employee.bodLevel },
           });
           results.updated.push(e.nik);
         } else {
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
               nik: e.nik,
               name: employee.name,
               department: employee.division,
+              bodLevel: employee.bodLevel,
               year,
               platform,
               hours,

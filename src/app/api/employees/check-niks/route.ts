@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
 
   const found = await prisma.employee.findMany({
     where: { nik: { in: niks } },
-    select: { nik: true, name: true, division: true },
+    select: { nik: true, name: true, division: true, bodLevel: true },
   });
 
   return Response.json({

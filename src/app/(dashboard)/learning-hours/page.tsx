@@ -35,6 +35,7 @@ interface SelfLearningEntry {
   nik: string;
   name: string;
   department: string;
+  bodLevel: string;
   year: string;
   platform: string;
   hours: number;
@@ -43,17 +44,18 @@ interface SelfLearningEntry {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const EMPTY_SELF_FORM: Omit<SelfLearningEntry, "id"> = {
-  nik: "", name: "", department: "", year: "", platform: "", hours: 0,
+  nik: "", name: "", department: "", bodLevel: "", year: "", platform: "", hours: 0,
 };
 
 const SELF_IMPORT_HEADERS = [
-  "No", "NIK", "Nama Karyawan", "Divisi", "Tahun", "Platform", "Total Jam Belajar",
+  "No", "NIK", "Nama Karyawan", "Divisi", "BOD Level", "Tahun", "Platform", "Total Jam Belajar",
 ];
 
 interface SelfLearningImportRow {
   nik: string;
   name: string;
   department: string;
+  bodLevel: string;
   year: string;
   platform: string;
   hours: number;
@@ -76,14 +78,14 @@ function parseSelfLearningXLSX(buffer: ArrayBuffer): SelfLearningImportRow[] {
     if (!nik) errors.push("NIK wajib diisi");
     if (!hours) errors.push("Total Jam Belajar wajib diisi");
     if (platform && !VALID_PLATFORMS.includes(platform)) errors.push(`Platform harus "LMS" atau "LinkedIn Learning"`);
-    return { nik, name: "", department: "", year, platform, hours, _errors: errors, _status: "baru" as const };
+    return { nik, name: "", department: "", bodLevel: "", year, platform, hours, _errors: errors, _status: "baru" as const };
   }).filter((row) => row.nik || row.hours > 0);
 }
 
 function downloadSelfLearningTemplate() {
   const sampleData = [
-    { No: 1, NIK: "IAS-2024-0001", "Nama Karyawan": "Andi Saputra", Divisi: "Operations", Tahun: "2026", Platform: "LMS", "Total Jam Belajar": 8 },
-    { No: 2, NIK: "IAS-2024-0002", "Nama Karyawan": "Budi Santoso", Divisi: "Finance", Tahun: "2026", Platform: "LinkedIn Learning", "Total Jam Belajar": 12 },
+    { No: 1, NIK: "IAS-2024-0001", "Nama Karyawan": "Andi Saputra", Divisi: "Operations", "BOD Level": "Staff", Tahun: "2026", Platform: "LMS", "Total Jam Belajar": 8 },
+    { No: 2, NIK: "IAS-2024-0002", "Nama Karyawan": "Budi Santoso", Divisi: "Finance", "BOD Level": "Manager", Tahun: "2026", Platform: "LinkedIn Learning", "Total Jam Belajar": 12 },
   ];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(sampleData, { header: SELF_IMPORT_HEADERS });
@@ -105,14 +107,48 @@ function SelfLearningModal({
   const [data, setData] = useState<Omit<SelfLearningEntry, "id">>(
     initial ?? EMPTY_SELF_FORM
   );
+  const [isSearching, setIsSearching] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     setData(initial ?? EMPTY_SELF_FORM);
+    setErrorMsg("");
   }, [initial, open]);
 
   if (!open) return null;
 
   const set = (patch: Partial<typeof data>) => setData((d) => ({ ...d, ...patch }));
+
+  const handleNikChange = async (nik: string) => {
+    set({ nik });
+    if (initial) return; // Don't auto-fetch if editing (NIK is fixed)
+    if (nik.length >= 8) {
+      setIsSearching(true);
+      setErrorMsg("");
+      try {
+        const res = await fetch("/api/employees/check-niks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ niks: [nik] }),
+        });
+        const json = await res.json();
+        const emp = json.employees?.[0];
+        if (emp) {
+          set({ name: emp.name, department: emp.division, bodLevel: emp.bodLevel || "" });
+        } else {
+          set({ name: "", department: "", bodLevel: "" });
+          setErrorMsg("Karyawan tidak ditemukan");
+        }
+      } catch (err) {
+        setErrorMsg("Gagal mencari NIK");
+      } finally {
+        setIsSearching(false);
+      }
+    } else {
+      set({ name: "", department: "", bodLevel: "" });
+      setErrorMsg("");
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -130,22 +166,28 @@ function SelfLearningModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-text-primary">NIK</label>
-              <Input value={data.nik} onChange={(e) => set({ nik: e.target.value })} placeholder="Contoh: 123456" />
+              <Input value={data.nik || ""} disabled={!!initial} onChange={(e) => handleNikChange(e.target.value)} placeholder="Contoh: 123456" />
+              {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
+              {isSearching && <p className="text-xs text-text-secondary">Mencari...</p>}
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-text-primary">Nama Karyawan</label>
-              <Input value={data.name} onChange={(e) => set({ name: e.target.value })} placeholder="Nama lengkap" />
+              <Input value={data.name || ""} disabled className="bg-muted/50 text-text-secondary" placeholder="Nama lengkap" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-text-primary">Divisi</label>
-              <Input value={data.department} onChange={(e) => set({ department: e.target.value })} placeholder="Contoh: HR & Learning" />
+              <Input value={data.department || ""} disabled className="bg-muted/50 text-text-secondary" placeholder="Divisi" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-text-primary">Tahun</label>
-              <Input value={data.year} onChange={(e) => set({ year: e.target.value })} placeholder="Contoh: 2026" />
+              <label className="text-sm font-medium text-text-primary">BOD Level</label>
+              <Input value={data.bodLevel || ""} disabled className="bg-muted/50 text-text-secondary" placeholder="BOD Level" />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-text-primary">Tahun</label>
+            <Input value={data.year || ""} onChange={(e) => set({ year: e.target.value })} placeholder="Contoh: 2026" />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-text-primary">Platform / Sumber</label>
@@ -476,7 +518,7 @@ function SelfLearningTab() {
     if (filteredEntries.length === 0) { alert("Tidak ada data untuk dieksport"); return; }
     const exportData = filteredEntries.map((e, idx) => ({
       "No": idx + 1, "NIK": e.nik, "Nama Karyawan": e.name,
-      "Divisi": e.department, "Tahun": e.year,
+      "Divisi": e.department, "BOD Level": e.bodLevel, "Tahun": e.year,
       "Platform": e.platform, "Total Jam Belajar": e.hours,
     }));
     const wb = XLSX.utils.book_new();
@@ -503,7 +545,7 @@ function SelfLearningTab() {
 
     // Lookup nama & divisi dari data karyawan berdasarkan NIK
     const niks = [...new Set(rows.map((r) => r.nik).filter(Boolean))];
-    let empMap: Record<string, { name: string; division: string }> = {};
+    let empMap: Record<string, { name: string; division: string; bodLevel: string }> = {};
     try {
       const res = await fetch("/api/employees/check-niks", {
         method: "POST",
@@ -512,7 +554,7 @@ function SelfLearningTab() {
       });
       const json = await res.json();
       for (const emp of (json.employees ?? [])) {
-        empMap[emp.nik] = { name: emp.name, division: emp.division };
+        empMap[emp.nik] = { name: emp.name, division: emp.division, bodLevel: emp.bodLevel };
       }
     } catch { /* biarkan error NIK tidak ditemukan ditangani di bawah */ }
 
@@ -527,7 +569,7 @@ function SelfLearningTab() {
       );
       const status: SelfLearningImportRow["_status"] = hasError ? "error" : isExisting ? "update" : "baru";
 
-      return { ...row, name: emp?.name ?? "", department: emp?.division ?? "", _errors: errors, _status: status };
+      return { ...row, name: emp?.name ?? "", department: emp?.division ?? "", bodLevel: emp?.bodLevel ?? "", _errors: errors, _status: status };
     });
 
     setImportRows(enriched);
@@ -643,10 +685,10 @@ function SelfLearningTab() {
                   <p className="font-medium text-navy text-xs uppercase tracking-wide">Format kolom (sama dengan hasil Export):</p>
                   <div className="flex flex-wrap gap-2">
                     {SELF_IMPORT_HEADERS.map((h) => (
-                      <span key={h} className={`border rounded px-2 py-0.5 text-xs font-mono ${["Nama Karyawan", "Divisi", "No"].includes(h) ? "bg-muted/60 border-border text-text-secondary/60" : "bg-background border-border"}`}>{h}</span>
+                      <span key={h} className={`border rounded px-2 py-0.5 text-xs font-mono ${["Nama Karyawan", "Divisi", "BOD Level", "No"].includes(h) ? "bg-muted/60 border-border text-text-secondary/60" : "bg-background border-border"}`}>{h}</span>
                     ))}
                   </div>
-                  <p className="text-xs text-text-secondary">Kolom <strong>Nama Karyawan</strong> dan <strong>Divisi</strong> otomatis diambil dari data karyawan — nilai di file diabaikan.</p>
+                  <p className="text-xs text-text-secondary">Kolom <strong>Nama Karyawan</strong>, <strong>Divisi</strong>, dan <strong>BOD Level</strong> otomatis diambil dari data karyawan — nilai di file diabaikan.</p>
                   <p className="text-xs text-text-secondary">Kolom <strong>Platform</strong> hanya menerima: <code className="bg-background border border-border rounded px-1">LMS</code> atau <code className="bg-background border border-border rounded px-1">LinkedIn Learning</code></p>
                 </div>
 
@@ -685,6 +727,7 @@ function SelfLearningTab() {
                         <TableHead>NIK</TableHead>
                         <TableHead>Nama Karyawan</TableHead>
                         <TableHead>Divisi</TableHead>
+                        <TableHead>BOD Level</TableHead>
                         <TableHead>Tahun</TableHead>
                         <TableHead>Platform</TableHead>
                         <TableHead className="text-center">Jam</TableHead>
@@ -703,6 +746,7 @@ function SelfLearningTab() {
                               : <span className="text-text-secondary italic text-xs">-</span>}
                           </TableCell>
                           <TableCell className="text-sm text-text-secondary">{row.department || "-"}</TableCell>
+                          <TableCell className="text-sm text-text-secondary">{row.bodLevel || "-"}</TableCell>
                           <TableCell className="text-sm text-center text-text-secondary">{row.year || "-"}</TableCell>
                           <TableCell className="text-sm text-text-secondary">{row.platform || "-"}</TableCell>
                           <TableCell className="text-center font-medium text-navy text-sm">
@@ -904,6 +948,7 @@ function SelfLearningTab() {
               <TableHead className="font-semibold text-navy w-[110px]">NIK</TableHead>
               <TableHead className="font-semibold text-navy">Nama Karyawan</TableHead>
               <TableHead className="font-semibold text-navy">Divisi</TableHead>
+              <TableHead className="font-semibold text-navy">BOD Level</TableHead>
               <TableHead className="font-semibold text-navy text-center">Tahun</TableHead>
               <TableHead className="font-semibold text-navy">Platform</TableHead>
               <TableHead className="font-semibold text-navy text-center">Total Jam Belajar</TableHead>
@@ -940,6 +985,7 @@ function SelfLearningTab() {
                   <TableCell>
                     <Badge variant="outline" className="font-normal bg-background">{entry.department}</Badge>
                   </TableCell>
+                  <TableCell className="text-sm text-text-secondary">{entry.bodLevel || "-"}</TableCell>
                   <TableCell className="text-center text-text-secondary text-sm">{entry.year || "-"}</TableCell>
                   <TableCell className="text-text-secondary text-sm">{entry.platform || "-"}</TableCell>
                   <TableCell className="text-center font-bold text-navy">

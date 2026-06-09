@@ -6,7 +6,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: Ctx) {
   const { id } = await params;
-  const { nik, name, department, trainingDate, attendedHours } = await request.json();
+  const { nik, name, department, bodLevel, trainingDate, attendedHours } = await request.json();
 
   if (!nik || !name || !department || !trainingDate) {
     return Response.json({ error: "Field wajib tidak lengkap" }, { status: 400 });
@@ -18,6 +18,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
       nik,
       name,
       department,
+      bodLevel: bodLevel || "",
       trainingDate: parseDate(trainingDate)!,
       attendedHours: attendedHours !== undefined ? Number(attendedHours) : 0,
     },
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
       nik: participant.nik,
       name: participant.name,
       department: participant.department,
+      bodLevel: participant.bodLevel,
       trainingDate: formatDate(participant.trainingDate),
       attendedHours: participant.attendedHours,
     },

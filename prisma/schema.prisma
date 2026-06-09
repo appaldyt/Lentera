@@ -75,6 +75,7 @@ model TrainingParticipant {
   nik           String
   name          String
   department    String
+  bodLevel      String   @default("")
   trainingDate  DateTime
   attendedHours Int      @default(0)
   createdAt     DateTime @default(now())
@@ -180,6 +181,7 @@ model SelfLearning {
   nik        String
   name       String
   department String   @default("")
+  bodLevel   String   @default("")
   year       String   @default("")
   platform   String   @default("")
   hours      Float    @default(0)
