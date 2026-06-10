@@ -7,6 +7,24 @@ import { CornerDownRight, CheckSquare, Square, Link as LinkIcon, Pencil, Trash2,
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 
 export interface Subtask {
   id: string;
@@ -20,7 +38,104 @@ export interface Subtask {
   progress: string;
   linkOutput: string;
   note?: string;
+  order?: number;
 }
+
+function SortableRow({ prep, index, isNestedView, toggleSubtaskCompletion, updateSubtaskProgress, handleOpenSubtaskModal }: any) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: prep.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 1 : 0,
+    position: isDragging ? ("relative" as const) : undefined,
+    opacity: isDragging ? 0.8 : 1,
+    backgroundColor: isDragging ? "var(--muted)" : undefined,
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style} className="hover:bg-muted/30">
+      <TableCell className="text-center text-text-secondary">
+        <div className="flex items-center justify-center gap-1">
+          <div {...attributes} {...listeners} className="cursor-grab hover:bg-muted rounded p-1">
+            <GripVertical className="h-4 w-4 text-text-secondary/50" />
+          </div>
+          {isNestedView ? <CornerDownRight className="h-4 w-4" /> : index + 1}
+        </div>
+      </TableCell>
+      <TableCell className={cn("font-medium", prep.isCompleted ? "text-text-secondary line-through" : "text-navy")}>
+        {prep.activityName}
+      </TableCell>
+      <TableCell className="text-text-secondary text-sm">{prep.category}</TableCell>
+      <TableCell className="text-text-secondary text-sm">{prep.dueDate}</TableCell>
+      <TableCell>{getPriorityBadge(prep.priority)}</TableCell>
+      <TableCell className="text-sm font-medium">{prep.pic}</TableCell>
+      <TableCell>
+        <Badge variant="outline" className="text-[10px] py-0 bg-background">{prep.team}</Badge>
+      </TableCell>
+      <TableCell className="text-center">
+        <button 
+          onClick={() => toggleSubtaskCompletion(prep.id)}
+          className="hover:bg-muted p-1 rounded-md transition-colors"
+          type="button"
+        >
+          {prep.isCompleted ? (
+            <CheckSquare className="h-5 w-5 text-success mx-auto" />
+          ) : (
+            <Square className="h-5 w-5 text-text-secondary mx-auto" />
+          )}
+        </button>
+      </TableCell>
+      <TableCell className="text-sm">
+        <select
+          className="bg-transparent border border-transparent hover:border-border rounded-md px-1 py-0.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky cursor-pointer"
+          value={prep.progress}
+          onChange={(e) => updateSubtaskProgress(prep.id, e.target.value)}
+        >
+          <option value="0%">0%</option>
+          <option value="25%">25%</option>
+          <option value="50%">50%</option>
+          <option value="75%">75%</option>
+          <option value="100%">100%</option>
+        </select>
+      </TableCell>
+      <TableCell>
+        {prep.linkOutput !== "-" ? (
+          <a href={prep.linkOutput.startsWith('http') ? prep.linkOutput : '#'} target={prep.linkOutput.startsWith('http') ? "_blank" : "_self"} className="flex items-center gap-1 text-sky hover:underline text-xs" rel="noreferrer">
+            <LinkIcon className="h-3 w-3" /> Output
+          </a>
+        ) : (
+          <span className="text-text-secondary">-</span>
+        )}
+      </TableCell>
+      <TableCell className="text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuItem
+              className="w-full flex items-center gap-2 text-navy cursor-pointer"
+              onClick={() => handleOpenSubtaskModal("edit", prep)}
+            >
+              <Pencil className="h-4 w-4" /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="w-full flex items-center gap-2 text-danger focus:text-danger focus:bg-danger/10 cursor-pointer"
+              onClick={() => handleOpenSubtaskModal("delete", prep)}
+            >
+              <Trash2 className="h-4 w-4" /> Hapus
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+
 
 interface TrainingPreparationsTableProps {
   trainingId: string;
@@ -156,101 +271,56 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
     }));
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = preparations.findIndex((p) => p.id === active.id);
+      const newIndex = preparations.findIndex((p) => p.id === over.id);
+      const newPreparations = arrayMove(preparations, oldIndex, newIndex);
+      // Optional: Update local order field if we were using it in frontend logic, but index handles it.
+      onChange(newPreparations);
+    }
+  };
+
   return (
     <div className={cn("border rounded-md overflow-hidden bg-background", isNestedView ? "ml-14 mt-2 mb-2" : "")}>
-      <Table>
-        <TableHeader className="bg-navy text-surface">
-          <TableRow className="hover:bg-navy">
-            {isNestedView && <TableHead className="w-12 text-surface text-center">No</TableHead>}
-            {!isNestedView && <TableHead className="w-12 text-surface text-center">No</TableHead>}
-            <TableHead className="text-surface font-semibold">Task / Sub-task Name</TableHead>
-            <TableHead className="text-surface font-semibold">Category</TableHead>
-            <TableHead className="text-surface font-semibold">Due Date</TableHead>
-            <TableHead className="text-surface font-semibold">Priority</TableHead>
-            <TableHead className="text-surface font-semibold">PIC</TableHead>
-            <TableHead className="text-surface font-semibold">Team</TableHead>
-            <TableHead className="text-surface font-semibold text-center">✓</TableHead>
-            <TableHead className="text-surface font-semibold">Progress</TableHead>
-            <TableHead className="text-surface font-semibold">Link Output</TableHead>
-            <TableHead className="text-surface font-semibold text-right">Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {preparations.map((prep, index) => (
-            <TableRow key={prep.id} className="hover:bg-muted/30">
-              <TableCell className="text-center text-text-secondary">
-                {isNestedView ? <CornerDownRight className="h-4 w-4 mx-auto" /> : index + 1}
-              </TableCell>
-              <TableCell className={cn("font-medium", prep.isCompleted ? "text-text-secondary line-through" : "text-navy")}>
-                {prep.activityName}
-              </TableCell>
-              <TableCell className="text-text-secondary text-sm">{prep.category}</TableCell>
-              <TableCell className="text-text-secondary text-sm">{prep.dueDate}</TableCell>
-              <TableCell>{getPriorityBadge(prep.priority)}</TableCell>
-              <TableCell className="text-sm font-medium">{prep.pic}</TableCell>
-              <TableCell>
-                <Badge variant="outline" className="text-[10px] py-0 bg-background">{prep.team}</Badge>
-              </TableCell>
-              <TableCell className="text-center">
-                <button 
-                  onClick={() => toggleSubtaskCompletion(prep.id)}
-                  className="hover:bg-muted p-1 rounded-md transition-colors"
-                  type="button"
-                >
-                  {prep.isCompleted ? (
-                    <CheckSquare className="h-5 w-5 text-success mx-auto" />
-                  ) : (
-                    <Square className="h-5 w-5 text-text-secondary mx-auto" />
-                  )}
-                </button>
-              </TableCell>
-              <TableCell className="text-sm">
-                <select
-                  className="bg-transparent border border-transparent hover:border-border rounded-md px-1 py-0.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky cursor-pointer"
-                  value={prep.progress}
-                  onChange={(e) => updateSubtaskProgress(prep.id, e.target.value)}
-                >
-                  <option value="0%">0%</option>
-                  <option value="25%">25%</option>
-                  <option value="50%">50%</option>
-                  <option value="75%">75%</option>
-                  <option value="100%">100%</option>
-                </select>
-              </TableCell>
-              <TableCell>
-                {prep.linkOutput !== "-" ? (
-                  <a href={prep.linkOutput.startsWith('http') ? prep.linkOutput : '#'} target={prep.linkOutput.startsWith('http') ? "_blank" : "_self"} className="flex items-center gap-1 text-sky hover:underline text-xs" rel="noreferrer">
-                    <LinkIcon className="h-3 w-3" /> Output
-                  </a>
-                ) : (
-                  <span className="text-text-secondary">-</span>
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-36">
-                    <DropdownMenuItem
-                      className="w-full flex items-center gap-2 text-navy cursor-pointer"
-                      onClick={() => handleOpenSubtaskModal("edit", prep)}
-                    >
-                      <Pencil className="h-4 w-4" /> Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="w-full flex items-center gap-2 text-danger focus:text-danger focus:bg-danger/10 cursor-pointer"
-                      onClick={() => handleOpenSubtaskModal("delete", prep)}
-                    >
-                      <Trash2 className="h-4 w-4" /> Hapus
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <Table>
+          <TableHeader className="bg-navy text-surface">
+            <TableRow className="hover:bg-navy">
+              {isNestedView && <TableHead className="w-16 text-surface text-center">No</TableHead>}
+              {!isNestedView && <TableHead className="w-16 text-surface text-center">No</TableHead>}
+              <TableHead className="text-surface font-semibold">Task / Sub-task Name</TableHead>
+              <TableHead className="text-surface font-semibold">Category</TableHead>
+              <TableHead className="text-surface font-semibold">Due Date</TableHead>
+              <TableHead className="text-surface font-semibold">Priority</TableHead>
+              <TableHead className="text-surface font-semibold">PIC</TableHead>
+              <TableHead className="text-surface font-semibold">Team</TableHead>
+              <TableHead className="text-surface font-semibold text-center">✓</TableHead>
+              <TableHead className="text-surface font-semibold">Progress</TableHead>
+              <TableHead className="text-surface font-semibold">Link Output</TableHead>
+              <TableHead className="text-surface font-semibold text-right">Aksi</TableHead>
             </TableRow>
-          ))}
+          </TableHeader>
+          <TableBody>
+            <SortableContext items={preparations.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+              {preparations.map((prep, index) => (
+                <SortableRow
+                  key={prep.id}
+                  prep={prep}
+                  index={index}
+                  isNestedView={isNestedView}
+                  toggleSubtaskCompletion={toggleSubtaskCompletion}
+                  updateSubtaskProgress={updateSubtaskProgress}
+                  handleOpenSubtaskModal={handleOpenSubtaskModal}
+                />
+              ))}
+            </SortableContext>
           {preparations.length === 0 && (
             <TableRow>
               <TableCell colSpan={11} className="text-center py-4 text-text-secondary">
@@ -273,6 +343,7 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
           </TableRow>
         </TableBody>
       </Table>
+      </DndContext>
 
       {/* Subtask Modal Dialog */}
       {isSubtaskModalOpen && (

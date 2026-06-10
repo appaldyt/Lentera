@@ -44,7 +44,7 @@ function serializeTraining(t: Awaited<ReturnType<typeof fetchTrainings>>[number]
 async function fetchTrainings() {
   return prisma.training.findMany({
     include: { 
-      preparations: { orderBy: { createdAt: "asc" } },
+      preparations: { orderBy: { order: "asc" } },
       participants: { orderBy: { createdAt: "asc" } }
     },
     orderBy: { startDate: "desc" },

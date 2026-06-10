@@ -17,7 +17,7 @@ export async function PUT(request: NextRequest, { params }: Ctx) {
     await tx.trainingPreparation.deleteMany({ where: { trainingId: id } });
     if (preparations.length > 0) {
       await tx.trainingPreparation.createMany({
-        data: preparations.map((p) => ({
+        data: preparations.map((p: any, index: number) => ({
           trainingId: id,
           activityName: p.activityName,
           category: p.category,
@@ -29,6 +29,7 @@ export async function PUT(request: NextRequest, { params }: Ctx) {
           progress: p.progress ?? "0%",
           linkOutput: p.linkOutput && p.linkOutput !== "-" ? p.linkOutput : null,
           note: p.note ?? null,
+          order: index,
         })),
       });
     }
@@ -36,7 +37,7 @@ export async function PUT(request: NextRequest, { params }: Ctx) {
 
   const newPreps = await prisma.trainingPreparation.findMany({
     where: { trainingId: id },
-    orderBy: { createdAt: "asc" },
+    orderBy: { order: "asc" },
   });
 
   return Response.json({

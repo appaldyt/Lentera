@@ -48,7 +48,7 @@ async function fetchOne(id: string) {
   return prisma.training.findUnique({
     where: { id },
     include: {
-      preparations: { orderBy: { createdAt: "asc" } },
+      preparations: { orderBy: { order: "asc" } },
       participants: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -89,7 +89,7 @@ export async function PUT(request: NextRequest, { params }: Ctx) {
         status,
       },
       include: {
-        preparations: { orderBy: { createdAt: "asc" } },
+        preparations: { orderBy: { order: "asc" } },
         participants: { orderBy: { createdAt: "asc" } },
       },
     });
