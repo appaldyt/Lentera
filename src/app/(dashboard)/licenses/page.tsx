@@ -58,10 +58,26 @@ interface ImportRow {
   _errors: string[];
 }
 
+function formatExcelDate(excelValue: any): string {
+  if (!excelValue) return "";
+  if (typeof excelValue === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(excelValue.trim())) {
+    return excelValue.trim();
+  }
+  if (typeof excelValue === "number") {
+    // Excel epoch starts on Jan 1, 1900. 
+    // 25569 is the number of days between Jan 1, 1900 and Jan 1, 1970
+    const date = new Date((excelValue - (25569 + 1)) * 86400 * 1000);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split("T")[0];
+    }
+  }
+  return String(excelValue).trim();
+}
+
 function parseXLSX(buffer: ArrayBuffer): ImportRow[] {
   const wb = XLSX.read(buffer, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+  const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
 
   return rows.map((row) => {
     const nik = String(row["NIK"] ?? "").trim();
@@ -73,8 +89,8 @@ function parseXLSX(buffer: ArrayBuffer): ImportRow[] {
     const licenseName = String(row["Nama Lisensi"] ?? "").trim();
     const licenseNumber = String(row["No Lisensi"] ?? "").trim() || "-";
     const category = String(row["Kategori"] ?? "").trim() || "Operasional";
-    const issuedDate = String(row["Tanggal Terbit"] ?? "").trim();
-    const expiryDate = String(row["Tanggal Kadaluwarsa"] ?? "").trim();
+    const issuedDate = formatExcelDate(row["Tanggal Terbit"]);
+    const expiryDate = formatExcelDate(row["Tanggal Kadaluwarsa"]);
 
     const errors: string[] = [];
     if (!nik) errors.push("NIK wajib diisi");
