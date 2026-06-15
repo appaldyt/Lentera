@@ -285,16 +285,6 @@ function TrainingHoursTab() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="shadow-sm border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">Rata-rata Jam Belajar</CardTitle>
-            <TrendingUp className="h-4 w-4 text-sky" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-navy">{averageHours} Jam</div>
-            <p className="text-xs text-text-secondary mt-1">Per karyawan {filterYear !== "all" ? `tahun ${filterYear}` : "keseluruhan"}</p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-text-secondary">Karyawan Aktif Training</CardTitle>
             <ArrowUpRight className="h-4 w-4 text-success" />
           </CardHeader>
@@ -303,6 +293,16 @@ function TrainingHoursTab() {
               {activeEmployees} <span className="text-sm font-normal text-text-secondary">orang</span>
             </div>
             <p className="text-xs text-success mt-1">{activeEmployees > 0 ? "100% mengikuti kelas" : "Belum ada data"}</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-border">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-text-secondary">Rata-rata Jam Belajar</CardTitle>
+            <TrendingUp className="h-4 w-4 text-sky" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-navy">{averageHours} Jam</div>
+            <p className="text-xs text-text-secondary mt-1">Per karyawan {filterYear !== "all" ? `tahun ${filterYear}` : "keseluruhan"}</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-border">
@@ -480,6 +480,8 @@ function SelfLearningTab() {
   });
 
   const totalHours = filteredEntries.reduce((s, e) => s + e.hours, 0);
+  const activeEmployees = new Set(filteredEntries.map((e) => e.nik)).size;
+  const averageHours = activeEmployees > 0 ? (totalHours / activeEmployees).toFixed(1) : "0.0";
   const totalPages = Math.max(1, Math.ceil(filteredEntries.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const paginatedEntries = filteredEntries.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -855,36 +857,34 @@ function SelfLearningTab() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="shadow-sm border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">Total Entri Self-Learning</CardTitle>
-            <BookOpen className="h-4 w-4 text-sky" />
+            <CardTitle className="text-sm font-medium text-text-secondary">Karyawan Aktif Self-Learning</CardTitle>
+            <ArrowUpRight className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-navy">
-              {filteredEntries.length} <span className="text-sm font-normal text-text-secondary">entri</span>
+              {activeEmployees} <span className="text-sm font-normal text-text-secondary">orang</span>
             </div>
-            <p className="text-xs text-text-secondary mt-1">Total entri terdaftar</p>
+            <p className="text-xs text-success mt-1">{activeEmployees > 0 ? "Aktif belajar mandiri" : "Belum ada data"}</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">Total Jam Mandiri</CardTitle>
-            <TrendingUp className="h-4 w-4 text-success" />
+            <CardTitle className="text-sm font-medium text-text-secondary">Rata-rata Jam Belajar</CardTitle>
+            <TrendingUp className="h-4 w-4 text-sky" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-navy">{averageHours} Jam</div>
+            <p className="text-xs text-text-secondary mt-1">Per karyawan {filterYear !== "all" ? `tahun ${filterYear}` : "keseluruhan"}</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-border">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-text-secondary">Total Jam Terselenggara</CardTitle>
+            <GraduationCap className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-navy">{totalHours} Jam</div>
             <p className="text-xs text-text-secondary mt-1">Akumulasi jam self-learning</p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-text-secondary">Rata-rata per Entri</CardTitle>
-            <ArrowUpRight className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-navy">
-              {filteredEntries.length > 0 ? (totalHours / filteredEntries.length).toFixed(1) : "0.0"} Jam
-            </div>
-            <p className="text-xs text-text-secondary mt-1">Per aktivitas belajar mandiri</p>
           </CardContent>
         </Card>
       </div>

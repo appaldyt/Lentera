@@ -3,9 +3,19 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, AlertTriangle, ListTodo, Filter, X } from "lucide-react";
+import { CheckCircle2, Clock, AlertTriangle, ListTodo, Filter, X, ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case "COMPLETED": return <Badge variant="success" className="ml-2 bg-emerald-500 text-white border-transparent hover:bg-emerald-600">Completed</Badge>;
+    case "PLANNING":  return <Badge variant="warning" className="ml-2 bg-amber-500 text-white border-transparent hover:bg-amber-600">Planning</Badge>;
+    case "ONGOING":   return <Badge variant="default" className="ml-2 bg-sky-500 text-white border-transparent hover:bg-sky-600">Ongoing</Badge>;
+    case "CANCELLED": return <Badge variant="danger" className="ml-2 bg-rose-500 text-white border-transparent hover:bg-rose-600">Cancelled</Badge>;
+    default:          return <Badge variant="outline" className="ml-2 text-white border-white/30">{status}</Badge>;
+  }
+}
 
 interface Training {
   name: string;
@@ -60,6 +70,21 @@ export default function TrainingTasksDashboard() {
   const [filterPic, setFilterPic] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
+  // Collapsible state
+  const [collapsedTrainings, setCollapsedTrainings] = useState<Set<string>>(new Set());
+
+  const toggleTraining = (trainingName: string) => {
+    setCollapsedTrainings(prev => {
+      const next = new Set(prev);
+      if (next.has(trainingName)) {
+        next.delete(trainingName);
+      } else {
+        next.add(trainingName);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetch("/api/training-tasks")
@@ -76,6 +101,8 @@ export default function TrainingTasksDashboard() {
       const date = new Date(t.dueDate);
       const m = String(date.getMonth() + 1).padStart(2, "0");
       const y = String(date.getFullYear());
+
+      if (t.training.status === "CANCELLED") return false;
 
       if (filterMonth !== "all" && m !== filterMonth) return false;
       if (filterYear !== "all" && y !== filterYear) return false;
@@ -255,9 +282,9 @@ export default function TrainingTasksDashboard() {
               ) : filteredTasks.length === 0 ? (
                 <div className="h-[300px] flex items-center justify-center text-sm text-text-secondary">Tidak ada data task yang sesuai filter.</div>
               ) : (
-                <div className="relative border border-border/50 rounded-lg bg-background mt-6 overflow-hidden">
+                <div className="relative border border-border/50 rounded-lg bg-background mt-6 overflow-y-auto overflow-x-hidden max-h-[500px] scrollbar-thin">
                   {/* Table-like Header */}
-                  <div className="flex bg-[#0f2842] text-white text-xs font-medium">
+                  <div className="flex bg-[#0f2842] text-white text-xs font-medium sticky top-0 z-30">
                     <div className="w-[300px] flex-shrink-0 p-3 border-r border-[#1a3855] flex items-center justify-center">
                       Task / Aktivitas
                     </div>
@@ -281,23 +308,31 @@ export default function TrainingTasksDashboard() {
 
                     <div className="space-y-0 relative z-10 pb-6">
                       {Array.from(new Map(filteredTasks.map(t => [t.training.name, t.training])).values())
-                        .sort((a, b) => new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime())
+                        .sort((a, b) => new Date(a.startDate || 0).getTime() - new Date(b.startDate || 0).getTime())
                         .map((training) => {
                         const trainingName = training.name;
                         const trainingTasks = filteredTasks
                           .filter(t => t.training.name === trainingName)
                           .sort((a, b) => a.order - b.order);
 
+                        const isCollapsed = collapsedTrainings.has(trainingName);
+
                         return (
                           <div key={trainingName}>
                             {/* Training Name Header Row */}
-                            <div className="bg-[#4b6073] text-white text-sm px-4 py-2 font-medium border-b border-[#3b4e5f]">
+                            <div 
+                              className="bg-[#4b6073] text-white text-sm px-4 py-2 font-medium border-b border-[#3b4e5f] flex items-center cursor-pointer hover:bg-[#3b4e5f] transition-colors sticky left-0 z-20"
+                              onClick={() => toggleTraining(trainingName)}
+                            >
+                              {isCollapsed ? <ChevronRight className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
                               {trainingName}
+                              {getStatusBadge(training.status)}
                             </div>
                             
-                            <div className="space-y-0">
-                              {trainingTasks.map((task) => {
-                                const taskStart = new Date(task.createdAt).getTime();
+                            {!isCollapsed && (
+                              <div className="space-y-0">
+                                {trainingTasks.map((task) => {
+                                  const taskStart = new Date(task.createdAt).getTime();
                                 const taskEnd = new Date(task.dueDate).getTime();
                                 const left = Math.max(0, Math.min(100, ((taskStart - minDate.getTime()) / (maxDate.getTime() - minDate.getTime())) * 100));
                                 const right = Math.max(0, Math.min(100, ((taskEnd - minDate.getTime()) / (maxDate.getTime() - minDate.getTime())) * 100));
@@ -340,11 +375,12 @@ export default function TrainingTasksDashboard() {
                                           </div>
                                         )
                                       })}
-                                      </div>
                                     </div>
+                                  </div>
                                 )
                               })}
                             </div>
+                            )}
                           </div>
                         )
                       })}

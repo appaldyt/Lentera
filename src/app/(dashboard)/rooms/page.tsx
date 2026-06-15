@@ -605,11 +605,11 @@ export default function RoomsPage() {
                     </a>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-1">
-                      {getOwnershipBadge(room.ownership)}
+                    <div className="flex flex-col gap-1.5 items-start">
                       {room.ownerEntity && (
-                        <span className="text-xs text-text-secondary">{room.ownerEntity}</span>
+                        <span className="text-sm font-medium text-navy">{room.ownerEntity}</span>
                       )}
+                      {getOwnershipBadge(room.ownership)}
                     </div>
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
