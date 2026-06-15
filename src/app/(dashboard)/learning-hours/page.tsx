@@ -260,7 +260,7 @@ function TrainingHoursTab() {
     );
   });
 
-  const totalHours = filteredData.reduce((s, e) => s + e.totalHours, 0);
+  const totalHours = parseFloat(filteredData.reduce((s, e) => s + e.totalHours, 0).toFixed(2));
   const activeEmployees = filteredData.length;
   const averageHours = activeEmployees > 0 ? (totalHours / activeEmployees).toFixed(1) : "0.0";
   const availableYears = Array.from(new Set(allData.map((d) => d.year))).sort((a, b) => b.localeCompare(a));
@@ -479,7 +479,7 @@ function SelfLearningTab() {
     );
   });
 
-  const totalHours = filteredEntries.reduce((s, e) => s + e.hours, 0);
+  const totalHours = parseFloat(filteredEntries.reduce((s, e) => s + e.hours, 0).toFixed(2));
   const activeEmployees = new Set(filteredEntries.map((e) => e.nik)).size;
   const averageHours = activeEmployees > 0 ? (totalHours / activeEmployees).toFixed(1) : "0.0";
   const totalPages = Math.max(1, Math.ceil(filteredEntries.length / PAGE_SIZE));
