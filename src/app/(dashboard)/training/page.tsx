@@ -65,8 +65,9 @@ export default function TrainingManagementPage() {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const currentYear = new Date().getFullYear();
   const [filterMonth, setFilterMonth] = useState("all");
-  const [filterYear, setFilterYear] = useState("all");
+  const [filterYear, setFilterYear] = useState(currentYear.toString());
   const [searchTerm, setSearchTerm] = useState("");
   const [filterJenis, setFilterJenis] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
@@ -348,9 +349,11 @@ export default function TrainingManagementPage() {
             value={filterYear} onChange={(e) => setFilterYear(e.target.value)}
           >
             <option value="all">Semua Tahun</option>
-            <option value="2025">2025</option>
-            <option value="2026">2026</option>
-            <option value="2027">2027</option>
+            {Array.from({ length: 5 }, (_, i) => currentYear - 2 + i).map((y) => (
+              <option key={y} value={y.toString()}>
+                {y}
+              </option>
+            ))}
           </select>
           <div className="relative">
             <Button

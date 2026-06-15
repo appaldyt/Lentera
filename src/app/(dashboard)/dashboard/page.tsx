@@ -66,8 +66,9 @@ const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "S
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("training");
+  const currentYear = new Date().getFullYear();
   const [filterMonth, setFilterMonth] = useState("all");
-  const [filterYear, setFilterYear] = useState("all");
+  const [filterYear, setFilterYear] = useState(currentYear.toString());
 
   const [trainings, setTrainings] = useState<TrainingItem[]>([]);
   const [learningHours, setLearningHours] = useState<LearningHourItem[]>([]);
@@ -255,9 +256,11 @@ export default function DashboardPage() {
             onChange={(e) => setFilterYear(e.target.value)}
           >
             <option value="all">Semua Tahun</option>
-            <option value="2025">2025</option>
-            <option value="2026">2026</option>
-            <option value="2027">2027</option>
+            {Array.from({ length: 5 }, (_, i) => currentYear - 2 + i).map((y) => (
+              <option key={y} value={y.toString()}>
+                {y}
+              </option>
+            ))}
           </select>
           <Button variant="outline" className="gap-2 bg-navy text-surface hover:bg-navy/90 hover:text-surface">
             <Filter className="h-4 w-4" />

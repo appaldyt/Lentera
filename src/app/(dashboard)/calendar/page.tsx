@@ -75,9 +75,10 @@ export default function CalendarPage() {
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const availableYears = Array.from(
-    new Set(events.map((e) => new Date(e.start).getFullYear().toString()))
-  ).sort((a, b) => b.localeCompare(a));
+  const currentYear = new Date().getFullYear();
+  const dbYears = events.map((e) => new Date(e.start).getFullYear().toString());
+  const windowYears = Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString());
+  const availableYears = Array.from(new Set([...dbYears, ...windowYears])).sort((a, b) => b.localeCompare(a));
 
   const filteredEvents =
     filterYear === "all"

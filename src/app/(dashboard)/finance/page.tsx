@@ -120,7 +120,7 @@ function FormFields({ data, setData }: { data: FormData; setData: (d: FormData) 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-text-primary">Tahun Anggaran</label>
                 <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={data.budgetYear} onChange={(e) => setData({ ...data, budgetYear: parseInt(e.target.value) })}>
-                  {[2025, 2026, 2027].map((y) => <option key={y} value={y}>{y}</option>)}
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => <option key={y} value={y}>{y}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -294,7 +294,8 @@ export default function FinancePage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterApprovalStatus, setFilterApprovalStatus] = useState("ALL");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState("ALL");
-  const [filterYear, setFilterYear] = useState("ALL");
+  const currentYearState = new Date().getFullYear();
+  const [filterYear, setFilterYear] = useState(currentYearState.toString());
   const [filterMonth, setFilterMonth] = useState("ALL");
   const [filterType, setFilterType] = useState("ALL");
   const [filterOrganizer, setFilterOrganizer] = useState("ALL");
@@ -545,24 +546,29 @@ export default function FinancePage() {
   );
 
   const uniqueOrganizers = Array.from(new Set(budgets.map((b) => b.organizer).filter(Boolean)));
-  const uniqueYears = Array.from(new Set(budgets.map((b) => b.budgetYear))).sort((a, b) => b - a);
-
   const currentYear = new Date().getFullYear();
-  const activeAnnualBudget = annualBudgets.find(b => b.year === currentYear) || annualBudgets[0];
+  const dbYears = budgets.map((b) => b.budgetYear);
+  const windowYears = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  const uniqueYears = Array.from(new Set([...dbYears, ...windowYears])).sort((a, b) => b - a);
+  const targetYear = filterYear !== "ALL" ? parseInt(filterYear) : currentYear;
+  const activeAnnualBudget = annualBudgets.find(b => b.year === targetYear);
+  const displayYear = targetYear;
+  const displayBudgetAmount = activeAnnualBudget ? activeAnnualBudget.amount : 0;
+
   const totalRealizationForYear = budgets
-    .filter(b => b.budgetYear === (activeAnnualBudget?.year || currentYear))
+    .filter(b => b.budgetYear === displayYear)
     .reduce((sum, item) => sum + item.actualAmount, 0);
   
   const totalPlannedForYear = budgets
-    .filter(b => b.budgetYear === (activeAnnualBudget?.year || currentYear))
+    .filter(b => b.budgetYear === displayYear)
     .reduce((sum, item) => sum + item.plannedAmount, 0);
   
-  const annualProgressPercent = activeAnnualBudget && activeAnnualBudget.amount > 0
-    ? Math.min(100, (totalRealizationForYear / activeAnnualBudget.amount) * 100)
+  const annualProgressPercent = displayBudgetAmount > 0
+    ? Math.min(100, (totalRealizationForYear / displayBudgetAmount) * 100)
     : 0;
 
-  const plannedProgressPercent = activeAnnualBudget && activeAnnualBudget.amount > 0
-    ? Math.min(100, (totalPlannedForYear / activeAnnualBudget.amount) * 100)
+  const plannedProgressPercent = displayBudgetAmount > 0
+    ? Math.min(100, (totalPlannedForYear / displayBudgetAmount) * 100)
     : 0;
 
   const handleExport = () => {
@@ -645,7 +651,7 @@ export default function FinancePage() {
           </div>
 
           {/* Progress Bar Anggaran Induk (Mock) */}
-          {activeAnnualBudget && (
+          {true && (
             <Card className="border-border/50 shadow-sm bg-gradient-to-r from-navy to-sky/90 text-white overflow-hidden relative">
               <div className="absolute right-0 top-0 opacity-10 pointer-events-none">
                 <Wallet className="w-48 h-48 -mr-8 -mt-8" />
@@ -653,8 +659,8 @@ export default function FinancePage() {
               <CardContent className="p-6 relative z-10 space-y-4">
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-2">
                   <div>
-                    <h3 className="text-lg font-semibold mb-1">Penggunaan Anggaran Induk ({activeAnnualBudget.year})</h3>
-                    <p className="text-sky-100 text-sm">Total Anggaran Perusahaan: <strong>{formatCurrency(activeAnnualBudget.amount)}</strong></p>
+                    <h3 className="text-lg font-semibold mb-1">Penggunaan Anggaran Induk ({displayYear})</h3>
+                    <p className="text-sky-100 text-sm">Total Anggaran Perusahaan: <strong>{formatCurrency(displayBudgetAmount)}</strong></p>
                   </div>
                 </div>
 
@@ -671,7 +677,10 @@ export default function FinancePage() {
                         style={{ width: `${Math.min(100, plannedProgressPercent)}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-sky-100 text-right">{plannedProgressPercent.toFixed(1)}% dari Anggaran Induk</p>
+                    <div className="flex justify-between text-xs text-sky-100 mt-1">
+                      <span>Sisa Anggaran: {formatCurrency(displayBudgetAmount - totalPlannedForYear)}</span>
+                      <span>{plannedProgressPercent.toFixed(1)}% dari Anggaran Induk</span>
+                    </div>
                   </div>
 
                   {/* Bar 2: Realisasi */}
@@ -686,7 +695,10 @@ export default function FinancePage() {
                         style={{ width: `${annualProgressPercent}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-sky-100 text-right">{annualProgressPercent.toFixed(1)}% Terpakai</p>
+                    <div className="flex justify-between text-xs text-sky-100 mt-1">
+                      <span>Sisa Anggaran: {formatCurrency(displayBudgetAmount - totalRealizationForYear)}</span>
+                      <span>{annualProgressPercent.toFixed(1)}% Terpakai</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>
