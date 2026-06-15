@@ -153,13 +153,13 @@ export default function DashboardPage() {
   const totalAnggaran = (filteredBudgets.reduce((s, b) => s + b.plannedAmount, 0) / 1_000_000).toFixed(1);
   const anggaranTerpakai = (filteredBudgets.reduce((s, b) => s + b.actualAmount, 0) / 1_000_000).toFixed(1);
   const pesertaTerdaftar = filteredLH.length;
-  const totalLearningHours = filteredLH.reduce((s, lh) => s + lh.totalHours, 0);
+  const totalLearningHours = parseFloat(filteredLH.reduce((s, lh) => s + lh.totalHours, 0).toFixed(2));
   const rataRataJamBelajar = pesertaTerdaftar > 0 ? (totalLearningHours / pesertaTerdaftar).toFixed(1) : "0.0";
 
   const filteredSelfLearning = selfLearning.filter((sl) => filterYear === "all" || sl.year === filterYear);
   const selfLearningNiks = new Set(filteredSelfLearning.map((sl) => sl.nik));
   const pesertaSelfLearning = selfLearningNiks.size;
-  const totalSelfLearningHours = filteredSelfLearning.reduce((s, sl) => s + sl.hours, 0);
+  const totalSelfLearningHours = parseFloat(filteredSelfLearning.reduce((s, sl) => s + sl.hours, 0).toFixed(2));
   const rataRataSelfLearning = pesertaSelfLearning > 0 ? (totalSelfLearningHours / pesertaSelfLearning).toFixed(1) : "0.0";
 
   // Chart: total training per bulan (year-filtered, all months shown)

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, Calendar, Badge, CircleDollarSign, Building, Settings, Users, GraduationCap, ShieldCheck, History, Store } from "lucide-react";
+import { LayoutDashboard, BookOpen, Calendar, Badge, CircleDollarSign, Building, Settings, Users, GraduationCap, ShieldCheck, History, Store, ListTodo } from "lucide-react";
 import { useUser } from "@/context/user-context";
 
 export function SidebarNav() {
@@ -18,7 +18,8 @@ export function SidebarNav() {
           <div className="pt-4 pb-2">
             <p className="text-xs font-semibold text-sky-light/70 uppercase tracking-wider px-2">Akademik</p>
           </div>
-          <SidebarItem href="/training" icon={<BookOpen className="h-4 w-4" />} label="Manajemen Training" active={pathname.startsWith("/training")} />
+          <SidebarItem href="/training" icon={<BookOpen className="h-4 w-4" />} label="Manajemen Training" active={pathname === "/training" || (pathname.startsWith("/training/") && pathname !== "/training/tasks")} />
+          <SidebarItem href="/training/tasks" icon={<ListTodo className="h-4 w-4" />} label="Task Training" active={pathname === "/training/tasks"} />
           <SidebarItem href="/learning-hours" icon={<GraduationCap className="h-4 w-4" />} label="Learning Hours" active={pathname.startsWith("/learning-hours")} />
           <SidebarItem href="/calendar" icon={<Calendar className="h-4 w-4" />} label="Kalender Training" active={pathname === "/calendar"} />
           <SidebarItem href="/licenses" icon={<Badge className="h-4 w-4" />} label="Lisensi & Sertifikasi" active={pathname === "/licenses"} />
