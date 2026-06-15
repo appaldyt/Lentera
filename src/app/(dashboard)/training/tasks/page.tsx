@@ -152,8 +152,10 @@ export default function TrainingTasksDashboard() {
                       value={filterYear}
                       onChange={(e) => setFilterYear(e.target.value)}
                     >
-                      <option value="all">Semua</option>
-                      {uniqueYears.map((y) => <option key={y} value={y}>{y}</option>)}
+                      <option value="all">Semua Tahun</option>
+                      {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
+                        <option key={y} value={y.toString()}>{y}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -278,7 +280,10 @@ export default function TrainingTasksDashboard() {
                     </div>
 
                     <div className="space-y-0 relative z-10 pb-6">
-                      {Array.from(new Set(filteredTasks.map(t => t.training.name))).map((trainingName) => {
+                      {Array.from(new Map(filteredTasks.map(t => [t.training.name, t.training])).values())
+                        .sort((a, b) => new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime())
+                        .map((training) => {
+                        const trainingName = training.name;
                         const trainingTasks = filteredTasks
                           .filter(t => t.training.name === trainingName)
                           .sort((a, b) => a.order - b.order);

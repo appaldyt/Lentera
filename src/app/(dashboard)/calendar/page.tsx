@@ -18,14 +18,16 @@ interface TrainingEvent {
   start: string;
   end?: string;
   backgroundColor: string;
+  status: string;
 }
 
 function statusToColor(status: string): string {
   switch (status) {
-    case "ONGOING":   return "#1E88E5";
-    case "DONE":      return "#2E7D32";
-    case "CANCELLED": return "#607d8b";
-    default:          return "#F9A825"; // PLANNING
+    case "COMPLETED": return "#10b981"; // emerald-500 (success)
+    case "PLANNING":  return "#f59e0b"; // amber-500 (warning)
+    case "ONGOING":   return "#0ea5e9"; // sky-500
+    case "CANCELLED": return "#f43f5e"; // rose-500 (danger)
+    default:          return "#64748b"; // slate-500
   }
 }
 
@@ -59,6 +61,7 @@ export default function CalendarPage() {
               start: t.startDate!,
               end: t.endDate ?? undefined,
               backgroundColor: statusToColor(t.status),
+              status: t.status,
             }))
         );
       })
@@ -85,8 +88,8 @@ export default function CalendarPage() {
       ? events
       : events.filter((e) => new Date(e.start).getFullYear().toString() === filterYear);
 
-  const mandatoryEvents    = filteredEvents.filter((e) => e.type === "MANDATORY");
-  const nonMandatoryEvents = filteredEvents.filter((e) => e.type !== "MANDATORY");
+  const mandatoryEvents    = filteredEvents.filter((e) => e.type === "MANDATORY").sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  const nonMandatoryEvents = filteredEvents.filter((e) => e.type !== "MANDATORY").sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
   const renderGridRow = (event: TrainingEvent, idx: number) => {
     const startMonth = new Date(event.start).getMonth();
@@ -113,7 +116,7 @@ export default function CalendarPage() {
                 }}
                 onClick={() => router.push(`/training/${event.id}`)}
               >
-                Pelaksanaan
+                {event.status.charAt(0).toUpperCase() + event.status.slice(1).toLowerCase()}
               </div>
             )}
           </div>
