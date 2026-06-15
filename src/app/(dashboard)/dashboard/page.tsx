@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, GraduationCap, AlertTriangle, CreditCard, ShieldAlert, ShieldCheck, BadgeInfo, FileX, Clock, Wallet, TrendingUp, BookOpen, Bookmark, Filter } from "lucide-react";
+import { Users, GraduationCap, AlertTriangle, CreditCard, ShieldAlert, ShieldCheck, BadgeInfo, FileX, Clock, Wallet, TrendingUp, BookOpen, Bookmark, Filter, CheckCircle2, Percent } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart,
@@ -53,6 +53,19 @@ interface BudgetItem {
   approvalStatus: string;
 }
 
+interface AnnualBudget {
+  id: string;
+  year: number;
+  amount: number;
+}
+
+interface SelfLearningItem {
+  nik: string;
+  year: string;
+  hours: number;
+  platform?: string;
+}
+
 interface LicenseItem {
   id: string;
   licenseName: string;
@@ -64,6 +77,26 @@ interface LicenseItem {
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
+function MetricCard({ title, value, icon: Icon, colorClass, bgClass, borderClass, description, loading }: any) {
+  return (
+    <Card className={`hover:-translate-y-1 hover:shadow-md transition-all duration-300 overflow-hidden relative group bg-white`}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+        <CardTitle className="text-sm font-medium text-text-secondary">
+          {title}
+        </CardTitle>
+        <div className={`p-2 rounded-xl transition-colors ${bgClass} group-hover:bg-opacity-80`}>
+          <Icon className={`h-4 w-4 ${colorClass}`} />
+        </div>
+      </CardHeader>
+      <CardContent className="relative z-10">
+        <div className="text-2xl font-bold text-navy">{loading ? "—" : value}</div>
+        <p className="text-xs text-text-secondary mt-1">{description}</p>
+      </CardContent>
+      <Icon className={`absolute -bottom-4 -right-4 h-24 w-24 opacity-[0.03] ${colorClass} group-hover:scale-110 group-hover:opacity-[0.06] transition-all duration-500 z-0 pointer-events-none`} />
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("training");
   const currentYear = new Date().getFullYear();
@@ -74,6 +107,8 @@ export default function DashboardPage() {
   const [learningHours, setLearningHours] = useState<LearningHourItem[]>([]);
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [licenses, setLicenses] = useState<LicenseItem[]>([]);
+  const [selfLearning, setSelfLearning] = useState<SelfLearningItem[]>([]);
+  const [annualBudgets, setAnnualBudgets] = useState<AnnualBudget[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -82,12 +117,16 @@ export default function DashboardPage() {
       fetch("/api/learning-hours").then((r) => r.json()),
       fetch("/api/finance").then((r) => r.json()),
       fetch("/api/licenses").then((r) => r.json()),
+      fetch("/api/self-learning").then((r) => r.json()),
+      fetch("/api/finance/annual").then((r) => r.json()).catch(() => ({ annualBudgets: [] })),
     ])
-      .then(([tJson, lhJson, fJson, licJson]) => {
+      .then(([tJson, lhJson, fJson, licJson, slJson, annualJson]) => {
         setTrainings(tJson.trainings ?? []);
         setLearningHours(lhJson.data ?? []);
         setBudgets(fJson.budgets ?? []);
         setLicenses(licJson.licenses ?? []);
+        setSelfLearning(slJson.entries ?? []);
+        setAnnualBudgets(annualJson.annualBudgets ?? []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -107,6 +146,7 @@ export default function DashboardPage() {
       (filterMonth === "all" || b.budgetMonth.toString().padStart(2, "0") === filterMonth)
   );
 
+  const trainingComplete = filteredTrainings.filter((t) => t.status === "COMPLETED").length;
   const trainingBerjalan = filteredTrainings.filter((t) => t.status === "ONGOING").length;
   const totalMandatory = filteredTrainings.filter((t) => t.trainingType === "MANDATORY").length;
   const nonMandatory = filteredTrainings.filter((t) => t.trainingType === "NON_MANDATORY").length;
@@ -116,6 +156,12 @@ export default function DashboardPage() {
   const totalLearningHours = filteredLH.reduce((s, lh) => s + lh.totalHours, 0);
   const rataRataJamBelajar = pesertaTerdaftar > 0 ? (totalLearningHours / pesertaTerdaftar).toFixed(1) : "0.0";
 
+  const filteredSelfLearning = selfLearning.filter((sl) => filterYear === "all" || sl.year === filterYear);
+  const selfLearningNiks = new Set(filteredSelfLearning.map((sl) => sl.nik));
+  const pesertaSelfLearning = selfLearningNiks.size;
+  const totalSelfLearningHours = filteredSelfLearning.reduce((s, sl) => s + sl.hours, 0);
+  const rataRataSelfLearning = pesertaSelfLearning > 0 ? (totalSelfLearningHours / pesertaSelfLearning).toFixed(1) : "0.0";
+
   // Chart: total training per bulan (year-filtered, all months shown)
   const yearTrainings = filterYear === "all" ? trainings : trainings.filter((t) => t.startDate?.slice(0, 4) === filterYear);
   const trainingPerBulan = MONTH_LABELS.map((name, i) => {
@@ -123,24 +169,32 @@ export default function DashboardPage() {
     return { name, count: yearTrainings.filter((t) => t.startDate?.slice(5, 7) === mo).length };
   });
 
-  // Chart: distribusi job family (from filtered trainings)
-  const jobFamilyMap: Record<string, number> = {};
-  filteredTrainings.forEach((t) => {
-    (t.jobFamilies ?? []).forEach((jf) => {
-      jobFamilyMap[jf] = (jobFamilyMap[jf] ?? 0) + 1;
-    });
+  // Chart: Pengguna Self Learning per Platform
+  const platformUserMap: Record<string, Set<string>> = {};
+  filteredSelfLearning.forEach((sl) => {
+    const plat = sl.platform || "Lainnya";
+    if (!platformUserMap[plat]) platformUserMap[plat] = new Set();
+    platformUserMap[plat].add(sl.nik);
   });
-  const jobFamilyChartData = Object.entries(jobFamilyMap)
-    .map(([name, value]) => ({ name, value }))
+  const platformChartData = Object.entries(platformUserMap)
+    .map(([name, set]) => ({ name, value: set.size }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 8);
 
-  // ── Lisensi metrics ──────────────────────────────────────────────────────
-  const totalLisensiAktif = licenses.filter((l) => l.status !== "EXPIRED").length;
-  const uniqueEmployees = new Set(licenses.filter((l) => l.status !== "EXPIRED").map((l) => l.employee.nik)).size;
-  const segeraBerakhir = licenses.filter((l) => l.status === "EXPIRING_1_MONTH" || l.status === "EXPIRING_3_MONTHS").length;
-  const totalExpired = licenses.filter((l) => l.status === "EXPIRED").length;
-  const criticalLicenses = licenses.filter((l) => l.category === "Operasional").length;
+  // ── Lisensi metrics (Operasional & Akademik) ──────────────────────────────
+  const opLicenses = licenses.filter((l) => l.category === "Operasional");
+  const totalOp = opLicenses.length;
+  const opAktif = opLicenses.filter((l) => l.status !== "EXPIRED").length;
+  const opSegeraBerakhir = opLicenses.filter((l) => l.status === "EXPIRING_1_MONTH" || l.status === "EXPIRING_3_MONTHS").length;
+  const opExpired = opLicenses.filter((l) => l.status === "EXPIRED").length;
+  const opUnique = new Set(opLicenses.filter((l) => l.status !== "EXPIRED").map((l) => l.employee.nik)).size;
+
+  const acLicenses = licenses.filter((l) => l.category === "Akademik");
+  const totalAc = acLicenses.length;
+  const acAktif = acLicenses.filter((l) => l.status !== "EXPIRED").length;
+  const acSegeraBerakhir = acLicenses.filter((l) => l.status === "EXPIRING_1_MONTH" || l.status === "EXPIRING_3_MONTHS").length;
+  const acExpired = acLicenses.filter((l) => l.status === "EXPIRED").length;
+  const acUnique = new Set(acLicenses.filter((l) => l.status !== "EXPIRED").map((l) => l.employee.nik)).size;
 
   // Chart: proyeksi kadaluarsa 6 bulan ke depan
   const licenseExpiryProjection = (() => {
@@ -195,15 +249,34 @@ export default function DashboardPage() {
 
   // ── Finance metrics ───────────────────────────────────────────────────────
   const finBudgetsYTD = budgets.filter((b) => filterYear === "all" || b.budgetYear.toString() === filterYear);
-  const finPlanned = finBudgetsYTD.reduce((s, b) => s + b.plannedAmount, 0);
-  const finActual = finBudgetsYTD.reduce((s, b) => s + b.actualAmount, 0);
-  const totalAnggaranFin = (finPlanned / 1_000_000).toFixed(1);
-  const totalRealisasiFin = (finActual / 1_000_000).toFixed(1);
-  const pctRealisasi = finPlanned > 0 ? ((finActual / finPlanned) * 100).toFixed(1) : "0.0";
-  const tagihanBelumLunas = finBudgetsYTD.filter((b) => b.status === "Belum Dibayar" || b.status === "Jatuh Tempo");
-  const tagihanJatuhTempoAmt = (tagihanBelumLunas.reduce((s, b) => s + b.actualAmount, 0) / 1_000_000).toFixed(1);
-  const efisiensiPct = finPlanned > 0 ? Math.abs(((finPlanned - finActual) / finPlanned) * 100).toFixed(1) : "0.0";
-  const efisiensiPositif = finActual <= finPlanned;
+  const finAnnualYTD = annualBudgets.filter((a) => filterYear === "all" || a.year.toString() === filterYear);
+
+  const anggaranIndukAmount = finAnnualYTD.reduce((s, a) => s + a.amount, 0);
+  const prognosaAmount = finBudgetsYTD.reduce((s, b) => s + b.plannedAmount, 0);
+  const realisasiAmount = finBudgetsYTD.reduce((s, b) => s + b.actualAmount, 0);
+
+  const formatM = (val: number) => (val / 1_000_000).toFixed(1);
+
+  const totalAnggaranInduk = formatM(anggaranIndukAmount);
+  const totalPrognosa = formatM(prognosaAmount);
+  const totalRealisasi = formatM(realisasiAmount);
+
+  const efisiensiPct = anggaranIndukAmount > 0 
+    ? (Math.abs((anggaranIndukAmount - realisasiAmount) / anggaranIndukAmount) * 100).toFixed(1)
+    : "0.0";
+  const efisiensiPositif = anggaranIndukAmount >= realisasiAmount;
+
+  const sisaPrognosa = formatM(Math.max(0, anggaranIndukAmount - prognosaAmount));
+  const sisaRealisasi = formatM(Math.max(0, anggaranIndukAmount - realisasiAmount));
+
+  const tagihanLunas = finBudgetsYTD.filter((b) => b.status === "Lunas");
+  const tagihanLunasAmt = formatM(tagihanLunas.reduce((s, b) => s + b.actualAmount, 0));
+
+  const tagihanBelumDibayar = finBudgetsYTD.filter((b) => b.status === "Belum Dibayar");
+  const tagihanBelumDibayarAmt = formatM(tagihanBelumDibayar.reduce((s, b) => s + b.actualAmount, 0));
+
+  const tagihanJatuhTempo = finBudgetsYTD.filter((b) => b.status === "Jatuh Tempo");
+  const tagihanJatuhTempoAmt = formatM(tagihanJatuhTempo.reduce((s, b) => s + b.actualAmount, 0));
 
   const budgetPerBulan = MONTH_LABELS.map((name, i) => {
     const mo = i + 1;
@@ -214,6 +287,13 @@ export default function DashboardPage() {
       actual: parseFloat((items.reduce((s, b) => s + b.actualAmount, 0) / 1_000_000).toFixed(2)),
     };
   });
+
+  const annualBudgetHistoryData = [...annualBudgets]
+    .sort((a, b) => a.year - b.year)
+    .map((b) => ({
+      year: b.year.toString(),
+      amount: parseFloat((b.amount / 1_000_000).toFixed(2)),
+    }));
 
   const jenisCounts: Record<string, number> = {};
   finBudgetsYTD.forEach((b) => {
@@ -278,102 +358,114 @@ export default function DashboardPage() {
 
         <TabsContent value="training" className="space-y-6 mt-0">
           {/* Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {/* Baris 1: Training Berjalan, Peserta Terdaftar, Total Anggaran, Anggaran Tercapai/Terpakai */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Training Berjalan
-                </CardTitle>
-                <GraduationCap className="h-4 w-4 text-sky" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : trainingBerjalan}</div>
-                <p className="text-xs text-text-secondary">Berdasarkan filter saat ini</p>
-              </CardContent>
-            </Card>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
+            {/* Baris 1 */}
+            <MetricCard
+              title="Total Training Complete"
+              value={trainingComplete}
+              icon={CheckCircle2}
+              colorClass="text-emerald-500"
+              bgClass="bg-emerald-50"
+              borderClass="border-emerald-500"
+              description="Berdasarkan filter saat ini"
+              loading={loading}
+            />
+            <MetricCard
+              title="Training Berjalan"
+              value={trainingBerjalan}
+              icon={GraduationCap}
+              colorClass="text-sky-500"
+              bgClass="bg-sky-50"
+              borderClass="border-sky-500"
+              description="Berdasarkan filter saat ini"
+              loading={loading}
+            />
+            <MetricCard
+              title="Total Mandatory"
+              value={totalMandatory}
+              icon={BookOpen}
+              colorClass="text-blue-500"
+              bgClass="bg-blue-50"
+              borderClass="border-blue-500"
+              description="Berdasarkan filter saat ini"
+              loading={loading}
+            />
+            <MetricCard
+              title="Non Mandatory"
+              value={nonMandatory}
+              icon={Bookmark}
+              colorClass="text-indigo-500"
+              bgClass="bg-indigo-50"
+              borderClass="border-indigo-500"
+              description="Berdasarkan filter saat ini"
+              loading={loading}
+            />
+          </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Peserta Terdaftar</CardTitle>
-                <Users className="h-4 w-4 text-sky-light" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : pesertaTerdaftar}</div>
-                <p className="text-xs text-text-secondary">Berdasarkan filter saat ini</p>
-              </CardContent>
-            </Card>
+          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3 mb-6">
+            {/* Training Learning Metrics */}
+            <MetricCard
+              title="Peserta Terdaftar Training"
+              value={pesertaTerdaftar}
+              icon={Users}
+              colorClass="text-sky-500"
+              bgClass="bg-sky-50"
+              borderClass="border-sky-500"
+              description="Berdasarkan filter saat ini"
+              loading={loading}
+            />
+            <MetricCard
+              title="Rata-rata Jam Belajar Training"
+              value={<>{rataRataJamBelajar} <span className="text-sm font-normal text-text-secondary">Jam</span></>}
+              icon={TrendingUp}
+              colorClass="text-sky-500"
+              bgClass="bg-sky-50"
+              borderClass="border-sky-500"
+              description="Berdasarkan filter saat ini"
+              loading={loading}
+            />
+            <MetricCard
+              title="Total Jam Belajar Training"
+              value={<>{totalLearningHours} <span className="text-sm font-normal text-text-secondary">Jam</span></>}
+              icon={Clock}
+              colorClass="text-sky-500"
+              bgClass="bg-sky-50"
+              borderClass="border-sky-500"
+              description="Berdasarkan filter saat ini"
+              loading={loading}
+            />
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Total Anggaran</CardTitle>
-                <Wallet className="h-4 w-4 text-emerald-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : `Rp ${totalAnggaran}M`}</div>
-                <p className="text-xs text-text-secondary">Berdasarkan filter saat ini</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Anggaran Tercapai</CardTitle>
-                <CreditCard className="h-4 w-4 text-success" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : `Rp ${anggaranTerpakai}M`}</div>
-                <p className="text-xs text-text-secondary">Berdasarkan filter saat ini</p>
-              </CardContent>
-            </Card>
-
-            {/* Baris 2 */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Rata-rata Jam Belajar</CardTitle>
-                <TrendingUp className="h-4 w-4 text-sky" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">
-                  {loading ? "—" : <>{rataRataJamBelajar} <span className="text-sm font-normal text-text-secondary">Jam</span></>}
-                </div>
-                <p className="text-xs text-text-secondary mt-1">Berdasarkan filter saat ini</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Total Learning Hours</CardTitle>
-                <Clock className="h-4 w-4 text-warning" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">
-                  {loading ? "—" : <>{totalLearningHours} <span className="text-sm font-normal text-text-secondary">Jam</span></>}
-                </div>
-                <p className="text-xs text-text-secondary mt-1">Berdasarkan filter saat ini</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Total Mandatory</CardTitle>
-                <BookOpen className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : totalMandatory}</div>
-                <p className="text-xs text-text-secondary mt-1">Berdasarkan filter saat ini</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Non Mandatory</CardTitle>
-                <Bookmark className="h-4 w-4 text-indigo-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : nonMandatory}</div>
-                <p className="text-xs text-text-secondary mt-1">Berdasarkan filter saat ini</p>
-              </CardContent>
-            </Card>
+            {/* Self Learning Metrics */}
+            <MetricCard
+              title="Peserta Self Learning"
+              value={pesertaSelfLearning}
+              icon={Users}
+              colorClass="text-emerald-500"
+              bgClass="bg-emerald-50"
+              borderClass="border-emerald-500"
+              description="Berdasarkan filter saat ini"
+              loading={loading}
+            />
+            <MetricCard
+              title="Rata-rata Jam Belajar Self Learning"
+              value={<>{rataRataSelfLearning} <span className="text-sm font-normal text-text-secondary">Jam</span></>}
+              icon={TrendingUp}
+              colorClass="text-emerald-500"
+              bgClass="bg-emerald-50"
+              borderClass="border-emerald-500"
+              description="Berdasarkan filter saat ini"
+              loading={loading}
+            />
+            <MetricCard
+              title="Total Jam Belajar Self Learning"
+              value={<>{totalSelfLearningHours} <span className="text-sm font-normal text-text-secondary">Jam</span></>}
+              icon={Clock}
+              colorClass="text-emerald-500"
+              bgClass="bg-emerald-50"
+              borderClass="border-emerald-500"
+              description="Berdasarkan filter saat ini"
+              loading={loading}
+            />
           </div>
 
           {/* Charts Section */}
@@ -406,31 +498,26 @@ export default function DashboardPage() {
 
             <Card className="col-span-3">
               <CardHeader>
-                <CardTitle>Distribusi Job Family</CardTitle>
+                <CardTitle>Pengguna Self Learning (LMS / LinkedIn)</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full">
                   {loading ? (
                     <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
-                  ) : jobFamilyChartData.length === 0 ? (
+                  ) : platformChartData.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-sm text-text-secondary">Tidak ada data</div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={jobFamilyChartData}>
+                      <BarChart data={platformChartData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
                         <XAxis dataKey="name" stroke="#5A6B7C" fontSize={11} tickLine={false} axisLine={false} />
                         <YAxis stroke="#5A6B7C" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED" }} />
-                        <Line
-                          type="monotone"
-                          dataKey="value"
-                          stroke="#1E88E5"
-                          strokeWidth={3}
-                          dot={{ r: 4, fill: "#1E88E5", strokeWidth: 0 }}
-                          activeDot={{ r: 6, fill: "#0B2A4A", strokeWidth: 0 }}
-                          name="Jumlah Training"
+                        <Tooltip
+                          cursor={{ fill: "#F5F7FA" }}
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED", boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)" }}
                         />
-                      </LineChart>
+                        <Bar dataKey="value" fill="#10B981" radius={[4, 4, 0, 0]} name="Total Pengguna" />
+                      </BarChart>
                     </ResponsiveContainer>
                   )}
                 </div>
@@ -441,50 +528,84 @@ export default function DashboardPage() {
 
         <TabsContent value="licenses" className="space-y-6 mt-0">
           {/* Summary Cards for Licenses */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Total Lisensi Aktif</CardTitle>
-                <ShieldCheck className="h-4 w-4 text-success" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : totalLisensiAktif.toLocaleString("id-ID")}</div>
-                <p className="text-xs text-text-secondary">Dipegang oleh {loading ? "—" : uniqueEmployees} karyawan</p>
-              </CardContent>
-            </Card>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
+            {/* Baris 1: Operasional */}
+            <MetricCard
+              title="Total Lisensi Operasional"
+              value={totalOp.toLocaleString("id-ID")}
+              icon={ShieldAlert}
+              colorClass="text-indigo-500"
+              bgClass="bg-indigo-50"
+              description="Semua lisensi tercatat"
+              loading={loading}
+            />
+            <MetricCard
+              title="Lisensi Aktif (Operasional)"
+              value={opAktif.toLocaleString("id-ID")}
+              icon={ShieldCheck}
+              colorClass="text-emerald-500"
+              bgClass="bg-emerald-50"
+              description={`Dipegang oleh ${loading ? "—" : opUnique} karyawan`}
+              loading={loading}
+            />
+            <MetricCard
+              title="Segera Berakhir (< 3 Bulan)"
+              value={opSegeraBerakhir}
+              icon={AlertTriangle}
+              colorClass="text-amber-500"
+              bgClass="bg-amber-50"
+              description="Perlu segera diperpanjang"
+              loading={loading}
+            />
+            <MetricCard
+              title="Kadaluarsa (Operasional)"
+              value={opExpired}
+              icon={FileX}
+              colorClass="text-rose-500"
+              bgClass="bg-rose-50"
+              description="Karyawan tidak dapat bertugas"
+              loading={loading}
+            />
+          </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Segera Berakhir (&lt; 3 Bulan)</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-warning" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-warning">{loading ? "—" : segeraBerakhir}</div>
-                <p className="text-xs text-text-secondary">Perlu segera diperpanjang</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Kadaluarsa</CardTitle>
-                <FileX className="h-4 w-4 text-danger" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-danger">{loading ? "—" : totalExpired}</div>
-                <p className="text-xs text-text-secondary">Karyawan tidak dapat bertugas</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">Critical Licenses</CardTitle>
-                <ShieldAlert className="h-4 w-4 text-navy-light" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : criticalLicenses}</div>
-                <p className="text-xs text-text-secondary">Lisensi kategori Operasional</p>
-              </CardContent>
-            </Card>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            {/* Baris 2: Akademik */}
+            <MetricCard
+              title="Total Lisensi Akademik"
+              value={totalAc.toLocaleString("id-ID")}
+              icon={GraduationCap}
+              colorClass="text-sky-500"
+              bgClass="bg-sky-50"
+              description="Sertifikasi pendidikan"
+              loading={loading}
+            />
+            <MetricCard
+              title="Lisensi Aktif (Akademik)"
+              value={acAktif.toLocaleString("id-ID")}
+              icon={ShieldCheck}
+              colorClass="text-emerald-500"
+              bgClass="bg-emerald-50"
+              description={`Dipegang oleh ${loading ? "—" : acUnique} karyawan`}
+              loading={loading}
+            />
+            <MetricCard
+              title="Segera Berakhir (< 3 Bulan)"
+              value={acSegeraBerakhir}
+              icon={AlertTriangle}
+              colorClass="text-amber-500"
+              bgClass="bg-amber-50"
+              description="Perlu segera diperpanjang"
+              loading={loading}
+            />
+            <MetricCard
+              title="Kadaluarsa (Akademik)"
+              value={acExpired}
+              icon={FileX}
+              colorClass="text-rose-500"
+              bgClass="bg-rose-50"
+              description="Sertifikasi kadaluarsa"
+              loading={loading}
+            />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -639,68 +760,74 @@ export default function DashboardPage() {
         </TabsContent>
 
         <TabsContent value="finance" className="space-y-6 mt-0">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Total Anggaran (YTD)
-                </CardTitle>
-                <CreditCard className="h-4 w-4 text-sky" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : `Rp ${totalAnggaranFin}M`}</div>
-                <p className="text-xs text-text-secondary">
-                  Berdasarkan filter saat ini
-                </p>
-              </CardContent>
-            </Card>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <MetricCard
+              title="Anggaran Induk"
+              value={`Rp ${totalAnggaranInduk}M`}
+              icon={Wallet}
+              colorClass="text-indigo-500"
+              bgClass="bg-indigo-50"
+              description={`Tahun ${filterYear === "all" ? "Semua" : filterYear}`}
+              loading={loading}
+            />
+            <MetricCard
+              title="Prognosa"
+              value={`Rp ${totalPrognosa}M`}
+              icon={TrendingUp}
+              colorClass="text-amber-500"
+              bgClass="bg-amber-50"
+              description={`Sisa anggaran: Rp ${sisaPrognosa}M`}
+              loading={loading}
+            />
+            <MetricCard
+              title="Realisasi"
+              value={`Rp ${totalRealisasi}M`}
+              icon={CheckCircle2}
+              colorClass="text-emerald-500"
+              bgClass="bg-emerald-50"
+              description={`Sisa anggaran: Rp ${sisaRealisasi}M`}
+              loading={loading}
+            />
+            <MetricCard
+              title="Efisiensi Anggaran"
+              value={`${efisiensiPositif ? "+" : "-"}${efisiensiPct}%`}
+              icon={Percent}
+              colorClass={efisiensiPositif ? "text-emerald-500" : "text-rose-500"}
+              bgClass={efisiensiPositif ? "bg-emerald-50" : "bg-rose-50"}
+              description={efisiensiPositif ? "Lebih hemat dari anggaran" : "Melebihi anggaran"}
+              loading={loading}
+            />
+          </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Total Realisasi (YTD)
-                </CardTitle>
-                <CreditCard className="h-4 w-4 text-success" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-navy">{loading ? "—" : `Rp ${totalRealisasiFin}M`}</div>
-                <p className="text-xs text-text-secondary">
-                  {loading ? "—" : `${pctRealisasi}% dari total anggaran`}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Tagihan Belum Lunas
-                </CardTitle>
-                <AlertTriangle className="h-4 w-4 text-danger" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-danger">{loading ? "—" : `Rp ${tagihanJatuhTempoAmt}M`}</div>
-                <p className="text-xs text-text-secondary">
-                  {loading ? "—" : `${tagihanBelumLunas.length} tagihan perlu tindakan`}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-text-secondary">
-                  Efisiensi Anggaran
-                </CardTitle>
-                <BadgeInfo className="h-4 w-4 text-navy-light" />
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${efisiensiPositif ? "text-success" : "text-danger"}`}>
-                  {loading ? "—" : `${efisiensiPositif ? "+" : "-"}${efisiensiPct}%`}
-                </div>
-                <p className="text-xs text-text-secondary">
-                  {efisiensiPositif ? "Lebih hemat dari estimasi" : "Melebihi estimasi anggaran"}
-                </p>
-              </CardContent>
-            </Card>
+          {/* Baris 2: Status Tagihan */}
+          <div className="grid gap-4 md:grid-cols-3 mb-6">
+            <MetricCard
+              title="Tagihan Lunas"
+              value={`Rp ${tagihanLunasAmt}M`}
+              icon={CheckCircle2}
+              colorClass="text-emerald-500"
+              bgClass="bg-emerald-50"
+              description={`${loading ? "—" : tagihanLunas.length} tagihan telah dibayar`}
+              loading={loading}
+            />
+            <MetricCard
+              title="Belum Dibayar"
+              value={`Rp ${tagihanBelumDibayarAmt}M`}
+              icon={Clock}
+              colorClass="text-amber-500"
+              bgClass="bg-amber-50"
+              description={`${loading ? "—" : tagihanBelumDibayar.length} tagihan perlu diproses`}
+              loading={loading}
+            />
+            <MetricCard
+              title="Jatuh Tempo"
+              value={`Rp ${tagihanJatuhTempoAmt}M`}
+              icon={AlertTriangle}
+              colorClass="text-rose-500"
+              bgClass="bg-rose-50"
+              description={`${loading ? "—" : tagihanJatuhTempo.length} tagihan butuh tindakan`}
+              loading={loading}
+            />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -776,6 +903,37 @@ export default function DashboardPage() {
                         />
                         <Legend verticalAlign="bottom" height={36} iconType="circle" />
                       </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* History Anggaran Induk (Tahunan) */}
+          <div className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>History Anggaran Induk Perusahaan (Tahunan)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Memuat data...</div>
+                  ) : annualBudgetHistoryData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-sm text-text-secondary">Tidak ada data history anggaran.</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={annualBudgetHistoryData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E0E6ED" />
+                        <XAxis dataKey="year" stroke="#5A6B7C" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#5A6B7C" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}M`} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #E0E6ED", boxShadow: "0 1px 2px 0 rgb(0 0 0 / 0.05)" }}
+                          formatter={(value) => [`Rp ${value}M`, "Anggaran Induk"]}
+                        />
+                        <Line type="monotone" dataKey="amount" stroke="#1E88E5" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} name="Anggaran Induk" />
+                      </LineChart>
                     </ResponsiveContainer>
                   )}
                 </div>
