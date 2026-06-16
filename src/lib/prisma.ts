@@ -10,8 +10,7 @@ declare const globalThis: {
   prismaGlobal: ReturnType<typeof createPrismaClient>;
 } & typeof global;
 
-const prisma = globalThis.prismaGlobal ?? createPrismaClient();
+const prisma = createPrismaClient();
 
 export default prisma;
 
-if (process.env.NODE_ENV !== "production") globalThis.prismaGlobal = prisma;

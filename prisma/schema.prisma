@@ -221,3 +221,14 @@ model AnnualBudget {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+model Competency {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  category   String
+  level      String
+  definition String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

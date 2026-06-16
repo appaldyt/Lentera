@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Target, 
   Search, 
@@ -41,42 +41,14 @@ import { useRouter } from "next/navigation";
 
 interface MasterCompetency {
   id: string;
+  code: string;
   name: string;
   definition: string;
-  category: "Core" | "Leadership" | "Professional" | "Functional";
-  level: "Level 1 (Knowledgeable)" | "Level 2 (Apply)" | "Level 3 (Analyze)" | "Level 4 (Evaluate)" | "Level 5 (Create)";
+  category: string;
+  level: string;
 }
 
-const mockDictionary: MasterCompetency[] = [
-  {
-    id: "C01",
-    name: "Safety Awareness",
-    definition: "Mampu memahami dan mengaplikasikan standar keselamatan dan kesehatan kerja (K3) di lingkungan operasional bandara.",
-    category: "Functional",
-    level: "Level 1 (Knowledgeable)",
-  },
-  {
-    id: "C03",
-    name: "Aircraft Ground Handling",
-    definition: "Mampu melakukan prosedur penanganan pesawat di darat sesuai dengan standar keselamatan internasional dan regulasi penerbangan sipil.",
-    category: "Functional",
-    level: "Level 3 (Analyze)",
-  },
-  {
-    id: "C08",
-    name: "Communication",
-    definition: "Mampu menyampaikan informasi secara jelas, efektif, dan profesional kepada rekan kerja, atasan, maupun pelanggan.",
-    category: "Core",
-    level: "Level 2 (Apply)",
-  },
-  {
-    id: "L01",
-    name: "Team Leadership",
-    definition: "Mampu memimpin tim, memberikan arahan, serta memotivasi anggota tim untuk mencapai target operasional.",
-    category: "Leadership",
-    level: "Level 4 (Evaluate)",
-  }
-];
+
 
 interface JobRole {
   id: string;
@@ -137,15 +109,40 @@ export default function LearningNeedsPage() {
   const [editRole, setEditRole] = useState<JobRole | null>(null);
   const [deleteRole, setDeleteRole] = useState<JobRole | null>(null);
 
+  const [competencies, setCompetencies] = useState<MasterCompetency[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchCompetencies();
+  }, []);
+
+  const fetchCompetencies = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/competencies");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCompetencies(data);
+      } else {
+        console.error("API returned non-array data:", data);
+        setCompetencies([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch competencies:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const filteredRoles = mockRoles.filter(r => 
     r.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     r.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
     r.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredDict = mockDictionary.filter(c => 
+  const filteredDict = competencies.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -332,7 +329,7 @@ export default function LearningNeedsPage() {
                 {filteredDict.map((comp) => (
                   <TableRow key={comp.id} className="hover:bg-slate-50">
                     <TableCell>
-                      <Badge variant="outline" className="bg-slate-100 text-slate-700 font-mono text-xs">{comp.id}</Badge>
+                      <Badge variant="outline" className="bg-slate-100 text-slate-700 font-mono text-xs">{comp.code}</Badge>
                     </TableCell>
                     <TableCell className="font-semibold text-navy">{comp.name}</TableCell>
                     <TableCell>
@@ -397,22 +394,43 @@ export default function LearningNeedsPage() {
               </Button>
             </div>
             
-            <form className="p-5 space-y-4" onSubmit={(e) => { e.preventDefault(); setIsAddCompModalOpen(false); }}>
+            <form className="p-5 space-y-4" onSubmit={async (e: any) => { 
+              e.preventDefault(); 
+              const formData = new FormData(e.target);
+              const data = {
+                code: formData.get("code"),
+                name: formData.get("name"),
+                category: formData.get("category"),
+                level: formData.get("level"),
+                definition: formData.get("definition"),
+              };
+              try {
+                await fetch("/api/competencies", {
+                  method: "POST",
+                  body: JSON.stringify(data),
+                  headers: { "Content-Type": "application/json" }
+                });
+                fetchCompetencies();
+                setIsAddCompModalOpen(false);
+              } catch (err) {
+                console.error(err);
+              }
+            }}>
               <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2 col-span-1">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">ID</label>
-                  <Input required placeholder="Ex: C01" className="font-mono" />
+                  <Input required name="code" placeholder="Ex: C01" className="font-mono" />
                 </div>
                 <div className="space-y-2 col-span-3">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Nama Kompetensi</label>
-                  <Input required placeholder="Ex: Safety Awareness" />
+                  <Input required name="name" placeholder="Ex: Safety Awareness" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Kategori</label>
-                  <select required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
+                  <select required name="category" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
                     <option value="">-- Pilih Kategori --</option>
                     <option value="Core">Core</option>
                     <option value="Leadership">Leadership</option>
@@ -422,13 +440,13 @@ export default function LearningNeedsPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Level</label>
-                  <select required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
+                  <select required name="level" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
                     <option value="">-- Pilih Level --</option>
-                    <option value="Level 1">Level 1 (Knowledgeable)</option>
-                    <option value="Level 2">Level 2 (Apply)</option>
-                    <option value="Level 3">Level 3 (Analyze)</option>
-                    <option value="Level 4">Level 4 (Evaluate)</option>
-                    <option value="Level 5">Level 5 (Create)</option>
+                    <option value="Level 1 (Knowledgeable)">Level 1 (Knowledgeable)</option>
+                    <option value="Level 2 (Apply)">Level 2 (Apply)</option>
+                    <option value="Level 3 (Analyze)">Level 3 (Analyze)</option>
+                    <option value="Level 4 (Evaluate)">Level 4 (Evaluate)</option>
+                    <option value="Level 5 (Create)">Level 5 (Create)</option>
                   </select>
                 </div>
               </div>
@@ -437,6 +455,7 @@ export default function LearningNeedsPage() {
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Definisi Kompetensi</label>
                 <textarea 
                   required 
+                  name="definition"
                   rows={4}
                   placeholder="Jelaskan definisi dan indikator perilaku dari kompetensi ini..."
                   className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky resize-none"
@@ -465,22 +484,43 @@ export default function LearningNeedsPage() {
               </Button>
             </div>
             
-            <form className="p-5 space-y-4" onSubmit={(e) => { e.preventDefault(); setEditComp(null); }}>
+            <form className="p-5 space-y-4" onSubmit={async (e: any) => { 
+              e.preventDefault(); 
+              const formData = new FormData(e.target);
+              const data = {
+                code: editComp.code,
+                name: formData.get("name"),
+                category: formData.get("category"),
+                level: formData.get("level"),
+                definition: formData.get("definition"),
+              };
+              try {
+                await fetch(`/api/competencies/${editComp.id}`, {
+                  method: "PUT",
+                  body: JSON.stringify(data),
+                  headers: { "Content-Type": "application/json" }
+                });
+                fetchCompetencies();
+                setEditComp(null);
+              } catch (err) {
+                console.error(err);
+              }
+            }}>
               <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-2 col-span-1">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">ID</label>
-                  <Input required defaultValue={editComp.id} className="font-mono" disabled />
+                  <Input required name="code" defaultValue={editComp.code} className="font-mono" disabled />
                 </div>
                 <div className="space-y-2 col-span-3">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Nama Kompetensi</label>
-                  <Input required defaultValue={editComp.name} />
+                  <Input required name="name" defaultValue={editComp.name} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Kategori</label>
-                  <select required defaultValue={editComp.category} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
+                  <select required name="category" defaultValue={editComp.category} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
                     <option value="Core">Core</option>
                     <option value="Leadership">Leadership</option>
                     <option value="Professional">Professional</option>
@@ -489,7 +529,7 @@ export default function LearningNeedsPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Level</label>
-                  <select required defaultValue={editComp.level} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
+                  <select required name="level" defaultValue={editComp.level} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
                     <option value="Level 1 (Knowledgeable)">Level 1 (Knowledgeable)</option>
                     <option value="Level 2 (Apply)">Level 2 (Apply)</option>
                     <option value="Level 3 (Analyze)">Level 3 (Analyze)</option>
@@ -503,6 +543,7 @@ export default function LearningNeedsPage() {
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Definisi Kompetensi</label>
                 <textarea 
                   required 
+                  name="definition"
                   rows={4}
                   defaultValue={editComp.definition}
                   className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky resize-none"
@@ -533,7 +574,15 @@ export default function LearningNeedsPage() {
               
               <div className="flex justify-center gap-3 pt-4">
                 <Button variant="outline" onClick={() => setDeleteComp(null)}>Batal</Button>
-                <Button className="bg-rose-600 hover:bg-rose-700 text-white" onClick={() => setDeleteComp(null)}>Ya, Hapus</Button>
+                <Button className="bg-rose-600 hover:bg-rose-700 text-white" onClick={async () => {
+                  try {
+                    await fetch(`/api/competencies/${deleteComp.id}`, { method: "DELETE" });
+                    fetchCompetencies();
+                    setDeleteComp(null);
+                  } catch(e) {
+                    console.error(e);
+                  }
+                }}>Ya, Hapus</Button>
               </div>
             </div>
           </div>
