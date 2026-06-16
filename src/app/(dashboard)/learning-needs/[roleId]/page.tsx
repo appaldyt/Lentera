@@ -104,6 +104,7 @@ const mockRoleDetail = {
       category: "Functional",
       level: "Level 1 (Knowledgeable)",
       isRequired: true,
+      description: "Memahami prinsip-prinsip dasar keselamatan kerja dan mampu mengidentifikasi potensi bahaya di lingkungan operasional.",
       trainings: [
         { name: "K3 Dasar", isRequired: true, notes: "" }, 
         { name: "Safety Briefing", isRequired: false, notes: "" }
@@ -118,6 +119,7 @@ const mockRoleDetail = {
       category: "Functional",
       level: "Level 3 (Analyze)",
       isRequired: true,
+      description: "Mampu melakukan dan menganalisis prosedur penanganan pesawat di darat sesuai dengan standar keselamatan dan regulasi penerbangan.",
       trainings: [{ name: "Ground Handling Fundamentals", isRequired: true, notes: "" }],
       certifications: [{ name: "Ground Handling License", isRequired: true, notes: "" }]
     },
@@ -127,6 +129,7 @@ const mockRoleDetail = {
       category: "Core",
       level: "Level 2 (Apply)",
       isRequired: false,
+      description: "Mampu menyampaikan informasi secara jelas dan efektif kepada berbagai pihak terkait dalam operasional sehari-hari.",
       trainings: [{ name: "Effective Communication", isRequired: false, notes: "" }],
       certifications: []
     }
@@ -305,7 +308,8 @@ export default function RoleLearningNeedsPage() {
                     {comp.id}
                   </div>
                   <div>
-                    <h4 className="text-base font-bold text-navy mb-2">{comp.name}</h4>
+                    <h4 className="text-base font-bold text-navy mb-1">{comp.name}</h4>
+                    {comp.description && <p className="text-sm text-text-secondary mb-3 leading-relaxed max-w-3xl">{comp.description}</p>}
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline" className={`font-medium ${getCategoryColor(comp.category)}`}>
                         <div className="w-1.5 h-1.5 rounded-full bg-current mr-1.5" />
@@ -508,6 +512,7 @@ export default function RoleLearningNeedsPage() {
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Kompetensi dari Kamus</label>
                 <Input required defaultValue={`${editComp.id} - ${editComp.name} (${editComp.category})`} disabled className="bg-slate-50" />
+                {editComp.description && <p className="text-xs text-text-secondary mt-1 italic">{editComp.description}</p>}
               </div>
 
               <div className="space-y-2">
