@@ -231,4 +231,47 @@ model Competency {
   definition String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  jobRoleCompetencies JobRoleCompetency[]
+}
+
+model JobRole {
+  id                  String               @id @default(cuid())
+  code                String               @unique // e.g., "OPS-001"
+  name                String               // e.g., "Ground Handling Staff"
+  department          String
+  competencyNeeds     JobRoleCompetency[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model JobRoleCompetency {
+  id              String         @id @default(cuid())
+  jobRoleId       String
+  jobRole         JobRole        @relation(fields: [jobRoleId], references: [id], onDelete: Cascade)
+  competencyId    String
+  competency      Competency     @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  isRequired      Boolean        @default(false)
+  
+  trainings       JobRoleTraining[]
+  certifications  JobRoleCertification[]
+
+  @@unique([jobRoleId, competencyId])
+}
+
+model JobRoleTraining {
+  id                  String             @id @default(cuid())
+  jobRoleCompetencyId String
+  jobRoleCompetency   JobRoleCompetency  @relation(fields: [jobRoleCompetencyId], references: [id], onDelete: Cascade)
+  name                String
+  isRequired          Boolean            @default(false)
+  notes               String           @default("")
+}
+
+model JobRoleCertification {
+  id                  String             @id @default(cuid())
+  jobRoleCompetencyId String
+  jobRoleCompetency   JobRoleCompetency  @relation(fields: [jobRoleCompetencyId], references: [id], onDelete: Cascade)
+  name                String
+  isRequired          Boolean            @default(false)
+  notes               String           @default("")
 }

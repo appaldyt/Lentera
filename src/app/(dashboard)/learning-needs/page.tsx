@@ -50,50 +50,6 @@ interface MasterCompetency {
 
 
 
-interface JobRole {
-  id: string;
-  name: string;
-  department: string;
-  totalCompetencies: number;
-  trainingNeeds: number;
-  certificationNeeds: number;
-}
-
-const mockRoles: JobRole[] = [
-  {
-    id: "OPS-001",
-    name: "Ground Handling Staff",
-    department: "Ground Operations",
-    totalCompetencies: 3,
-    trainingNeeds: 3,
-    certificationNeeds: 2,
-  },
-  {
-    id: "OPS-002",
-    name: "Aviobridge Operator",
-    department: "Ground Operations",
-    totalCompetencies: 4,
-    trainingNeeds: 4,
-    certificationNeeds: 1,
-  },
-  {
-    id: "SVC-001",
-    name: "Customer Service Officer",
-    department: "Passenger Service",
-    totalCompetencies: 5,
-    trainingNeeds: 2,
-    certificationNeeds: 0,
-  },
-  {
-    id: "MGT-001",
-    name: "Station Manager",
-    department: "Management",
-    totalCompetencies: 8,
-    trainingNeeds: 5,
-    certificationNeeds: 3,
-  }
-];
-
 // --- COMPONENTS ---
 
 export default function LearningNeedsPage() {
@@ -106,15 +62,32 @@ export default function LearningNeedsPage() {
   const [isImportCompModalOpen, setIsImportCompModalOpen] = useState(false);
   const [editComp, setEditComp] = useState<MasterCompetency | null>(null);
   const [deleteComp, setDeleteComp] = useState<MasterCompetency | null>(null);
-  const [editRole, setEditRole] = useState<JobRole | null>(null);
-  const [deleteRole, setDeleteRole] = useState<JobRole | null>(null);
+  const [editRole, setEditRole] = useState<any | null>(null);
+  const [deleteRole, setDeleteRole] = useState<any | null>(null);
 
   const [competencies, setCompetencies] = useState<MasterCompetency[]>([]);
+  const [jobRoles, setJobRoles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchCompetencies();
+    fetchJobRoles();
   }, []);
+
+  const fetchJobRoles = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/job-roles");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setJobRoles(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch job roles:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchCompetencies = async () => {
     setIsLoading(true);
@@ -134,7 +107,7 @@ export default function LearningNeedsPage() {
     }
   };
 
-  const filteredRoles = mockRoles.filter(r => 
+  const filteredRoles = jobRoles.filter(r => 
     r.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     r.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
     r.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -602,21 +575,40 @@ export default function LearningNeedsPage() {
               </Button>
             </div>
             
-            <form className="p-5 space-y-4" onSubmit={(e) => { e.preventDefault(); setIsAddRoleModalOpen(false); }}>
+            <form className="p-5 space-y-4" onSubmit={async (e: any) => { 
+              e.preventDefault(); 
+              const formData = new FormData(e.target);
+              const data = {
+                code: formData.get("code"),
+                name: formData.get("name"),
+                department: formData.get("department")
+              };
+              try {
+                await fetch("/api/job-roles", {
+                  method: "POST",
+                  body: JSON.stringify(data),
+                  headers: { "Content-Type": "application/json" }
+                });
+                fetchJobRoles();
+                setIsAddRoleModalOpen(false);
+              } catch (err) {
+                console.error(err);
+              }
+            }}>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2 col-span-1">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Kode</label>
-                  <Input required placeholder="Ex: OPS-003" className="font-mono" />
+                  <Input required name="code" placeholder="Ex: OPS-003" className="font-mono" />
                 </div>
                 <div className="space-y-2 col-span-2">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Nama Jabatan</label>
-                  <Input required placeholder="Ex: Flight Dispatcher" />
+                  <Input required name="name" placeholder="Ex: Flight Dispatcher" />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Divisi</label>
-                <Input required placeholder="Ex: Ground Operations" />
+                <Input required name="department" placeholder="Ex: Ground Operations" />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 mt-2 border-t border-border">
@@ -641,7 +633,25 @@ export default function LearningNeedsPage() {
               </Button>
             </div>
             
-            <form className="p-5 space-y-4" onSubmit={(e) => { e.preventDefault(); setEditRole(null); }}>
+            <form className="p-5 space-y-4" onSubmit={async (e: any) => { 
+              e.preventDefault(); 
+              const formData = new FormData(e.target);
+              const data = {
+                name: formData.get("name"),
+                department: formData.get("department")
+              };
+              try {
+                await fetch(`/api/job-roles/${editRole.id}`, {
+                  method: "PUT",
+                  body: JSON.stringify(data),
+                  headers: { "Content-Type": "application/json" }
+                });
+                fetchJobRoles();
+                setEditRole(null);
+              } catch (err) {
+                console.error(err);
+              }
+            }}>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2 col-span-1">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Kode</label>
@@ -649,13 +659,13 @@ export default function LearningNeedsPage() {
                 </div>
                 <div className="space-y-2 col-span-2">
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Nama Jabatan</label>
-                  <Input required defaultValue={editRole.name} />
+                  <Input required name="name" defaultValue={editRole.name} />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Divisi</label>
-                <Input required defaultValue={editRole.department} />
+                <Input required name="department" defaultValue={editRole.department} />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 mt-2 border-t border-border">
@@ -682,7 +692,15 @@ export default function LearningNeedsPage() {
               
               <div className="flex justify-center gap-3 pt-4">
                 <Button variant="outline" onClick={() => setDeleteRole(null)}>Batal</Button>
-                <Button className="bg-rose-600 hover:bg-rose-700 text-white" onClick={() => setDeleteRole(null)}>Ya, Hapus</Button>
+                <Button className="bg-rose-600 hover:bg-rose-700 text-white" onClick={async () => {
+                  try {
+                    await fetch(`/api/job-roles/${deleteRole.id}`, { method: "DELETE" });
+                    fetchJobRoles();
+                    setDeleteRole(null);
+                  } catch(e) {
+                    console.error(e);
+                  }
+                }}>Ya, Hapus</Button>
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowLeft,
@@ -85,58 +85,6 @@ function SortableFieldItem({ id, item, onUpdate, onRemove, namePlaceholder }: an
   );
 }
 
-// --- MOCK DATA ---
-const mockRoleDetail = {
-  id: "OPS-001",
-  name: "Ground Handling Staff",
-  department: "Ground Operations",
-  stats: {
-    wajib: 2,
-    opsional: 1,
-    trainingNeeds: 3,
-    certificationNeeds: 2,
-    totalCompetencies: 3
-  },
-  competencies: [
-    {
-      id: "C01",
-      name: "Safety Awareness",
-      category: "Functional",
-      level: "Level 1 (Knowledgeable)",
-      isRequired: true,
-      description: "Memahami prinsip-prinsip dasar keselamatan kerja dan mampu mengidentifikasi potensi bahaya di lingkungan operasional.",
-      trainings: [
-        { name: "K3 Dasar", isRequired: true, notes: "" }, 
-        { name: "Safety Briefing", isRequired: false, notes: "" }
-      ],
-      certifications: [
-        { name: "Sertifikasi K3 Umum", isRequired: true, notes: "" }
-      ]
-    },
-    {
-      id: "C03",
-      name: "Aircraft Ground Handling",
-      category: "Functional",
-      level: "Level 3 (Analyze)",
-      isRequired: true,
-      description: "Mampu melakukan dan menganalisis prosedur penanganan pesawat di darat sesuai dengan standar keselamatan dan regulasi penerbangan.",
-      trainings: [{ name: "Ground Handling Fundamentals", isRequired: true, notes: "" }],
-      certifications: [{ name: "Ground Handling License", isRequired: true, notes: "" }]
-    },
-    {
-      id: "C08",
-      name: "Communication",
-      category: "Core",
-      level: "Level 2 (Apply)",
-      isRequired: false,
-      description: "Mampu menyampaikan informasi secara jelas dan efektif kepada berbagai pihak terkait dalam operasional sehari-hari.",
-      trainings: [{ name: "Effective Communication", isRequired: false, notes: "" }],
-      certifications: []
-    }
-  ]
-};
-
-// HELPER FOR BADGE COLORS
 const getCategoryColor = (cat: string) => {
   switch (cat) {
     case "Core": return "bg-orange-50 text-orange-600 border-orange-200";
@@ -158,9 +106,41 @@ export default function RoleLearningNeedsPage() {
   const [deleteComp, setDeleteComp] = useState<any>(null);
   const [trainings, setTrainings] = useState<any[]>([{ id: generateId(), name: "", isRequired: true, notes: "" }]);
   const [certifications, setCertifications] = useState<any[]>([{ id: generateId(), name: "", isRequired: true, notes: "" }]);
-  // In real app, fetch based on params.roleId
-  const [role, setRole] = useState(mockRoleDetail); 
+  const [role, setRole] = useState<any>(null); 
+  const [allCompetencies, setAllCompetencies] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  useEffect(() => {
+    fetchRole();
+    fetchAllCompetencies();
+  }, [params.roleId]);
+
+  const fetchRole = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/job-roles/${params.roleId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRole(data);
+      } else {
+        router.push("/learning-needs");
+      }
+    } catch(e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchAllCompetencies = async () => {
+    try {
+      const res = await fetch("/api/competencies");
+      const data = await res.json();
+      if (Array.isArray(data)) setAllCompetencies(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -218,20 +198,30 @@ export default function RoleLearningNeedsPage() {
   let certWajib = 0;
   let certOpsional = 0;
   
-  role.competencies.forEach(comp => {
-    if (comp.isRequired) totalCompWajib++;
-    else totalCompOpsional++;
-    
-    comp.trainings?.forEach((t: any) => {
-      if (t.isRequired) trainingWajib++;
-      else trainingOpsional++;
+  if (role) {
+    role.competencies?.forEach((comp: any) => {
+      if (comp.isRequired) totalCompWajib++;
+      else totalCompOpsional++;
+      
+      comp.trainings?.forEach((t: any) => {
+        if (t.isRequired) trainingWajib++;
+        else trainingOpsional++;
+      });
+      
+      comp.certifications?.forEach((c: any) => {
+        if (c.isRequired) certWajib++;
+        else certOpsional++;
+      });
     });
-    
-    comp.certifications?.forEach((c: any) => {
-      if (c.isRequired) certWajib++;
-      else certOpsional++;
-    });
-  });
+  }
+
+  if (isLoading) {
+    return <div className="p-10 text-center text-text-secondary">Memuat data...</div>;
+  }
+
+  if (!role) {
+    return <div className="p-10 text-center text-rose-500">Jabatan tidak ditemukan.</div>;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300 max-w-5xl mx-auto pb-10">
@@ -292,13 +282,17 @@ export default function RoleLearningNeedsPage() {
       {/* List Section */}
       <div className="flex items-center justify-between pt-4">
         <h3 className="text-lg font-bold text-navy">Daftar Kompetensi & Pemenuhan</h3>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-sm" onClick={() => setIsAddModalOpen(true)}>
+        <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-sm" onClick={() => {
+          setTrainings([{ id: generateId(), name: "", isRequired: true, notes: "" }]);
+          setCertifications([{ id: generateId(), name: "", isRequired: true, notes: "" }]);
+          setIsAddModalOpen(true);
+        }}>
           <Plus className="h-4 w-4" /> Tambah Kompetensi
         </Button>
       </div>
 
       <div className="space-y-4">
-        {role.competencies.map((comp) => (
+        {role.competencies.map((comp: any) => (
           <Card key={comp.id} className="border-border shadow-sm overflow-hidden">
             <div className="p-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
@@ -398,22 +392,53 @@ export default function RoleLearningNeedsPage() {
               </Button>
             </div>
             
-            <form className="flex flex-col overflow-hidden" onSubmit={(e) => { e.preventDefault(); setIsAddModalOpen(false); }}>
+            <form className="flex flex-col overflow-hidden" onSubmit={async (e: any) => { 
+              e.preventDefault(); 
+              const formData = new FormData(e.target);
+              try {
+                const postRes = await fetch(`/api/job-roles/${params.roleId}/competencies`, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    competencyId: formData.get("competencyId"),
+                    isRequired: formData.get("isRequired") === "Wajib"
+                  }),
+                  headers: { "Content-Type": "application/json" }
+                });
+                
+                if (postRes.ok) {
+                  const newComp = await postRes.json();
+                  // Now call PUT to set trainings and certs
+                  await fetch(`/api/job-role-competencies/${newComp.id}`, {
+                    method: "PUT",
+                    body: JSON.stringify({
+                      isRequired: formData.get("isRequired") === "Wajib",
+                      trainings: trainings.filter(t => t.name.trim() !== ""),
+                      certifications: certifications.filter(c => c.name.trim() !== "")
+                    }),
+                    headers: { "Content-Type": "application/json" }
+                  });
+                }
+                fetchRole();
+                setIsAddModalOpen(false);
+              } catch(err) {
+                console.error(err);
+              }
+            }}>
               <div className="p-5 space-y-4 overflow-y-auto">
               
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Pilih Kompetensi dari Kamus</label>
-                <select required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
+                <select name="competencyId" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
                   <option value="">-- Cari / Pilih Kompetensi --</option>
-                  <option value="C01">C01 - Safety Awareness (Functional)</option>
-                  <option value="C08">C08 - Communication (Core)</option>
-                  <option value="L01">L01 - Team Leadership (Leadership)</option>
+                  {allCompetencies.map(c => (
+                    <option key={c.id} value={c.id}>{c.code} - {c.name} ({c.category})</option>
+                  ))}
                 </select>
               </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Sifat Kompetensi</label>
-                <select required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
+                <select name="isRequired" required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
                   <option value="Wajib">Wajib (Mandatory)</option>
                   <option value="Opsional">Opsional (Nice to have)</option>
                 </select>
@@ -496,16 +521,24 @@ export default function RoleLearningNeedsPage() {
               </Button>
             </div>
             
-            <form className="flex flex-col overflow-hidden" onSubmit={(e) => { 
+            <form className="flex flex-col overflow-hidden" onSubmit={async (e: any) => { 
               e.preventDefault(); 
-              const newCompetencies = role.competencies.map((comp) => {
-                if (comp.id === editComp.id) {
-                  return { ...comp, trainings, certifications };
-                }
-                return comp;
-              });
-              setRole({ ...role, competencies: newCompetencies });
-              setEditComp(null); 
+              const formData = new FormData(e.target);
+              try {
+                await fetch(`/api/job-role-competencies/${editComp.jobRoleCompId}`, {
+                  method: "PUT",
+                  body: JSON.stringify({
+                    isRequired: formData.get("isRequired") === "Wajib",
+                    trainings: trainings.filter(t => t.name.trim() !== ""),
+                    certifications: certifications.filter(c => c.name.trim() !== "")
+                  }),
+                  headers: { "Content-Type": "application/json" }
+                });
+                fetchRole();
+                setEditComp(null);
+              } catch(err) {
+                console.error(err);
+              }
             }}>
               <div className="p-5 space-y-4 overflow-y-auto">
               
@@ -517,7 +550,7 @@ export default function RoleLearningNeedsPage() {
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Sifat Kompetensi</label>
-                <select required defaultValue={editComp.isRequired ? "Wajib" : "Opsional"} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
+                <select name="isRequired" required defaultValue={editComp.isRequired ? "Wajib" : "Opsional"} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky">
                   <option value="Wajib">Wajib (Mandatory)</option>
                   <option value="Opsional">Opsional (Nice to have)</option>
                 </select>
@@ -602,7 +635,15 @@ export default function RoleLearningNeedsPage() {
               
               <div className="flex justify-center gap-3 pt-4">
                 <Button variant="outline" onClick={() => setDeleteComp(null)}>Batal</Button>
-                <Button className="bg-rose-600 hover:bg-rose-700 text-white" onClick={() => setDeleteComp(null)}>Ya, Hapus</Button>
+                <Button className="bg-rose-600 hover:bg-rose-700 text-white" onClick={async () => {
+                  try {
+                    await fetch(`/api/job-role-competencies/${deleteComp.jobRoleCompId}`, { method: "DELETE" });
+                    fetchRole();
+                    setDeleteComp(null);
+                  } catch(e) {
+                    console.error(e);
+                  }
+                }}>Ya, Hapus</Button>
               </div>
             </div>
           </div>
