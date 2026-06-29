@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type UserRole = "SUPER_ADMIN" | "ADMIN" | "USER";
+export type UserRole = "SUPER_ADMIN" | "ADMIN" | "USER" | "EVALUATION_ADMIN" | "EVALUATOR";
 
 export interface CurrentUser {
   id?: string;
@@ -15,6 +15,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin",
   USER: "User",
+  EVALUATION_ADMIN: "Evaluation Admin",
+  EVALUATOR: "Evaluator",
 };
 
 const DEMO_USER: CurrentUser = {

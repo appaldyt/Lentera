@@ -46,6 +46,16 @@ const ROLE_BADGE: Record<UserRole, { className: string; icon: React.ReactNode; l
     icon: <User className="h-3 w-3" />,
     label: "User",
   },
+  EVALUATION_ADMIN: {
+    className: "bg-sky-light/20 text-sky-dark border-sky-light/40 hover:bg-sky-light/30",
+    icon: <UserCog className="h-3 w-3" />,
+    label: "Evaluation Admin",
+  },
+  EVALUATOR: {
+    className: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200",
+    icon: <User className="h-3 w-3" />,
+    label: "Evaluator",
+  },
 };
 
 const emptyForm = {
@@ -572,6 +582,8 @@ function AccountsContent() {
                     <option value="SUPER_ADMIN">Super Admin</option>
                     <option value="ADMIN">Admin</option>
                     <option value="USER">User</option>
+                    <option value="EVALUATION_ADMIN">Evaluation Admin</option>
+                    <option value="EVALUATOR">Evaluator</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -591,11 +603,15 @@ function AccountsContent() {
               <div className={`rounded-lg p-3 text-sm border ${
                 formData.role === "SUPER_ADMIN" ? "bg-amber-50 border-amber-200 text-amber-800" :
                 formData.role === "ADMIN" ? "bg-sky/5 border-sky/20 text-sky" :
+                formData.role === "EVALUATION_ADMIN" ? "bg-sky-light/10 border-sky-light/30 text-sky-dark" :
+                formData.role === "EVALUATOR" ? "bg-slate-50 border-slate-200 text-slate-700" :
                 "bg-navy/5 border-navy/10 text-navy"
               }`}>
                 {formData.role === "SUPER_ADMIN" && <p><strong>Super Admin:</strong> Akses penuh termasuk manajemen akun pengguna dan seluruh pengaturan sistem.</p>}
                 {formData.role === "ADMIN" && <p><strong>Admin:</strong> Akses penuh ke semua data dan fitur, kecuali manajemen akun pengguna.</p>}
                 {formData.role === "USER" && <p><strong>User:</strong> Akses terbatas — hanya dapat melihat data dan laporan sesuai izin yang diberikan.</p>}
+                {formData.role === "EVALUATION_ADMIN" && <p><strong>Evaluation Admin:</strong> Akses penuh pada Portal Evaluasi Training untuk mengatur kriteria kelulusan, template form, dan melihat seluruh hasil evaluasi.</p>}
+                {formData.role === "EVALUATOR" && <p><strong>Evaluator:</strong> Akses masuk Portal Evaluasi Training hanya untuk mengisi form evaluasi pasca-pelatihan bagi bawahannya.</p>}
               </div>
 
               {formError && (
