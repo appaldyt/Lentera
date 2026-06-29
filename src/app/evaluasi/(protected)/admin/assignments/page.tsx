@@ -175,7 +175,7 @@ export default function EvaluasiAssignmentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredData.map((data) => (
+                {filteredData.slice(0, 10).map((data) => (
                   <tr key={data.id} className="border-b border-border hover:bg-slate-50/50">
                     <td className="px-4 py-4 font-medium text-navy">{data.name}</td>
                     <td className="px-4 py-4 text-text-secondary">{data.training}</td>

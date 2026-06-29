@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { SignJWT } from "jose";
+import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 
@@ -83,4 +83,15 @@ export async function loginEvaluator(formData: FormData) {
 
 export async function logoutEvaluator() {
   (await cookies()).delete("session_token");
+}
+
+export async function getSession() {
+  const token = (await cookies()).get("session_token")?.value;
+  if (!token) return null;
+  try {
+    const verified = await jwtVerify(token, JWT_SECRET);
+    return verified.payload as { userId: string; email: string; name: string; role: string; };
+  } catch (error) {
+    return null;
+  }
 }

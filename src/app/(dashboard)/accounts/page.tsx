@@ -247,6 +247,8 @@ function AccountsContent() {
   const totalSuperAdmin = accounts.filter((a) => a.role === "SUPER_ADMIN").length;
   const totalAdmin = accounts.filter((a) => a.role === "ADMIN").length;
   const totalUser = accounts.filter((a) => a.role === "USER").length;
+  const totalEvaluationAdmin = accounts.filter((a) => a.role === "EVALUATION_ADMIN").length;
+  const totalEvaluator = accounts.filter((a) => a.role === "EVALUATOR").length;
   const totalAktif = accounts.filter((a) => a.status === "AKTIF").length;
 
   return (
@@ -264,13 +266,13 @@ function AccountsContent() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card className="p-4 border-border shadow-sm">
           <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">Total Akun</p>
           <p className="text-2xl font-bold text-navy">{accounts.length}</p>
         </Card>
         <Card className="p-4 border-border shadow-sm">
-          <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">Super Admin</p>
+          <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-1 line-clamp-1">Super Admin</p>
           <p className="text-2xl font-bold text-amber-600">{totalSuperAdmin}</p>
         </Card>
         <Card className="p-4 border-border shadow-sm">
@@ -280,6 +282,14 @@ function AccountsContent() {
         <Card className="p-4 border-border shadow-sm">
           <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">User</p>
           <p className="text-2xl font-bold text-navy">{totalUser}</p>
+        </Card>
+        <Card className="p-4 border-border shadow-sm">
+          <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-1 line-clamp-1" title="Evaluation Admin">Eval Admin</p>
+          <p className="text-2xl font-bold text-sky-dark">{totalEvaluationAdmin}</p>
+        </Card>
+        <Card className="p-4 border-border shadow-sm">
+          <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">Evaluator</p>
+          <p className="text-2xl font-bold text-slate-700">{totalEvaluator}</p>
         </Card>
       </div>
 

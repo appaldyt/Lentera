@@ -1,12 +1,15 @@
 import { Plane, LogOut, LayoutDashboard, Send, Users, FileText, BarChart, Settings } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { getSession } from "@/actions/auth";
 
-export default function EvaluasiLayout({
+export default async function EvaluasiLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getSession();
+
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Sidebar */}
@@ -57,8 +60,8 @@ export default function EvaluasiLayout({
 
         <div className="p-4 border-t border-border bg-slate-50/50">
           <div className="mb-4 px-3">
-            <p className="text-sm font-medium text-navy truncate">Bapak/Ibu Atasan</p>
-            <p className="text-xs text-text-secondary truncate">Manager Operasional</p>
+            <p className="text-sm font-medium text-navy truncate">{session?.name || "Bapak/Ibu Atasan"}</p>
+            <p className="text-xs text-text-secondary truncate">{session?.role === "EVALUATION_ADMIN" ? "Evaluation Admin" : "Evaluator"}</p>
           </div>
           <form action={async () => {
             "use server";
