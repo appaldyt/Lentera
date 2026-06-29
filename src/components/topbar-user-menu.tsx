@@ -11,12 +11,16 @@ const ROLE_COLORS: Record<UserRole, string> = {
   SUPER_ADMIN: "bg-amber-100 text-amber-700 border-amber-300",
   ADMIN: "bg-sky/15 text-sky border-sky/30",
   USER: "bg-navy/10 text-navy border-navy/20",
+  EVALUATION_ADMIN: "bg-sky-light/20 text-sky-dark border-sky-light/40",
+  EVALUATOR: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
   SUPER_ADMIN: <ShieldCheck className="h-3 w-3" />,
   ADMIN: <UserCog className="h-3 w-3" />,
   USER: <User className="h-3 w-3" />,
+  EVALUATION_ADMIN: <UserCog className="h-3 w-3" />,
+  EVALUATOR: <User className="h-3 w-3" />,
 };
 
 export function TopbarUserMenu() {
