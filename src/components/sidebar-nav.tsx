@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, Calendar, Badge, CircleDollarSign, Building, Settings, Users, GraduationCap, ShieldCheck, History, Store, ListTodo, Target } from "lucide-react";
+import { LayoutDashboard, BookOpen, Calendar, Badge, CircleDollarSign, Building, Settings, Users, GraduationCap, ShieldCheck, History, Store, ListTodo, Target, BarChart } from "lucide-react";
 import { useUser } from "@/context/user-context";
 
 export function SidebarNav() {
@@ -29,6 +29,7 @@ export function SidebarNav() {
             <p className="text-xs font-semibold text-sky-light/70 uppercase tracking-wider px-2">Analisis</p>
           </div>
           <SidebarItem href="/learning-needs" icon={<Target className="h-4 w-4" />} label="Kebutuhan Belajar" active={pathname.startsWith("/learning-needs")} />
+          <SidebarItem href="/evaluation-results" icon={<BarChart className="h-4 w-4" />} label="Hasil Evaluasi" active={pathname.startsWith("/evaluation-results")} />
 
           <div className="pt-4 pb-2">
             <p className="text-xs font-semibold text-sky-light/70 uppercase tracking-wider px-2">Operasional</p>

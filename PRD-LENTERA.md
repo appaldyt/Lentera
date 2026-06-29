@@ -125,6 +125,13 @@ Fitur:
 ### 4.12 Laporan & Export
 Ringkasan training periode tertentu yang dapat diunduh dalam format PDF/Excel.
 
+### 4.13 Portal Evaluasi Training
+Portal terpisah yang didedikasikan untuk proses evaluasi efektivitas training pasca-pelatihan (biasanya 3 bulan setelah training selesai).
+- **Akses Terpisah**: Diakses secara langsung melalui URL khusus (misal: `/evaluasi/login`), terpisah dari navigasi menu dashboard utama aplikasi LENTERA.
+- **Dashboard Evaluasi**: Menampilkan daftar karyawan yang perlu dievaluasi dan riwayat evaluasi yang sudah selesai.
+- **Form Evaluasi**: Formulir penilaian terhadap peningkatan kinerja peserta pasca-pelatihan.
+- **Manajemen Evaluasi (Admin)**: Mengelola distribusi penugasan evaluasi (*Assignments*), menyusun kriteria/pertanyaan evaluasi (*Questions*), serta mengatur akses akun supervisor penilai (*Users*).
+
 ---
 
 ## 5. User Flow
@@ -147,6 +154,12 @@ Ringkasan training periode tertentu yang dapat diunduh dalam format PDF/Excel.
 9. Lihat **Kalender Training** untuk memastikan tidak ada jadwal bentrok; klik event untuk edit cepat.
 10. Monitor KPI via **Learning Hours** (filter per tahun).
 11. Tandai training sebagai *completed* dan unduh laporan.
+
+**Flow Evaluasi Training (Supervisor/Manager):**
+12. Membuka Portal Evaluasi secara langsung melalui URL `/evaluasi/login`.
+13. Login menggunakan akun khusus akses evaluasi.
+14. Melihat daftar karyawan (peserta training) yang menjadi bawahannya di Dashboard Evaluasi.
+15. Mengisi dan mengirim Form Evaluasi untuk setiap karyawan.
 
 ---
 
@@ -533,5 +546,6 @@ erDiagram
 | Export / Laporan | ⏳ | ⏳ | Belum diimplementasi |
 | Notifikasi Lisensi | ⏳ | ⏳ | Belum diimplementasi |
 | Prisma Schema | ⏳ | ⏳ | Model tabel belum didefinisikan |
+| Portal Evaluasi | ✅ | ⏳ | Mock data; URL terpisah (`/evaluasi/login`) |
 
 **Legend:** ✅ Selesai &nbsp;|&nbsp; ⏳ Belum / Dalam Proses

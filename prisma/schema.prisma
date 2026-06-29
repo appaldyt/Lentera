@@ -17,17 +17,23 @@ model User {
   name      String
   email     String    @unique
   password  String
+  nik       String?
   role      Role      @default(USER)
   status    String    @default("AKTIF")
   lastLogin DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  evaluatedParticipants TrainingParticipant[]
+  evaluationResponses   EvaluationResponse[]
 }
 
 enum Role {
   SUPER_ADMIN
   ADMIN
   USER
+  EVALUATION_ADMIN
+  EVALUATOR
 }
 
 model Training {
@@ -70,17 +76,25 @@ model TrainingPreparation {
 }
 
 model TrainingParticipant {
-  id            String   @id @default(cuid())
-  trainingId    String
-  training      Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
-  nik           String
-  name          String
-  department    String
-  bodLevel      String   @default("")
-  trainingDate  DateTime
-  attendedHours Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id @default(cuid())
+  trainingId       String
+  training         Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  nik              String
+  name             String
+  department       String
+  bodLevel         String   @default("")
+  trainingDate     DateTime
+  attendedHours    Int      @default(0)
+
+  evaluatorId      String?
+  evaluator        User?    @relation(fields: [evaluatorId], references: [id])
+  evaluationStatus String   @default("BELUM_DITUGASKAN") // BELUM_DITUGASKAN, MENUNGGU_EVALUASI, SELESAI
+  evaluationSentAt DateTime?
+
+  evaluationResponses EvaluationResponse[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model Employee {
@@ -274,4 +288,58 @@ model JobRoleCertification {
   name                String
   isRequired          Boolean            @default(false)
   notes               String           @default("")
+}
+
+model EvaluationQuestion {
+  id        String   @id @default(cuid())
+  title     String
+  text      String
+  status    String   @default("Aktif")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  answers   EvaluationAnswer[]
+}
+
+model EvaluationResponse {
+  id            String              @id @default(cuid())
+  participantId String
+  participant   TrainingParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  evaluatorId   String
+  evaluator     User                @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+  status        String              @default("DRAFT") // DRAFT, SUBMITTED
+  submittedAt   DateTime?
+  
+  answers       EvaluationAnswer[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([participantId, evaluatorId])
+}
+
+model EvaluationAnswer {
+  id           String             @id @default(cuid())
+  responseId   String
+  response     EvaluationResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     EvaluationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  score        Int                @default(0)
+  notes        String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([responseId, questionId])
+}
+
+model EvaluationCriteria {
+  id        String   @id @default(cuid())
+  label     String
+  minScore  Float
+  maxScore  Float
+  color     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
