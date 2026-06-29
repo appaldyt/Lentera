@@ -26,6 +26,8 @@ export default function EvaluasiResultsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState<EvaluationResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedResult, setSelectedResult] = useState<EvaluationResult | null>(null);
@@ -44,6 +46,14 @@ export default function EvaluasiResultsPage() {
     r.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
     r.trainingName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.evaluatorName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE) || 1;
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
   );
 
   const handleOpenDialog = (result: EvaluationResult) => {
@@ -149,7 +159,7 @@ export default function EvaluasiResultsPage() {
                     <td colSpan={7} className="text-center py-8 text-text-secondary">Tidak ada hasil ditemukan.</td>
                   </tr>
                 ) : (
-                  filteredData.map((data) => (
+                  paginatedData.map((data) => (
                     <tr key={data.id} className="border-b border-border hover:bg-slate-50/50">
                       <td className="px-4 py-4 font-medium text-navy">
                         {data.employeeName}
@@ -185,6 +195,47 @@ export default function EvaluasiResultsPage() {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination */}
+          {!isLoading && filteredData.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 py-4 mt-2 border-t border-border">
+              <p className="text-sm text-text-secondary">
+                Menampilkan{" "}
+                <span className="font-medium text-navy">
+                  {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredData.length)}
+                </span>{" "}
+                dari <span className="font-medium text-navy">{filteredData.length}</span> entri
+              </p>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</Button>
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>‹</Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((item, idx) =>
+                    item === "..." ? (
+                      <span key={`e-${idx}`} className="px-2 text-text-secondary text-sm">…</span>
+                    ) : (
+                      <Button
+                        key={item}
+                        variant={currentPage === item ? "default" : "outline"}
+                        size="sm"
+                        className={`h-8 w-8 p-0${currentPage === item ? " bg-navy text-surface" : ""}`}
+                        onClick={() => setCurrentPage(item as number)}
+                      >
+                        {item}
+                      </Button>
+                    )
+                  )}
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>›</Button>
+                <Button variant="outline" size="sm" className="h-8 px-3" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
