@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search, Eye, BarChart, FileCheck, Star, ExternalLink, Printer } from "lucide-react";
+import { Search, Eye, BarChart, FileCheck, Star, ExternalLink, Printer, Filter, X } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -24,7 +24,12 @@ import {
 import { getEvaluationResults, EvaluationResult, reopenEvaluation } from "@/actions/evaluation-results";
 
 export default function EvaluasiResultsPage() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [filterName, setFilterName] = useState("");
+  const [filterTraining, setFilterTraining] = useState("");
+  const [filterEvaluator, setFilterEvaluator] = useState("");
+  const [filterStatus, setFilterStatus] = useState("Semua Status");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
   const [results, setResults] = useState<EvaluationResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,13 +52,16 @@ export default function EvaluasiResultsPage() {
     loadData();
   }, []);
 
-  const filteredData = results.filter(r => 
-    r.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.trainingName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.evaluatorName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredData = results.filter(r => {
+    const matchName = r.employeeName.toLowerCase().includes(filterName.toLowerCase());
+    const matchTraining = r.trainingName.toLowerCase().includes(filterTraining.toLowerCase());
+    const matchEvaluator = r.evaluatorName.toLowerCase().includes(filterEvaluator.toLowerCase());
+    const matchStatus = filterStatus === "Semua Status" || r.status === filterStatus;
+    
+    return matchName && matchTraining && matchEvaluator && matchStatus;
+  });
 
-  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+  useEffect(() => { setCurrentPage(1); }, [filterName, filterTraining, filterEvaluator, filterStatus]);
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE) || 1;
   const paginatedData = filteredData.slice(
@@ -147,15 +155,85 @@ export default function EvaluasiResultsPage() {
               <CardTitle>Daftar Hasil Evaluasi</CardTitle>
               <CardDescription>Rincian skor dan status kelulusan peserta training.</CardDescription>
             </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-text-secondary" />
-              <Input
-                type="search"
-                placeholder="Cari nama, training, atasan..."
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="relative flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                className="gap-2 w-full sm:w-auto bg-white border-slate-200 hover:bg-slate-50 text-navy"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
+                <Filter className="h-4 w-4" />
+                Filter
+              </Button>
+
+              {isFilterOpen && (
+                <Card className="absolute left-0 sm:left-auto sm:right-0 top-[calc(100%+8px)] w-72 z-50 p-4 shadow-xl border-border animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-navy flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      Filter Data
+                    </h4>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setIsFilterOpen(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-text-secondary">Nama Karyawan</label>
+                      <Input
+                        placeholder="Filter by Name..."
+                        value={filterName}
+                        onChange={(e) => setFilterName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-text-secondary">Pelatihan</label>
+                      <Input
+                        placeholder="Filter by Training..."
+                        value={filterTraining}
+                        onChange={(e) => setFilterTraining(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-text-secondary">Atasan Penilai</label>
+                      <Input
+                        placeholder="Filter by Evaluator..."
+                        value={filterEvaluator}
+                        onChange={(e) => setFilterEvaluator(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-text-secondary">Status Kelulusan</label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                      >
+                        <option value="Semua Status">Semua Status</option>
+                        <option value="Lulus">Lulus</option>
+                        <option value="Lulus Bersyarat">Lulus Bersyarat</option>
+                        <option value="Tidak Lulus">Tidak Lulus</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-6">
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-slate-300 text-sky hover:text-sky-dark"
+                      onClick={() => { 
+                        setFilterName(""); 
+                        setFilterTraining(""); 
+                        setFilterEvaluator(""); 
+                        setFilterStatus("Semua Status"); 
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    <Button className="flex-1 bg-sky hover:bg-[#1565C0] text-white" onClick={() => setIsFilterOpen(false)}>
+                      Filter Results
+                    </Button>
+                  </div>
+                </Card>
+              )}
             </div>
           </div>
         </CardHeader>

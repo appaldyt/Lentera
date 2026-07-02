@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search, Send, UserPlus, Check, Pencil } from "lucide-react";
+import { Search, Send, UserPlus, Check, Pencil, Filter, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -39,6 +39,7 @@ type Participant = {
   name: string;
   training: string;
   dateEnded: string;
+  masaTraining: string;
   evaluatorId: string | null;
   evaluatorName: string;
   status: string;
@@ -52,7 +53,12 @@ type Evaluator = {
 };
 
 export default function EvaluasiAssignmentsPage() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [filterName, setFilterName] = useState("");
+  const [filterTraining, setFilterTraining] = useState("");
+  const [filterMasaTraining, setFilterMasaTraining] = useState("Semua");
+  const [filterStatus, setFilterStatus] = useState("Semua Status");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [evaluators, setEvaluators] = useState<Evaluator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,12 +88,24 @@ export default function EvaluasiAssignmentsPage() {
     fetchData();
   }, []);
 
-  const filteredData = participants.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.training.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredData = participants.filter(p => {
+    const matchName = p.name.toLowerCase().includes(filterName.toLowerCase());
+    const matchTraining = p.training.toLowerCase().includes(filterTraining.toLowerCase());
+    const matchMasa = filterMasaTraining === "Semua" || p.masaTraining === filterMasaTraining;
+    
+    let matchStatus = true;
+    if (filterStatus === "Belum Dievaluasi") {
+      matchStatus = p.evaluatorName === "Belum Dievaluasi";
+    } else if (filterStatus === "Menunggu Evaluasi") {
+      matchStatus = p.isSent && p.status !== "SELESAI_DIEVALUASI";
+    } else if (filterStatus === "Selesai Dievaluasi") {
+      matchStatus = p.status === "SELESAI_DIEVALUASI";
+    }
 
-  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+    return matchName && matchTraining && matchMasa && matchStatus;
+  });
+
+  useEffect(() => { setCurrentPage(1); }, [filterName, filterTraining, filterMasaTraining, filterStatus]);
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE) || 1;
   const paginatedData = filteredData.slice(
@@ -164,15 +182,91 @@ export default function EvaluasiAssignmentsPage() {
               <CardTitle>Peserta Menunggu Evaluasi</CardTitle>
               <CardDescription>Pilih atasan yang berwenang untuk memberikan penilaian.</CardDescription>
             </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-text-secondary" />
-              <Input
-                type="search"
-                placeholder="Cari nama/training..."
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="relative flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                className="gap-2 w-full sm:w-auto bg-white border-slate-200 hover:bg-slate-50 text-navy"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
+                <Filter className="h-4 w-4" />
+                Filter
+              </Button>
+
+              {isFilterOpen && (
+                <Card className="absolute left-0 sm:left-auto sm:right-0 top-[calc(100%+8px)] w-72 z-50 p-4 shadow-xl border-border animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-navy flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      Filter Data
+                    </h4>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setIsFilterOpen(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-text-secondary">Nama Karyawan</label>
+                      <Input
+                        placeholder="Filter by Name..."
+                        value={filterName}
+                        onChange={(e) => setFilterName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-text-secondary">Pelatihan</label>
+                      <Input
+                        placeholder="Filter by Training..."
+                        value={filterTraining}
+                        onChange={(e) => setFilterTraining(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-text-secondary">Masa Training</label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky"
+                        value={filterMasaTraining}
+                        onChange={(e) => setFilterMasaTraining(e.target.value)}
+                      >
+                        <option value="Semua">Semua Masa</option>
+                        <option value="Kurang dari 3 bulan">Kurang dari 3 bulan</option>
+                        <option value="Lewat 3 bulan">Lewat 3 bulan</option>
+                        <option value="Lewat 6 Bulan">Lewat 6 Bulan</option>
+                        <option value="Lewat Setahun">Lewat Setahun</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-text-secondary">Status Evaluasi</label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                      >
+                        <option value="Semua Status">Semua Status</option>
+                        <option value="Belum Dievaluasi">Belum Dievaluasi</option>
+                        <option value="Menunggu Evaluasi">Menunggu Evaluasi</option>
+                        <option value="Selesai Dievaluasi">Selesai Dievaluasi</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-6">
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-slate-300 text-sky hover:text-sky-dark"
+                      onClick={() => { 
+                        setFilterName(""); 
+                        setFilterTraining(""); 
+                        setFilterMasaTraining("Semua"); 
+                        setFilterStatus("Semua Status"); 
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    <Button className="flex-1 bg-sky hover:bg-[#1565C0] text-white" onClick={() => setIsFilterOpen(false)}>
+                      Filter Results
+                    </Button>
+                  </div>
+                </Card>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -184,6 +278,7 @@ export default function EvaluasiAssignmentsPage() {
                   <th className="px-4 py-3 font-medium">Nama Karyawan</th>
                   <th className="px-4 py-3 font-medium">Pelatihan</th>
                   <th className="px-4 py-3 font-medium">Selesai Training</th>
+                  <th className="px-4 py-3 font-medium">Masa Training</th>
                   <th className="px-4 py-3 font-medium">Dievaluasi Oleh</th>
                   <th className="px-4 py-3 font-medium text-right">Aksi</th>
                 </tr>
@@ -194,6 +289,16 @@ export default function EvaluasiAssignmentsPage() {
                     <td className="px-4 py-4 font-medium text-navy">{data.name}</td>
                     <td className="px-4 py-4 text-text-secondary">{data.training}</td>
                     <td className="px-4 py-4 text-text-secondary">{data.dateEnded}</td>
+                    <td className="px-4 py-4">
+                      <Badge variant="outline" className={`
+                        ${data.masaTraining === "Kurang dari 3 bulan" ? "bg-slate-100 text-slate-700 border-slate-200" : ""}
+                        ${data.masaTraining === "Lewat 3 bulan" ? "bg-amber-50 text-amber-700 border-amber-200" : ""}
+                        ${data.masaTraining === "Lewat 6 Bulan" ? "bg-orange-50 text-orange-700 border-orange-200" : ""}
+                        ${data.masaTraining === "Lewat Setahun" ? "bg-red-50 text-red-700 border-red-200" : ""}
+                      `}>
+                        {data.masaTraining}
+                      </Badge>
+                    </td>
                     <td className="px-4 py-4">
                       {data.evaluatorName === "Belum Dievaluasi" ? (
                         <Badge variant="outline" className="bg-warning/10 text-warning-dark border-warning/20">

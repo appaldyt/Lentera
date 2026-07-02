@@ -14,17 +14,41 @@ export async function getParticipantsForEvaluation() {
     });
     
     // Map to a cleaner format if needed for the UI, or just return as is
-    return participants.map(p => ({
-      id: p.id,
-      nik: p.nik,
-      name: p.name,
-      training: p.training.name,
-      dateEnded: p.training.endDate ? new Date(p.training.endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-',
-      evaluatorId: p.evaluatorId,
-      evaluatorName: p.evaluator ? p.evaluator.name : "Belum Dievaluasi",
-      status: p.evaluationStatus,
-      isSent: p.evaluationStatus !== "BELUM_DITUGASKAN"
-    }));
+    return participants.map(p => {
+      let masaTraining = "-";
+      if (p.training.endDate) {
+        const end = new Date(p.training.endDate);
+        const now = new Date();
+        
+        let months = (now.getFullYear() - end.getFullYear()) * 12 + (now.getMonth() - end.getMonth());
+        if (now.getDate() < end.getDate()) {
+            months--;
+        }
+        
+        if (months < 3) {
+          masaTraining = "Kurang dari 3 bulan";
+        } else if (months >= 12) {
+          masaTraining = "Lewat Setahun";
+        } else if (months >= 6) {
+          masaTraining = "Lewat 6 Bulan";
+        } else {
+          masaTraining = "Lewat 3 bulan";
+        }
+      }
+
+      return {
+        id: p.id,
+        nik: p.nik,
+        name: p.name,
+        training: p.training.name,
+        dateEnded: p.training.endDate ? new Date(p.training.endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-',
+        masaTraining,
+        evaluatorId: p.evaluatorId,
+        evaluatorName: p.evaluator ? p.evaluator.name : "Belum Dievaluasi",
+        status: p.evaluationStatus,
+        isSent: p.evaluationStatus !== "BELUM_DITUGASKAN"
+      };
+    });
   } catch (error) {
     console.error("Failed to fetch participants for evaluation", error);
     return [];
