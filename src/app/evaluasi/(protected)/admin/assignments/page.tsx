@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search, Send, UserPlus, Check } from "lucide-react";
+import { Search, Send, UserPlus, Check, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -119,10 +119,14 @@ export default function EvaluasiAssignmentsPage() {
     if (!selectedParticipant || !selectedEvaluatorId) return;
     
     setIsProcessing(true);
-    await assignEvaluator(selectedParticipant.id, selectedEvaluatorId);
-    await fetchData();
+    const result = await assignEvaluator(selectedParticipant.id, selectedEvaluatorId);
+    if (result && !result.success) {
+      alert(result.error);
+    } else {
+      await fetchData();
+      setIsDialogOpen(false);
+    }
     setIsProcessing(false);
-    setIsDialogOpen(false);
   };
 
   const handleOpenConfirmDialog = (participant: Participant) => {
@@ -180,7 +184,7 @@ export default function EvaluasiAssignmentsPage() {
                   <th className="px-4 py-3 font-medium">Nama Karyawan</th>
                   <th className="px-4 py-3 font-medium">Pelatihan</th>
                   <th className="px-4 py-3 font-medium">Selesai Training</th>
-                  <th className="px-4 py-3 font-medium">Ditugaskan Kepada</th>
+                  <th className="px-4 py-3 font-medium">Dievaluasi Oleh</th>
                   <th className="px-4 py-3 font-medium text-right">Aksi</th>
                 </tr>
               </thead>
@@ -191,16 +195,16 @@ export default function EvaluasiAssignmentsPage() {
                     <td className="px-4 py-4 text-text-secondary">{data.training}</td>
                     <td className="px-4 py-4 text-text-secondary">{data.dateEnded}</td>
                     <td className="px-4 py-4">
-                      {data.evaluatorName === "Belum Ditugaskan" ? (
+                      {data.evaluatorName === "Belum Dievaluasi" ? (
                         <Badge variant="outline" className="bg-warning/10 text-warning-dark border-warning/20">
-                          Belum Ditugaskan
+                          Belum Dievaluasi
                         </Badge>
                       ) : (
                         <span className="font-medium text-navy">{data.evaluatorName}</span>
                       )}
                     </td>
                     <td className="px-4 py-4 text-right">
-                      {data.evaluatorName === "Belum Ditugaskan" ? (
+                      {data.evaluatorName === "Belum Dievaluasi" ? (
                         <Button 
                           size="sm" 
                           className="bg-sky hover:bg-sky-dark text-surface gap-2"
@@ -209,21 +213,36 @@ export default function EvaluasiAssignmentsPage() {
                           <UserPlus className="h-4 w-4" />
                           Pilih Atasan
                         </Button>
-                      ) : data.isSent ? (
-                        <Button variant="outline" size="sm" disabled className="gap-2 text-success border-success/30 bg-success/5 opacity-100">
-                          <Check className="h-4 w-4" />
-                          Terkirim
-                        </Button>
                       ) : (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="gap-2 text-text-secondary hover:text-navy hover:bg-slate-100"
-                          onClick={() => handleOpenConfirmDialog(data)}
-                        >
-                          <Send className="h-4 w-4" />
-                          Kirim Form Evaluasi
-                        </Button>
+                        <div className="flex justify-end items-center gap-2">
+                          {data.isSent ? (
+                            <Button variant="outline" size="sm" disabled className="gap-2 text-success border-success/30 bg-success/5 opacity-100">
+                              <Check className="h-4 w-4" />
+                              Terkirim
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="gap-2 text-text-secondary hover:text-navy hover:bg-slate-100"
+                              onClick={() => handleOpenConfirmDialog(data)}
+                            >
+                              <Send className="h-4 w-4" />
+                              Kirim Form Evaluasi
+                            </Button>
+                          )}
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="gap-2 text-text-secondary hover:text-navy hover:bg-slate-100"
+                            onClick={() => handleOpenDialog(data)}
+                            disabled={data.status === "SELESAI_DIEVALUASI"}
+                            title={data.status === "SELESAI_DIEVALUASI" ? "Evaluasi sudah selesai, harus open evaluasi terlebih dahulu" : "Ubah Atasan"}
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Ubah
+                          </Button>
+                        </div>
                       )}
                     </td>
                   </tr>

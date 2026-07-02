@@ -22,6 +22,7 @@ type AccountStatus = "AKTIF" | "NONAKTIF";
 interface Account {
   id: string;
   name: string;
+  nik?: string | null;
   email: string;
   role: UserRole;
   status: AccountStatus;
@@ -60,6 +61,7 @@ const ROLE_BADGE: Record<UserRole, { className: string; icon: React.ReactNode; l
 
 const emptyForm = {
   name: "",
+  nik: "",
   email: "",
   password: "",
   confirmPassword: "",
@@ -136,6 +138,7 @@ function AccountsContent() {
   const handleEdit = (acc: Account) => {
     setFormData({
       name: acc.name,
+      nik: acc.nik || "",
       email: acc.email,
       password: "",
       confirmPassword: "",
@@ -176,6 +179,7 @@ function AccountsContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: formData.name,
+            nik: formData.nik || undefined,
             email: formData.email,
             password: formData.password || undefined,
             role: formData.role,
@@ -191,6 +195,7 @@ function AccountsContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: formData.name,
+            nik: formData.nik || undefined,
             email: formData.email,
             password: formData.password,
             role: formData.role,
@@ -379,6 +384,7 @@ function AccountsContent() {
         <TableHeader>
           <TableRow>
             <TableHead>Nama</TableHead>
+            <TableHead>NIK</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
@@ -390,13 +396,13 @@ function AccountsContent() {
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-10 text-text-secondary">
+              <TableCell colSpan={8} className="text-center py-10 text-text-secondary">
                 Memuat data...
               </TableCell>
             </TableRow>
           ) : filteredAccounts.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-10 text-text-secondary">
+              <TableCell colSpan={8} className="text-center py-10 text-text-secondary">
                 Tidak ada akun yang ditemukan.
               </TableCell>
             </TableRow>
@@ -413,9 +419,12 @@ function AccountsContent() {
                       }`}>
                         {acc.name.charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-medium text-text-primary">{acc.name}</span>
+                      <div>
+                        <span className="font-medium text-text-primary">{acc.name}</span>
+                      </div>
                     </div>
                   </TableCell>
+                  <TableCell className="text-text-secondary">{acc.nik || "-"}</TableCell>
                   <TableCell className="text-text-secondary">{acc.email}</TableCell>
                   <TableCell>
                     <Badge className={`${badge.className} gap-1`}>
@@ -533,6 +542,15 @@ function AccountsContent() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Masukkan nama lengkap"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-text-secondary">NIK (Opsional)</label>
+                <Input
+                  value={formData.nik}
+                  onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
+                  placeholder="Masukkan NIK"
                 />
               </div>
 

@@ -30,7 +30,7 @@ export async function loginEvaluator(formData: FormData) {
       return { success: false, error: "Akun Anda tidak aktif. Hubungi Admin." };
     }
 
-    if (user.role !== "EVALUATOR" && user.role !== "EVALUATION_ADMIN") {
+    if (user.role !== "EVALUATOR" && user.role !== "EVALUATION_ADMIN" && user.role !== "SUPER_ADMIN") {
       return { success: false, error: "Anda tidak memiliki akses ke portal ini." };
     }
 

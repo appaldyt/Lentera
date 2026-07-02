@@ -5,6 +5,7 @@ import { getCriteria } from "./evaluation-criteria";
 
 export type EvaluationResult = {
   id: string;
+  participantId: string;
   employeeName: string;
   employeeNik: string;
   trainingName: string;
@@ -16,6 +17,12 @@ export type EvaluationResult = {
   status: string;
   statusColor: string;
   feedback: string;
+  answers: {
+    questionTitle: string;
+    questionText: string;
+    score: number;
+    notes: string;
+  }[];
 };
 
 export async function getEvaluationResults(): Promise<EvaluationResult[]> {
@@ -32,7 +39,11 @@ export async function getEvaluationResults(): Promise<EvaluationResult[]> {
         }
       },
       evaluator: true,
-      answers: true
+      answers: {
+        include: {
+          question: true
+        }
+      }
     }
   });
 
@@ -62,6 +73,7 @@ export async function getEvaluationResults(): Promise<EvaluationResult[]> {
 
     return {
       id: response.id,
+      participantId: response.participant.id,
       employeeName: response.participant.name,
       employeeNik: response.participant.nik,
       trainingName: response.participant.training.name,
@@ -75,6 +87,12 @@ export async function getEvaluationResults(): Promise<EvaluationResult[]> {
       status,
       statusColor,
       feedback: feedback || "Tidak ada catatan.",
+      answers: response.answers.map(a => ({
+        questionTitle: a.question.title,
+        questionText: a.question.text,
+        score: a.score,
+        notes: a.notes || ""
+      }))
     };
   });
 }
@@ -82,4 +100,33 @@ export async function getEvaluationResults(): Promise<EvaluationResult[]> {
 export async function getEvaluationResultById(id: string): Promise<EvaluationResult | null> {
   const allResults = await getEvaluationResults();
   return allResults.find(r => r.id === id) || null;
+}
+
+import { revalidatePath } from "next/cache";
+
+export async function reopenEvaluation(participantId: string) {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Set training participant back to waiting
+      await tx.trainingParticipant.update({
+        where: { id: participantId },
+        data: { evaluationStatus: "MENUNGGU_EVALUASI" }
+      });
+      
+      // Set response status to draft so it disappears from completed results
+      await tx.evaluationResponse.updateMany({
+        where: { participantId: participantId },
+        data: { status: "DRAFT" }
+      });
+    });
+
+    revalidatePath("/(dashboard)/evaluation-results");
+    revalidatePath("/evaluasi/admin/results");
+    revalidatePath("/evaluasi/dashboard");
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to reopen evaluation:", error);
+    return { success: false, error: "Gagal membuka ulang evaluasi" };
+  }
 }

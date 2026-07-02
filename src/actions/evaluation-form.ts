@@ -26,7 +26,15 @@ export async function getEvaluationFormData(participantId: string) {
 
     if (!participant) return { error: "Peserta tidak ditemukan" };
     if (participant.evaluatorId !== evaluatorId) return { error: "Anda tidak berhak mengevaluasi peserta ini" };
-    if (participant.evaluationStatus === "SELESAI_DIEVALUASI") return { error: "Evaluasi sudah diselesaikan" };
+    const existingResponse = await prisma.evaluationResponse.findUnique({
+      where: {
+        participantId_evaluatorId: {
+          participantId,
+          evaluatorId
+        }
+      },
+      include: { answers: true }
+    });
 
     // Fetch active questions
     const questions = await prisma.evaluationQuestion.findMany({
@@ -34,7 +42,7 @@ export async function getEvaluationFormData(participantId: string) {
       orderBy: { order: 'asc' }
     });
 
-    return { participant, questions, evaluatorId };
+    return { participant, questions, evaluatorId, existingResponse };
   } catch (error) {
     console.error("Failed to load evaluation form data", error);
     return { error: "Terjadi kesalahan server" };
@@ -48,25 +56,21 @@ export async function submitEvaluationResponse(data: {
   feedback?: string
 }) {
   try {
-    // Verify it doesn't exist yet
-    const existing = await prisma.evaluationResponse.findUnique({
-      where: {
-        participantId_evaluatorId: {
-          participantId: data.participantId,
-          evaluatorId: data.evaluatorId
-        }
-      }
-    });
-
-    if (existing) {
-      return { success: false, error: "Evaluasi sudah disubmit sebelumnya" };
-    }
-
     // Use transaction to ensure data integrity
     await prisma.$transaction(async (tx) => {
-      // 1. Create Response
-      const response = await tx.evaluationResponse.create({
-        data: {
+      // 1. Create or Update Response
+      const response = await tx.evaluationResponse.upsert({
+        where: {
+          participantId_evaluatorId: {
+            participantId: data.participantId,
+            evaluatorId: data.evaluatorId
+          }
+        },
+        update: {
+          status: "SUBMITTED",
+          submittedAt: new Date(),
+        },
+        create: {
           participantId: data.participantId,
           evaluatorId: data.evaluatorId,
           status: "SUBMITTED",
@@ -74,19 +78,24 @@ export async function submitEvaluationResponse(data: {
         }
       });
 
-      // 2. Create Answers
+      // 2. Delete existing answers if any
+      await tx.evaluationAnswer.deleteMany({
+        where: { responseId: response.id }
+      });
+
+      // 3. Create Answers
       if (data.answers.length > 0) {
         await tx.evaluationAnswer.createMany({
           data: data.answers.map(ans => ({
             responseId: response.id,
             questionId: ans.questionId,
             score: ans.score,
-            notes: data.feedback // saving overall feedback to the first question's notes as a hack if needed, wait, schema has answers.notes. But maybe we don't have a top-level feedback field in EvaluationResponse?
+            notes: data.feedback
           }))
         });
       }
 
-      // 3. Update Participant Status
+      // 4. Update Participant Status
       await tx.trainingParticipant.update({
         where: { id: data.participantId },
         data: { evaluationStatus: "SELESAI_DIEVALUASI" }

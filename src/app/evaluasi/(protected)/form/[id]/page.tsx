@@ -34,6 +34,16 @@ export default function EvaluationFormPage() {
         return;
       }
       setFormData(res);
+      if (res.existingResponse) {
+        const initialScores: Record<string, number> = {};
+        res.existingResponse.answers.forEach((ans: any) => {
+          initialScores[ans.questionId] = ans.score;
+        });
+        setScores(initialScores);
+        if (res.existingResponse.answers.length > 0) {
+          setFeedback(res.existingResponse.answers[0].notes || "");
+        }
+      }
       setLoading(false);
     }
     loadData();
@@ -206,6 +216,7 @@ export default function EvaluationFormPage() {
                           name={`q-${q.id}`}
                           value={val}
                           required
+                          checked={scores[q.id] === val}
                           className="h-5 w-5 text-sky focus:ring-sky"
                           onChange={() => setScores({ ...scores, [q.id]: val })}
                         />

@@ -21,7 +21,7 @@ export async function getParticipantsForEvaluation() {
       training: p.training.name,
       dateEnded: p.training.endDate ? new Date(p.training.endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-',
       evaluatorId: p.evaluatorId,
-      evaluatorName: p.evaluator ? p.evaluator.name : "Belum Ditugaskan",
+      evaluatorName: p.evaluator ? p.evaluator.name : "Belum Dievaluasi",
       status: p.evaluationStatus,
       isSent: p.evaluationStatus !== "BELUM_DITUGASKAN"
     }));
@@ -33,12 +33,28 @@ export async function getParticipantsForEvaluation() {
 
 export async function assignEvaluator(participantId: string, evaluatorId: string) {
   try {
-    await prisma.trainingParticipant.update({
-      where: { id: participantId },
-      data: {
-        evaluatorId: evaluatorId,
-      }
+    const participant = await prisma.trainingParticipant.findUnique({ where: { id: participantId } });
+    if (participant?.evaluationStatus === "SELESAI_DIEVALUASI") {
+      return { success: false, error: "Evaluasi sudah diselesaikan. Silakan Open Evaluasi terlebih dahulu." };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.trainingParticipant.update({
+        where: { id: participantId },
+        data: {
+          evaluatorId: evaluatorId,
+        }
+      });
+      
+      // Delete any draft responses if the evaluator is changed
+      await tx.evaluationResponse.deleteMany({
+        where: {
+          participantId: participantId,
+          status: "DRAFT"
+        }
+      });
     });
+
     revalidatePath("/evaluasi/admin/assignments");
     return { success: true };
   } catch (error) {

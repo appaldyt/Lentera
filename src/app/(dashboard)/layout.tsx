@@ -5,11 +5,20 @@ import { TopbarUserMenu } from "@/components/topbar-user-menu";
 import { NotificationBell } from "@/components/notification-bell";
 import { UserProvider } from "@/context/user-context";
 
-export default function DashboardLayout({
+import { getSession } from "@/actions/auth";
+import { redirect } from "next/navigation";
+
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getSession();
+
+  if (session?.role === "EVALUATOR") {
+    redirect("/evaluasi/dashboard");
+  }
+
   return (
     <UserProvider>
       <div className="flex h-screen w-full bg-background">

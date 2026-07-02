@@ -6,10 +6,12 @@ import { formatDate } from "@/lib/api-utils";
 function serializeUser(u: {
   id: string; name: string; email: string; role: string;
   status: string; lastLogin: Date | null; createdAt: Date;
+  nik?: string | null;
 }) {
   return {
     id: u.id,
     name: u.name,
+    nik: u.nik,
     email: u.email,
     role: u.role,
     status: u.status,
@@ -23,7 +25,7 @@ function serializeUser(u: {
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const { name, email, password, role, status } = await request.json();
+    const { name, email, password, role, status, nik } = await request.json();
 
     if (!name || !email) {
       return Response.json({ error: "Nama dan email wajib diisi" }, { status: 400 });
@@ -36,7 +38,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return Response.json({ error: "Email sudah digunakan akun lain" }, { status: 409 });
     }
 
-    const data: Record<string, unknown> = { name, email, role, status };
+    const data: Record<string, unknown> = { name, email, role, status, nik: nik || null };
     if (password) {
       data.password = await bcrypt.hash(password, 12);
     }
@@ -45,7 +47,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       where: { id },
       data,
       select: {
-        id: true, name: true, email: true, role: true,
+        id: true, name: true, nik: true, email: true, role: true,
         status: true, lastLogin: true, createdAt: true,
       },
     });

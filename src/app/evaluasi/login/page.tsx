@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Lock, ChevronRight, AlertCircle, Plane } from "lucide-react";
+import { Lock, ChevronRight, AlertCircle, Plane, Eye, EyeOff } from "lucide-react";
 import { loginEvaluator } from "@/actions/auth";
 
 export default function EvaluasiLoginPage() {
@@ -20,6 +20,7 @@ export default function EvaluasiLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -109,7 +110,7 @@ export default function EvaluasiLoginPage() {
                 <div className="relative">
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     required
                     className="h-11 pr-10 border-border focus-visible:ring-sky"
@@ -117,7 +118,18 @@ export default function EvaluasiLoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                   />
-                  <Lock className="absolute right-3 top-3 h-5 w-5 text-text-secondary/50" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-text-secondary/50 hover:text-text-secondary transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -137,15 +149,7 @@ export default function EvaluasiLoginPage() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex justify-center border-t border-border/40 pt-6">
-            <p className="text-sm text-text-secondary">
-              Butuh bantuan akses?{" "}
-              <a href="#" className="text-sky hover:underline font-medium">
-                Hubungi IT Support
-              </a>
-            </p>
-          </CardFooter>
-        </Card>
+          </Card>
       </div>
     </div>
   );

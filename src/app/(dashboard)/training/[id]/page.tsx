@@ -68,7 +68,7 @@ function parseExcel(buffer: ArrayBuffer, allEmployees: any[]): ImportRow[] {
   const workbook = XLSX.read(buffer, { type: "array" });
   const sheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1 });
+  const rows = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1, raw: true });
 
   if (rows.length < 2) return [];
 
@@ -76,7 +76,25 @@ function parseExcel(buffer: ArrayBuffer, allEmployees: any[]): ImportRow[] {
 
   return dataLines.map((cols: any[]) => {
     const nik = (cols[0] || "").toString().trim();
-    const trainingDate = (cols[1] || "").toString().trim();
+    
+    let trainingDate = "";
+    if (cols[1] instanceof Date) {
+      // Fix timezone offset issues if any, xlsx parses to UTC
+      trainingDate = cols[1].toISOString().split("T")[0];
+    } else if (typeof cols[1] === "number") {
+      const d = new Date(Math.round((cols[1] - 25569) * 86400 * 1000));
+      trainingDate = d.toISOString().split("T")[0];
+    } else {
+      // Basic string fallback, replace slashes if it's DD/MM/YYYY
+      const str = (cols[1] || "").toString().trim();
+      if (str.includes("/") && str.split("/")[2]?.length === 4) {
+         const parts = str.split("/");
+         trainingDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      } else {
+         trainingDate = str;
+      }
+    }
+
     const attendedHoursStr = (cols[2] || "0").toString().trim();
     const attendedHours = Number(attendedHoursStr) || 0;
 

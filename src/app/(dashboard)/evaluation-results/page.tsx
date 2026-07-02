@@ -10,7 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search, Eye, BarChart, FileCheck, Star } from "lucide-react";
+import { Search, Eye, BarChart, FileCheck, Star, ExternalLink, Printer } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -20,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getEvaluationResults, EvaluationResult } from "@/actions/evaluation-results";
+import { getEvaluationResults, EvaluationResult, reopenEvaluation } from "@/actions/evaluation-results";
 
 export default function EvaluationResultsDashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,6 +30,10 @@ export default function EvaluationResultsDashboardPage() {
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedResult, setSelectedResult] = useState<EvaluationResult | null>(null);
+
+  const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
+  const [selectedReopenResult, setSelectedReopenResult] = useState<EvaluationResult | null>(null);
+  const [isReopening, setIsReopening] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -49,6 +54,25 @@ export default function EvaluationResultsDashboardPage() {
   const handleOpenDialog = (result: EvaluationResult) => {
     setSelectedResult(result);
     setIsDialogOpen(true);
+  };
+
+  const handleOpenReopenDialog = (result: EvaluationResult) => {
+    setSelectedReopenResult(result);
+    setIsReopenDialogOpen(true);
+  };
+
+  const confirmReopen = async () => {
+    if (!selectedReopenResult) return;
+    setIsReopening(true);
+    const res = await reopenEvaluation(selectedReopenResult.participantId);
+    if (res.success) {
+      // Remove from list or refresh
+      setResults(results.filter(r => r.id !== selectedReopenResult.id));
+      setIsReopenDialogOpen(false);
+    } else {
+      alert(res.error || "Gagal membuka ulang evaluasi");
+    }
+    setIsReopening(false);
   };
 
   const getStatusBadge = (status: string, color: string) => {
@@ -74,11 +98,19 @@ export default function EvaluationResultsDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-navy">Hasil Evaluasi</h1>
-        <p className="mt-2 text-text-secondary">
-          Pantau hasil penilaian evaluasi efektivitas training yang telah diisi oleh atasan.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-navy">Hasil Evaluasi</h1>
+          <p className="mt-2 text-text-secondary">
+            Pantau hasil penilaian evaluasi efektivitas training yang telah diisi oleh atasan.
+          </p>
+        </div>
+        <Link href="/evaluasi/login" target="_blank">
+          <Button variant="outline" className="gap-2 border-sky text-sky hover:bg-sky/5">
+            <ExternalLink className="h-4 w-4" />
+            Buka Portal Evaluasi
+          </Button>
+        </Link>
       </div>
 
       {/* Summary Cards */}
@@ -168,7 +200,16 @@ export default function EvaluationResultsDashboardPage() {
                       <td className="px-4 py-4">
                         {getStatusBadge(data.status, data.statusColor)}
                       </td>
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-4 py-4 text-right flex items-center justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="gap-2 text-amber-600 border-amber-600/30 hover:bg-amber-600/5 hover:text-amber-700"
+                          onClick={() => handleOpenReopenDialog(data)}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Open Evaluasi
+                        </Button>
                         <Button 
                           variant="outline" 
                           size="sm" 
@@ -178,6 +219,16 @@ export default function EvaluationResultsDashboardPage() {
                           <Eye className="h-4 w-4" />
                           Lihat
                         </Button>
+                        <Link href={`/evaluasi/print/${data.id}`} target="_blank">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="gap-2 text-indigo-600 border-indigo-600/30 hover:bg-indigo-600/5 hover:text-indigo-700"
+                          >
+                            <Printer className="h-4 w-4" />
+                            Report
+                          </Button>
+                        </Link>
                       </td>
                     </tr>
                   ))
@@ -189,7 +240,7 @@ export default function EvaluationResultsDashboardPage() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden flex flex-col max-h-[90vh]">
           {selectedResult && (
             <>
               <div className="bg-navy p-6 text-white">
@@ -199,7 +250,7 @@ export default function EvaluationResultsDashboardPage() {
                 </DialogDescription>
               </div>
               
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 overflow-y-auto flex-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-text-secondary mb-1">Nama Karyawan</p>
@@ -245,8 +296,35 @@ export default function EvaluationResultsDashboardPage() {
                   {getStatusBadge(selectedResult.status, selectedResult.statusColor)}
                 </div>
 
+                {selectedResult.answers && selectedResult.answers.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-navy mb-2 border-t border-slate-200 pt-4 mt-2">Detail Penilaian per Pertanyaan</p>
+                    <div className="space-y-3">
+                      {selectedResult.answers.map((ans, idx) => (
+                        <div key={idx} className="bg-white border border-slate-200 rounded-md p-3 text-sm">
+                          <div className="flex justify-between items-start gap-4">
+                            <div>
+                              <p className="font-medium text-navy">{ans.questionTitle}</p>
+                              <p className="text-text-secondary text-xs mt-1">{ans.questionText}</p>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded">
+                              <span className="font-bold text-sky">{ans.score}</span>
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                            </div>
+                          </div>
+                          {ans.notes && (
+                            <div className="mt-2 text-xs text-slate-500 bg-slate-50 p-2 rounded">
+                              <span className="font-medium">Catatan:</span> {ans.notes}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <p className="text-sm font-medium text-navy mb-2">Feedback & Rekomendasi Atasan</p>
+                  <p className="text-sm font-medium text-navy mb-2 border-t border-slate-200 pt-4 mt-2">Feedback & Rekomendasi Keseluruhan</p>
                   <div className="bg-white border border-slate-200 rounded-md p-4 text-sm text-text-secondary leading-relaxed">
                     "{selectedResult.feedback}"
                   </div>
@@ -263,6 +341,29 @@ export default function EvaluationResultsDashboardPage() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isReopenDialogOpen} onOpenChange={setIsReopenDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Buka Form Evaluasi?</DialogTitle>
+            <DialogDescription>
+              Apakah Anda Yakin Ingin Membuka Form Evaluasi Ini?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 sm:justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsReopenDialogOpen(false)} disabled={isReopening}>
+              Batal
+            </Button>
+            <Button 
+              onClick={confirmReopen} 
+              disabled={isReopening}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {isReopening ? "Memproses..." : "Ya, Buka Kembali"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
