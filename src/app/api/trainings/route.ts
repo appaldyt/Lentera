@@ -21,6 +21,8 @@ function serializeTraining(t: Awaited<ReturnType<typeof fetchTrainings>>[number]
       id: p.id,
       activityName: p.activityName,
       category: p.category,
+      startDate: p.startDate ? formatDate(p.startDate) : "",
+      workHours: p.workHours,
       dueDate: formatDate(p.dueDate),
       priority: p.priority,
       pic: p.pic,

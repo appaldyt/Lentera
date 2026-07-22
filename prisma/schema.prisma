@@ -62,6 +62,8 @@ model TrainingPreparation {
   training     Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
   activityName String
   category     String
+  startDate    DateTime?
+  workHours    Int      @default(0)
   dueDate      DateTime
   priority     String   @default("Normal")
   pic          String

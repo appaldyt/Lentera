@@ -24,6 +24,8 @@ function serializeFull(t: Awaited<ReturnType<typeof fetchOne>>) {
       id: p.id,
       activityName: p.activityName,
       category: p.category,
+      startDate: p.startDate ? formatDate(p.startDate) : "",
+      workHours: p.workHours,
       dueDate: formatDate(p.dueDate),
       priority: p.priority,
       pic: p.pic,

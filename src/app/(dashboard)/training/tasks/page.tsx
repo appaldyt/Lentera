@@ -30,7 +30,9 @@ interface TrainingTask {
   trainingId: string;
   activityName: string;
   category: string;
+  startDate: string | null;
   dueDate: string;
+  workHours: number;
   priority: string;
   pic: string;
   team: string;
@@ -378,7 +380,7 @@ export default function TrainingTasksDashboard() {
                                             {isMatch && (
                                               <div 
                                                 className={`h-6 w-12 rounded ${barColor} opacity-90 transition-all hover:opacity-100 shadow-sm flex items-center justify-center cursor-default z-10`}
-                                                title={`Due: ${new Date(task.dueDate).toLocaleDateString('id-ID')} - ${task.progress}`}
+                                                title={`Start: ${task.startDate ? new Date(task.startDate).toLocaleDateString('id-ID') : '-'} | Due: ${new Date(task.dueDate).toLocaleDateString('id-ID')} | Estimasi: ${task.workHours || 0} Jam | Progres: ${task.progress}`}
                                               >
                                                 <span className="text-[10px] text-white font-medium px-1 truncate">
                                                   {task.progress}

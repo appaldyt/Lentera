@@ -30,7 +30,9 @@ import { GripVertical } from "lucide-react";
 interface ImportTaskRow {
   activityName: string;
   category: string;
+  startDate: string;
   dueDate: string;
+  workHours: number;
   priority: string;
   pic: string;
   team: string;
@@ -39,7 +41,7 @@ interface ImportTaskRow {
   _errors: string[];
 }
 
-const TASK_CSV_HEADERS = ["Task Name", "Category", "Due Date", "Priority", "PIC", "Team", "Link Output", "Note"];
+const TASK_CSV_HEADERS = ["Task Name", "Category", "Start Date", "Due Date", "Work Hours", "Priority", "PIC", "Team", "Link Output", "Note"];
 
 function parseTaskExcel(buffer: ArrayBuffer): ImportTaskRow[] {
   const workbook = XLSX.read(buffer, { type: "array" });
@@ -55,14 +57,30 @@ function parseTaskExcel(buffer: ArrayBuffer): ImportTaskRow[] {
     const activityName = (cols[0] || "").toString().trim();
     const category = (cols[1] || "").toString().trim();
     
-    let dueDate = "";
+    let startDate = "";
     if (cols[2] instanceof Date) {
-      dueDate = cols[2].toISOString().split("T")[0];
+      startDate = cols[2].toISOString().split("T")[0];
     } else if (typeof cols[2] === "number") {
       const d = new Date(Math.round((cols[2] - 25569) * 86400 * 1000));
+      startDate = d.toISOString().split("T")[0];
+    } else if (cols[2]) {
+      const str = (cols[2] || "").toString().trim();
+      if (str.includes("/") && str.split("/")[2]?.length === 4) {
+         const parts = str.split("/");
+         startDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      } else {
+         startDate = str;
+      }
+    }
+
+    let dueDate = "";
+    if (cols[3] instanceof Date) {
+      dueDate = cols[3].toISOString().split("T")[0];
+    } else if (typeof cols[3] === "number") {
+      const d = new Date(Math.round((cols[3] - 25569) * 86400 * 1000));
       dueDate = d.toISOString().split("T")[0];
     } else {
-      const str = (cols[2] || "").toString().trim();
+      const str = (cols[3] || "").toString().trim();
       if (str.includes("/") && str.split("/")[2]?.length === 4) {
          const parts = str.split("/");
          dueDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
@@ -71,23 +89,27 @@ function parseTaskExcel(buffer: ArrayBuffer): ImportTaskRow[] {
       }
     }
 
-    const priority = (cols[3] || "Normal").toString().trim();
-    const pic = (cols[4] || "").toString().trim();
-    const team = (cols[5] || "").toString().trim();
-    const linkOutput = (cols[6] || "").toString().trim();
-    const note = (cols[7] || "").toString().trim();
+    const workHours = Number((cols[4] || 0).toString().trim()) || 0;
+    const priority = (cols[5] || "Normal").toString().trim();
+    const pic = (cols[6] || "").toString().trim();
+    const team = (cols[7] || "").toString().trim();
+    const linkOutput = (cols[8] || "").toString().trim();
+    const note = (cols[9] || "").toString().trim();
 
     const errors: string[] = [];
     if (!activityName) errors.push("Task Name wajib diisi");
     if (!category) errors.push("Category wajib diisi");
     if (!dueDate) errors.push("Due Date wajib diisi");
+    if (startDate && new Date(startDate) > new Date(dueDate)) errors.push("Start Date melebihi Due Date");
     if (!pic) errors.push("PIC wajib diisi");
     if (!team) errors.push("Team wajib diisi");
 
     return { 
       activityName, 
       category, 
+      startDate,
       dueDate, 
+      workHours,
       priority, 
       pic, 
       team, 
@@ -101,8 +123,8 @@ function parseTaskExcel(buffer: ArrayBuffer): ImportTaskRow[] {
 function downloadTaskTemplate() {
   const wsData = [
     TASK_CSV_HEADERS,
-    ['Distribusi undangan peserta', 'Administrasi', '2026-06-03', 'Normal', 'Sari Dewi', 'HR', '-', 'Kirim via email'],
-    ['Setup ruangan & peralatan', 'Logistik', '2026-06-09', 'Urgent', 'Rendi Pratama', 'GA', '-', ''],
+    ['Distribusi undangan peserta', 'Administrasi', '2026-06-01', '2026-06-03', 4, 'Normal', 'Sari Dewi', 'HR', '-', 'Kirim via email'],
+    ['Setup ruangan & peralatan', 'Logistik', '2026-06-08', '2026-06-09', 16, 'Urgent', 'Rendi Pratama', 'GA', '-', ''],
   ];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   const wb = XLSX.utils.book_new();
@@ -114,7 +136,9 @@ export interface Subtask {
   id: string;
   activityName: string;
   category: string;
+  startDate?: string;
   dueDate: string;
+  workHours?: number;
   priority: string;
   pic: string;
   team: string;
@@ -147,11 +171,22 @@ function SortableRow({ prep, index, isNestedView, toggleSubtaskCompletion, updat
           {isNestedView ? <CornerDownRight className="h-4 w-4" /> : index + 1}
         </div>
       </TableCell>
-      <TableCell className={cn("font-medium", prep.isCompleted ? "text-text-secondary line-through" : "text-navy")}>
+      <TableCell className={cn("font-medium max-w-[200px] truncate", prep.isCompleted ? "text-text-secondary line-through" : "text-navy")}>
         {prep.activityName}
       </TableCell>
       <TableCell className="text-text-secondary text-sm">{prep.category}</TableCell>
-      <TableCell className="text-text-secondary text-sm">{prep.dueDate}</TableCell>
+      <TableCell className="text-text-secondary text-sm text-center">
+        {prep.startDate ? (
+          <div className="flex flex-col items-center gap-1 text-xs">
+            <Badge variant="outline" className="font-normal bg-background px-2 py-0">{prep.startDate}</Badge>
+            <span className="text-[10px] text-text-secondary/60 leading-none">sampai</span>
+            <Badge variant="outline" className="font-normal bg-background px-2 py-0">{prep.dueDate}</Badge>
+          </div>
+        ) : (
+          <Badge variant="outline" className="font-normal bg-background px-2 py-0">{prep.dueDate}</Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-text-secondary text-sm text-center">{prep.workHours || "-"}</TableCell>
       <TableCell>{getPriorityBadge(prep.priority)}</TableCell>
       <TableCell className="text-sm font-medium">{prep.pic}</TableCell>
       <TableCell>
@@ -249,7 +284,9 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
   const [subtaskFormData, setSubtaskFormData] = useState({
     activityName: "",
     category: "",
+    startDate: "",
     dueDate: "",
+    workHours: 0,
     priority: "Normal",
     pic: "",
     team: "",
@@ -300,7 +337,9 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
         id: `P-IMP-${Date.now()}-${index}`,
         activityName: r.activityName,
         category: r.category,
+        startDate: r.startDate,
         dueDate: r.dueDate,
+        workHours: r.workHours,
         priority: r.priority,
         pic: r.pic,
         team: r.team,
@@ -342,7 +381,9 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
       setSubtaskFormData({
         activityName: subtask.activityName,
         category: subtask.category,
+        startDate: subtask.startDate || "",
         dueDate: subtask.dueDate,
+        workHours: subtask.workHours || 0,
         priority: subtask.priority,
         pic: subtask.pic,
         team: subtask.team,
@@ -354,7 +395,9 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
       setSubtaskFormData({
         activityName: "",
         category: "",
+        startDate: "",
         dueDate: "",
+        workHours: 0,
         priority: "Normal",
         pic: "",
         team: "",
@@ -372,7 +415,9 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
         id: `P-${preparations.length + 1}0${Math.floor(Math.random() * 10)}`,
         activityName: subtaskFormData.activityName,
         category: subtaskFormData.category,
+        startDate: subtaskFormData.startDate,
         dueDate: subtaskFormData.dueDate,
+        workHours: subtaskFormData.workHours,
         priority: subtaskFormData.priority,
         pic: subtaskFormData.pic,
         team: subtaskFormData.team,
@@ -387,7 +432,9 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
         ...p,
         activityName: subtaskFormData.activityName,
         category: subtaskFormData.category,
+        startDate: subtaskFormData.startDate,
         dueDate: subtaskFormData.dueDate,
+        workHours: subtaskFormData.workHours,
         priority: subtaskFormData.priority,
         pic: subtaskFormData.pic,
         team: subtaskFormData.team,
@@ -459,7 +506,8 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
               {!isNestedView && <TableHead className="w-16 text-surface text-center">No</TableHead>}
               <TableHead className="text-surface font-semibold">Task / Sub-task Name</TableHead>
               <TableHead className="text-surface font-semibold">Category</TableHead>
-              <TableHead className="text-surface font-semibold">Due Date</TableHead>
+              <TableHead className="text-surface font-semibold text-center">Jadwal</TableHead>
+              <TableHead className="text-surface font-semibold text-center">Work Hours</TableHead>
               <TableHead className="text-surface font-semibold">Priority</TableHead>
               <TableHead className="text-surface font-semibold">PIC</TableHead>
               <TableHead className="text-surface font-semibold">Team</TableHead>
@@ -485,13 +533,13 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
             </SortableContext>
           {preparations.length === 0 && (
             <TableRow>
-              <TableCell colSpan={11} className="text-center py-4 text-text-secondary">
+              <TableCell colSpan={12} className="text-center py-4 text-text-secondary">
                 Belum ada aktivitas persiapan.
               </TableCell>
             </TableRow>
           )}
           <TableRow className="hover:bg-transparent">
-            <TableCell colSpan={11} className="p-2">
+            <TableCell colSpan={12} className="p-2">
               <div className="flex gap-2 w-full">
                 <Button 
                   variant="ghost" 
@@ -557,21 +605,21 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
                   </div>
                   
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">Start Date</label>
+                    <Input type="date" value={subtaskFormData.startDate} onChange={(e) => setSubtaskFormData({...subtaskFormData, startDate: e.target.value})} />
+                  </div>
+                  
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-text-secondary">Tenggat Waktu (Due Date)</label>
                     <Input required type="date" value={subtaskFormData.dueDate} onChange={(e) => setSubtaskFormData({...subtaskFormData, dueDate: e.target.value})} />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-secondary">PIC</label>
-                    <Input required value={subtaskFormData.pic} onChange={(e) => setSubtaskFormData({...subtaskFormData, pic: e.target.value})} placeholder="Nama Penanggung Jawab" />
+                    <label className="text-sm font-medium text-text-secondary">Estimasi Waktu (Jam)</label>
+                    <Input type="number" min="0" value={subtaskFormData.workHours || ""} onChange={(e) => setSubtaskFormData({...subtaskFormData, workHours: Number(e.target.value)})} placeholder="Misal: 4" />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-secondary">Tim</label>
-                    <Input required value={subtaskFormData.team} onChange={(e) => setSubtaskFormData({...subtaskFormData, team: e.target.value})} placeholder="Contoh: HR, GA, Safety" />
-                  </div>
-
-                  <div className="space-y-2 col-span-2">
                     <label className="text-sm font-medium text-text-secondary">Prioritas</label>
                     <select 
                       className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
@@ -582,6 +630,16 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
                       <option value="Important">Important</option>
                       <option value="Urgent">Urgent</option>
                     </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">PIC</label>
+                    <Input required value={subtaskFormData.pic} onChange={(e) => setSubtaskFormData({...subtaskFormData, pic: e.target.value})} placeholder="Nama Penanggung Jawab" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">Tim</label>
+                    <Input required value={subtaskFormData.team} onChange={(e) => setSubtaskFormData({...subtaskFormData, team: e.target.value})} placeholder="Contoh: HR, GA, Safety" />
                   </div>
 
                   <div className="space-y-2 col-span-2">
@@ -689,7 +747,9 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
                         <TableHead className="w-8">#</TableHead>
                         <TableHead>Task Name</TableHead>
                         <TableHead>Category</TableHead>
+                        <TableHead>Start Date</TableHead>
                         <TableHead>Due Date</TableHead>
+                        <TableHead>Work Hrs</TableHead>
                         <TableHead>Priority</TableHead>
                         <TableHead>PIC</TableHead>
                         <TableHead>Team</TableHead>
@@ -703,7 +763,9 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
                           <TableCell className="text-text-secondary text-xs">{i + 1}</TableCell>
                           <TableCell className="font-medium text-xs">{row.activityName || <span className="text-danger italic">kosong</span>}</TableCell>
                           <TableCell>{row.category}</TableCell>
+                          <TableCell>{row.startDate || "-"}</TableCell>
                           <TableCell>{row.dueDate}</TableCell>
+                          <TableCell>{row.workHours}</TableCell>
                           <TableCell>{getPriorityBadge(row.priority)}</TableCell>
                           <TableCell>{row.pic}</TableCell>
                           <TableCell>{row.team}</TableCell>
