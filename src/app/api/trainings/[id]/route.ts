@@ -38,6 +38,7 @@ function serializeFull(t: Awaited<ReturnType<typeof fetchOne>>) {
       nik: p.nik,
       name: p.name,
       department: p.department,
+      bodLevel: p.bodLevel,
       trainingDate: formatDate(p.trainingDate),
       attendedHours: p.attendedHours,
     })),
