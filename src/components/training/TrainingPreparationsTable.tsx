@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CornerDownRight, CheckSquare, Square, Link as LinkIcon, Pencil, Trash2, Plus, X, MoreHorizontal } from "lucide-react";
+import { CornerDownRight, CheckSquare, Square, Link as LinkIcon, Pencil, Trash2, Plus, X, MoreHorizontal, Upload, FileSpreadsheet, FileUp, ChevronRight, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -25,6 +26,89 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
+
+interface ImportTaskRow {
+  activityName: string;
+  category: string;
+  dueDate: string;
+  priority: string;
+  pic: string;
+  team: string;
+  linkOutput: string;
+  note: string;
+  _errors: string[];
+}
+
+const TASK_CSV_HEADERS = ["Task Name", "Category", "Due Date", "Priority", "PIC", "Team", "Link Output", "Note"];
+
+function parseTaskExcel(buffer: ArrayBuffer): ImportTaskRow[] {
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const sheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json<any>(worksheet, { header: 1, raw: true });
+
+  if (rows.length < 2) return [];
+
+  const dataLines = rows.slice(1);
+
+  return dataLines.map((cols: any[]) => {
+    const activityName = (cols[0] || "").toString().trim();
+    const category = (cols[1] || "").toString().trim();
+    
+    let dueDate = "";
+    if (cols[2] instanceof Date) {
+      dueDate = cols[2].toISOString().split("T")[0];
+    } else if (typeof cols[2] === "number") {
+      const d = new Date(Math.round((cols[2] - 25569) * 86400 * 1000));
+      dueDate = d.toISOString().split("T")[0];
+    } else {
+      const str = (cols[2] || "").toString().trim();
+      if (str.includes("/") && str.split("/")[2]?.length === 4) {
+         const parts = str.split("/");
+         dueDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      } else {
+         dueDate = str;
+      }
+    }
+
+    const priority = (cols[3] || "Normal").toString().trim();
+    const pic = (cols[4] || "").toString().trim();
+    const team = (cols[5] || "").toString().trim();
+    const linkOutput = (cols[6] || "").toString().trim();
+    const note = (cols[7] || "").toString().trim();
+
+    const errors: string[] = [];
+    if (!activityName) errors.push("Task Name wajib diisi");
+    if (!category) errors.push("Category wajib diisi");
+    if (!dueDate) errors.push("Due Date wajib diisi");
+    if (!pic) errors.push("PIC wajib diisi");
+    if (!team) errors.push("Team wajib diisi");
+
+    return { 
+      activityName, 
+      category, 
+      dueDate, 
+      priority, 
+      pic, 
+      team, 
+      linkOutput, 
+      note, 
+      _errors: errors 
+    };
+  }).filter((row) => row.activityName || row._errors.length > 0);
+}
+
+function downloadTaskTemplate() {
+  const wsData = [
+    TASK_CSV_HEADERS,
+    ['Distribusi undangan peserta', 'Administrasi', '2026-06-03', 'Normal', 'Sari Dewi', 'HR', '-', 'Kirim via email'],
+    ['Setup ruangan & peralatan', 'Logistik', '2026-06-09', 'Urgent', 'Rendi Pratama', 'GA', '-', ''],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Template");
+  XLSX.writeFile(wb, "template_import_task.xlsx");
+}
 
 export interface Subtask {
   id: string;
@@ -172,6 +256,84 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
     linkOutput: "",
     note: "",
   });
+
+  // Import State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportTaskModalOpen, setIsImportTaskModalOpen] = useState(false);
+  const [importTaskStep, setImportTaskStep] = useState<"upload" | "preview" | "result">("upload");
+  const [importTaskRows, setImportTaskRows] = useState<ImportTaskRow[]>([]);
+  const [importTaskFileName, setImportTaskFileName] = useState("");
+  const [importTaskResult, setImportTaskResult] = useState<{ successCount: number; failed: { name: string; reason: string }[] } | null>(null);
+  const [importingTask, setImportingTask] = useState(false);
+  const [isDraggingTask, setIsDraggingTask] = useState(false);
+
+  const handleTaskFileSelect = (file: File) => {
+    if (!file.name.endsWith(".xlsx")) {
+      alert("Hanya file .xlsx yang didukung. Gunakan template yang disediakan.");
+      return;
+    }
+    setImportTaskFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const buffer = e.target?.result as ArrayBuffer;
+      const rows = parseTaskExcel(buffer);
+      setImportTaskRows(rows);
+      setImportTaskStep("preview");
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleTaskDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingTask(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleTaskFileSelect(file);
+  };
+
+  const handleConfirmImportTask = () => {
+    const validRows = importTaskRows.filter((r) => r._errors.length === 0);
+    if (validRows.length === 0) return;
+    setImportingTask(true);
+    
+    setTimeout(() => {
+      const newTasks: Subtask[] = validRows.map((r, index) => ({
+        id: `P-IMP-${Date.now()}-${index}`,
+        activityName: r.activityName,
+        category: r.category,
+        dueDate: r.dueDate,
+        priority: r.priority,
+        pic: r.pic,
+        team: r.team,
+        isCompleted: false,
+        progress: "0%",
+        linkOutput: r.linkOutput || "-",
+        note: r.note || "",
+      }));
+      
+      onChange([...preparations, ...newTasks]);
+      
+      setImportTaskResult({
+        successCount: validRows.length,
+        failed: importTaskRows.filter(r => r._errors.length > 0).map(r => ({
+          name: r.activityName,
+          reason: r._errors.join(", ")
+        }))
+      });
+      setImportTaskStep("result");
+      setImportingTask(false);
+    }, 500);
+  };
+
+  const closeImportTaskModal = () => {
+    setIsImportTaskModalOpen(false);
+    setImportTaskStep("upload");
+    setImportTaskRows([]);
+    setImportTaskFileName("");
+    setImportTaskResult(null);
+  };
+
+  const validTaskImportCount = importTaskRows.filter((r) => r._errors.length === 0).length;
+  const invalidTaskImportCount = importTaskRows.filter((r) => r._errors.length > 0).length;
 
   const handleOpenSubtaskModal = (mode: "add" | "edit" | "delete", subtask: Subtask | null = null) => {
     setSubtaskModalMode(mode);
@@ -330,15 +492,26 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
           )}
           <TableRow className="hover:bg-transparent">
             <TableCell colSpan={11} className="p-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="w-full text-sky hover:text-sky hover:bg-sky-light/10 justify-start border border-dashed border-sky-light/30"
-                onClick={() => handleOpenSubtaskModal("add")}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Tambah Sub-task Baru
-              </Button>
+              <div className="flex gap-2 w-full">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex-1 text-sky hover:text-sky hover:bg-sky-light/10 justify-center border border-dashed border-sky-light/30"
+                  onClick={() => handleOpenSubtaskModal("add")}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Tambah Sub-task Baru
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex-1 text-sky hover:text-sky hover:bg-sky-light/10 justify-center border border-dashed border-sky-light/30"
+                  onClick={() => setIsImportTaskModalOpen(true)}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import Task
+                </Button>
+              </div>
             </TableCell>
           </TableRow>
         </TableBody>
@@ -432,6 +605,174 @@ export default function TrainingPreparationsTable({ trainingId, preparations, on
                   <Button type="submit" className="bg-sky hover:bg-sky/90 text-surface">Simpan Sub-task</Button>
                 </div>
               </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Import Modal ──────────────────────────────────────────────────────── */}
+      {isImportTaskModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-4xl p-6 max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-xl font-bold text-navy flex items-center gap-2">
+                <FileUp className="h-5 w-5 text-sky" /> Import Task / Aktivitas Persiapan
+              </h3>
+              <Button variant="ghost" size="icon" onClick={closeImportTaskModal}><X className="h-5 w-5" /></Button>
+            </div>
+
+            <div className="flex items-center gap-2 mb-6 text-sm">
+              {[["upload", "Upload File"], ["preview", "Preview Data"], ["result", "Hasil Import"]].map(([step, label], i, arr) => (
+                <React.Fragment key={step}>
+                  <span className={`font-medium ${importTaskStep === step ? "text-sky" : importTaskStep === "result" || (importTaskStep === "preview" && step === "upload") ? "text-text-secondary" : "text-text-secondary/40"}`}>
+                    {label}
+                  </span>
+                  {i < arr.length - 1 && <ChevronRight className="h-4 w-4 text-text-secondary/40" />}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {importTaskStep === "upload" && (
+              <div className="flex-1 flex flex-col gap-4">
+                <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTaskFileSelect(f); e.target.value = ""; }} />
+
+                <div
+                  className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center gap-4 cursor-pointer transition-colors ${isDraggingTask ? "border-sky bg-sky/5" : "border-border hover:border-sky/50 hover:bg-muted/30"}`}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setIsDraggingTask(true); }}
+                  onDragLeave={() => setIsDraggingTask(false)}
+                  onDrop={handleTaskDrop}
+                >
+                  <div className="w-14 h-14 rounded-full bg-sky/10 flex items-center justify-center">
+                    <Upload className="h-7 w-7 text-sky" />
+                  </div>
+                  <div className="text-center">
+                    <p className="font-semibold text-navy">Klik untuk upload atau drag & drop</p>
+                    <p className="text-sm text-text-secondary mt-1">Hanya file <strong>.xlsx</strong> yang didukung</p>
+                  </div>
+                </div>
+
+                <div className="bg-muted/40 rounded-lg p-4 text-sm text-text-secondary space-y-1">
+                  <p className="font-medium text-navy text-xs uppercase tracking-wide mb-2">Format kolom yang diperlukan:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {TASK_CSV_HEADERS.map((h) => (
+                      <span key={h} className="bg-background border border-border rounded px-2 py-0.5 text-xs font-mono">{h}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <Button variant="outline" className="gap-2 w-fit text-sky border-sky/30 hover:bg-sky/5" onClick={downloadTaskTemplate}>
+                  <FileSpreadsheet className="h-4 w-4" /> Download Template Excel
+                </Button>
+              </div>
+            )}
+
+            {importTaskStep === "preview" && (
+              <div className="flex-1 flex flex-col gap-4 min-h-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-text-secondary">File: <strong className="text-navy">{importTaskFileName}</strong></span>
+                    <span className="flex items-center gap-1 text-success font-medium"><CheckCircle2 className="h-4 w-4" />{validTaskImportCount} valid</span>
+                    {invalidTaskImportCount > 0 && (
+                      <span className="flex items-center gap-1 text-danger font-medium"><AlertCircle className="h-4 w-4" />{invalidTaskImportCount} error</span>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-sky text-xs" onClick={() => { setImportTaskStep("upload"); setImportTaskRows([]); }}>
+                    Ganti File
+                  </Button>
+                </div>
+
+                <div className="overflow-auto flex-1 border rounded-lg">
+                  <Table>
+                    <TableHeader className="bg-muted/50 sticky top-0">
+                      <TableRow>
+                        <TableHead className="w-8">#</TableHead>
+                        <TableHead>Task Name</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Due Date</TableHead>
+                        <TableHead>Priority</TableHead>
+                        <TableHead>PIC</TableHead>
+                        <TableHead>Team</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Keterangan</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importTaskRows.map((row, i) => (
+                        <TableRow key={i} className={row._errors.length > 0 ? "bg-danger/5" : ""}>
+                          <TableCell className="text-text-secondary text-xs">{i + 1}</TableCell>
+                          <TableCell className="font-medium text-xs">{row.activityName || <span className="text-danger italic">kosong</span>}</TableCell>
+                          <TableCell>{row.category}</TableCell>
+                          <TableCell>{row.dueDate}</TableCell>
+                          <TableCell>{getPriorityBadge(row.priority)}</TableCell>
+                          <TableCell>{row.pic}</TableCell>
+                          <TableCell>{row.team}</TableCell>
+                          <TableCell>
+                            {row._errors.length === 0
+                              ? <Badge className="bg-success/10 text-success border-success/20 text-xs">Valid</Badge>
+                              : <Badge className="bg-danger/10 text-danger border-danger/20 text-xs">Error</Badge>
+                            }
+                          </TableCell>
+                          <TableCell className="text-xs text-danger">{row._errors.join(", ")}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {invalidTaskImportCount > 0 && (
+                  <p className="text-xs text-text-secondary">
+                    Baris dengan error akan dilewati. Hanya <strong>{validTaskImportCount} baris valid</strong> yang akan diimport.
+                  </p>
+                )}
+
+                <div className="flex justify-end gap-3 pt-2 border-t mt-2">
+                  <Button variant="outline" onClick={closeImportTaskModal}>Batal</Button>
+                  <Button
+                    className="bg-sky hover:bg-sky/90 text-white gap-2"
+                    disabled={validTaskImportCount === 0 || importingTask}
+                    onClick={handleConfirmImportTask}
+                  >
+                    {importingTask ? "Mengimport..." : `Import ${validTaskImportCount} Task`}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {importTaskStep === "result" && importTaskResult && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-6 py-4">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${importTaskResult.failed.length === 0 ? "bg-success/10" : "bg-warning/10"}`}>
+                  <CheckCircle2 className={`h-8 w-8 ${importTaskResult.failed.length === 0 ? "text-success" : "text-warning"}`} />
+                </div>
+                <div className="text-center">
+                  <h4 className="text-lg font-bold text-navy mb-1">Import Selesai</h4>
+                  <p className="text-text-secondary text-sm">
+                    <strong className="text-success">{importTaskResult.successCount} task</strong> berhasil ditambahkan
+                    {importTaskResult.failed.length > 0 && (
+                      <>, <strong className="text-danger">{importTaskResult.failed.length} baris dilewati</strong></>
+                    )}
+                  </p>
+                </div>
+
+                {importTaskResult.failed.length > 0 && (
+                  <div className="w-full bg-danger/5 border border-danger/20 rounded-lg p-4 text-sm mt-4">
+                    <p className="font-medium text-danger mb-2 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" /> Data yang dilewati:
+                    </p>
+                    <ul className="space-y-1 max-h-[150px] overflow-auto">
+                      {importTaskResult.failed.map((f, i) => (
+                        <li key={i} className="text-text-secondary">
+                          <span className="font-medium text-navy">{f.name || "(Kosong)"}</span>: {f.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <Button className="bg-sky hover:bg-sky/90 text-white mt-4" onClick={closeImportTaskModal}>
+                  Tutup & Kembali
+                </Button>
+              </div>
             )}
           </div>
         </div>

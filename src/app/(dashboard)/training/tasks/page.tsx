@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Clock, AlertTriangle, ListTodo, Filter, X, ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { calculateOverallProgress } from "@/lib/utils";
 
 function getStatusBadge(status: string) {
   switch (status) {
@@ -321,12 +322,24 @@ export default function TrainingTasksDashboard() {
                           <div key={trainingName}>
                             {/* Training Name Header Row */}
                             <div 
-                              className="bg-[#4b6073] text-white text-sm px-4 py-2 font-medium border-b border-[#3b4e5f] flex items-center cursor-pointer hover:bg-[#3b4e5f] transition-colors sticky left-0 z-20"
+                              className="bg-[#4b6073] text-white text-sm px-4 py-2 font-medium border-b border-[#3b4e5f] flex items-center justify-between cursor-pointer hover:bg-[#3b4e5f] transition-colors sticky left-0 z-20"
                               onClick={() => toggleTraining(trainingName)}
                             >
-                              {isCollapsed ? <ChevronRight className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
-                              {trainingName}
-                              {getStatusBadge(training.status)}
+                              <div className="flex items-center">
+                                {isCollapsed ? <ChevronRight className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
+                                {trainingName}
+                                {getStatusBadge(training.status)}
+                              </div>
+                              <div className="flex items-center gap-2 mr-4">
+                                <span className="text-xs text-white/80">Progres:</span>
+                                <div className="w-20 h-2 bg-black/20 rounded-full overflow-hidden shrink-0">
+                                  <div 
+                                    className="h-full bg-emerald-400 transition-all duration-500 ease-out" 
+                                    style={{ width: `${calculateOverallProgress(trainingTasks)}%` }} 
+                                  />
+                                </div>
+                                <span className="text-xs font-bold w-8 text-right">{calculateOverallProgress(trainingTasks)}%</span>
+                              </div>
                             </div>
                             
                             {!isCollapsed && (

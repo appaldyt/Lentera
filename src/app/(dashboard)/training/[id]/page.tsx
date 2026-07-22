@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { calculateOverallProgress } from "@/lib/utils";
 import TrainingPreparationsTable, { type Subtask } from "@/components/training/TrainingPreparationsTable";
 
 interface Participant {
@@ -399,10 +400,22 @@ const handleFileSelect = (file: File) => {
 
       {/* Preparations */}
       <Card className="border-border shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-2 gap-4">
           <div>
             <CardTitle className="text-lg text-navy">Aktivitas Persiapan</CardTitle>
             <CardDescription>Checklist task yang harus diselesaikan sebelum training dimulai.</CardDescription>
+          </div>
+          <div className="flex flex-col gap-1.5 w-full sm:w-48">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-navy">Progres Keseluruhan</span>
+              <span className="font-bold text-success">{calculateOverallProgress(training.preparations)}%</span>
+            </div>
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-success transition-all duration-500 ease-out" 
+                style={{ width: `${calculateOverallProgress(training.preparations)}%` }} 
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-6 sm:pt-0">

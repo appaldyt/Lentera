@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { cn, calculateOverallProgress } from "@/lib/utils";
 import TrainingPreparationsTable, { type Subtask } from "@/components/training/TrainingPreparationsTable";
 import * as XLSX from "xlsx";
 
@@ -500,19 +500,20 @@ export default function TrainingManagementPage() {
               <TableHead className="font-semibold text-navy">Penyelenggara</TableHead>
               <TableHead className="font-semibold text-navy">Tanggal</TableHead>
               <TableHead className="font-semibold text-navy">Status</TableHead>
+              <TableHead className="font-semibold text-navy w-32">Task Progress</TableHead>
               <TableHead className="text-right font-semibold text-navy">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
+                <TableCell colSpan={9} className="text-center py-8 text-text-secondary">
                   Memuat data...
                 </TableCell>
               </TableRow>
             ) : sortedTrainings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
+                <TableCell colSpan={9} className="text-center py-8 text-text-secondary">
                   {trainings.length === 0 ? "Belum ada data training." : "Tidak ada data yang sesuai dengan filter."}
                 </TableCell>
               </TableRow>
@@ -547,6 +548,19 @@ export default function TrainingManagementPage() {
                     <TableCell className="text-sm">{training.organizer || "-"}</TableCell>
                     <TableCell className="text-sm">{training.startDate}</TableCell>
                     <TableCell>{getStatusBadge(training.status)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
+                          <div 
+                            className="h-full bg-success transition-all duration-500 ease-out" 
+                            style={{ width: `${calculateOverallProgress(training.preparations)}%` }} 
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-text-secondary w-8 text-right">
+                          {calculateOverallProgress(training.preparations)}%
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -579,7 +593,7 @@ export default function TrainingManagementPage() {
 
                   {isExpanded && (
                     <TableRow className="bg-sky-light/5 hover:bg-sky-light/5 border-b">
-                      <TableCell colSpan={8} className="p-0 border-b">
+                      <TableCell colSpan={9} className="p-0 border-b">
                         <div className="bg-background">
                           <TrainingPreparationsTable
                             trainingId={training.id}
