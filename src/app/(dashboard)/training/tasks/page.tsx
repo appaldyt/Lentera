@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, AlertTriangle, ListTodo, Filter, X, ChevronDown, ChevronRight } from "lucide-react";
+import { CheckCircle2, Clock, AlertTriangle, ListTodo, Filter, X, ChevronDown, ChevronRight, ChevronUp, Maximize2, Minimize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { calculateOverallProgress } from "@/lib/utils";
@@ -89,11 +89,30 @@ export default function TrainingTasksDashboard() {
     });
   };
 
+  const uniqueTrainingNamesList = useMemo(() => {
+    return Array.from(new Set(tasks.map(t => t.training.name)));
+  }, [tasks]);
+
+  const isAllExpanded = collapsedTrainings.size === 0;
+
+  const toggleAllExpandCollapse = () => {
+    if (isAllExpanded) {
+      setCollapsedTrainings(new Set(uniqueTrainingNamesList));
+    } else {
+      setCollapsedTrainings(new Set());
+    }
+  };
+
   useEffect(() => {
     fetch("/api/training-tasks")
       .then((res) => res.json())
       .then((data) => {
-        setTasks(data.tasks || []);
+        const fetchedTasks = data.tasks || [];
+        setTasks(fetchedTasks);
+        
+        const uniqueTrainingNames = new Set<string>();
+        fetchedTasks.forEach((t: TrainingTask) => uniqueTrainingNames.add(t.training.name));
+        setCollapsedTrainings(uniqueTrainingNames);
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
@@ -130,12 +149,30 @@ export default function TrainingTasksDashboard() {
     uniqueYears.push(new Date().getFullYear().toString());
   }
 
-  // Gantt Chart Logic - 12 Months Fixed View
+  const [viewMode, setViewMode] = useState<"weeks" | "months" | "quarters">("months");
+
+  // Gantt Chart Logic - Dynamic Scale
   const targetYear = filterYear === "all" ? new Date().getFullYear() : parseInt(filterYear);
   const minDate = new Date(targetYear, 0, 1);
   const maxDate = new Date(targetYear, 11, 31, 23, 59, 59);
+  const totalYearMs = maxDate.getTime() - minDate.getTime();
   
-  const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const today = new Date();
+  const isTodayInYear = today.getFullYear() === targetYear;
+  const todayLeft = Math.max(0, Math.min(100, ((today.getTime() - minDate.getTime()) / totalYearMs) * 100));
+
+  const timelineHeaders = useMemo(() => {
+    if (viewMode === "months") {
+      return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map(label => ({ label }));
+    } else if (viewMode === "quarters") {
+      return ["Q1", "Q2", "Q3", "Q4"].map(label => ({ label }));
+    } else if (viewMode === "weeks") {
+      return Array.from({ length: 52 }).map((_, i) => ({ label: `W${i + 1}` }));
+    }
+    return [];
+  }, [viewMode]);
+
+  const timelineMinWidth = viewMode === "weeks" ? "min-w-[2500px]" : viewMode === "quarters" ? "min-w-[800px]" : "min-w-[1000px]";
 
   return (
     <div className="space-y-6">
@@ -145,6 +182,35 @@ export default function TrainingTasksDashboard() {
           <p className="text-sm text-text-secondary">Pantau seluruh persiapan training dan tenggat waktunya.</p>
         </div>
         <div className="flex items-center gap-2 relative">
+          <div className="flex bg-muted/50 p-1 rounded-lg border border-border mr-2">
+            <button 
+              onClick={() => setViewMode("weeks")} 
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "weeks" ? "bg-white shadow-sm text-sky" : "text-text-secondary hover:text-navy"}`}
+            >
+              Weeks
+            </button>
+            <button 
+              onClick={() => setViewMode("months")} 
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "months" ? "bg-white shadow-sm text-sky" : "text-text-secondary hover:text-navy"}`}
+            >
+              Months
+            </button>
+            <button 
+              onClick={() => setViewMode("quarters")} 
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "quarters" ? "bg-white shadow-sm text-sky" : "text-text-secondary hover:text-navy"}`}
+            >
+              Quarters
+            </button>
+          </div>
+          
+          <Button variant="outline" className="gap-2 text-text-secondary hover:text-navy" onClick={toggleAllExpandCollapse}>
+            {isAllExpanded ? (
+              <><Minimize2 className="h-3.5 w-3.5" /> Collapse All</>
+            ) : (
+              <><Maximize2 className="h-3.5 w-3.5" /> Expand All</>
+            )}
+          </Button>
+
           <Button variant="outline" className="gap-2" onClick={() => setIsFilterOpen(!isFilterOpen)}>
             <Filter className="h-4 w-4" /> Filter
           </Button>
@@ -279,7 +345,7 @@ export default function TrainingTasksDashboard() {
         </CardHeader>
         <CardContent>
           <div className="w-full overflow-x-auto pb-4">
-            <div className="min-w-[1000px]">
+            <div className={`${timelineMinWidth} transition-all duration-300`}>
               {loading ? (
                 <div className="h-[300px] flex items-center justify-center text-sm text-text-secondary">Memuat data timeline...</div>
               ) : filteredTasks.length === 0 ? (
@@ -288,13 +354,13 @@ export default function TrainingTasksDashboard() {
                 <div className="relative border border-border/50 rounded-lg bg-background mt-6 overflow-y-auto overflow-x-hidden max-h-[500px] scrollbar-thin">
                   {/* Table-like Header */}
                   <div className="flex bg-[#0f2842] text-white text-xs font-medium sticky top-0 z-30">
-                    <div className="w-[300px] flex-shrink-0 p-3 border-r border-[#1a3855] flex items-center justify-center">
+                    <div className="w-[300px] flex-shrink-0 p-3 border-r border-[#1a3855] flex items-center justify-center bg-[#0f2842] sticky left-0 z-40">
                       Task / Aktivitas
                     </div>
-                    <div className="flex-1 grid grid-cols-12">
-                      {MONTH_LABELS.map((m, i) => (
-                        <div key={m} className={`p-3 text-center border-[#1a3855] ${i !== 11 ? 'border-r' : ''}`}>
-                          {m}
+                    <div className="flex-1 flex">
+                      {timelineHeaders.map((col, i) => (
+                        <div key={i} className={`p-3 text-center border-[#1a3855] flex-1 ${i !== timelineHeaders.length - 1 ? 'border-r' : ''}`}>
+                          {col.label}
                         </div>
                       ))}
                     </div>
@@ -302,12 +368,24 @@ export default function TrainingTasksDashboard() {
 
                   {/* Body with Guidelines */}
                   <div className="relative">
-                    {/* 12 Columns Background Lines */}
-                    <div className="absolute inset-0 left-[300px] grid grid-cols-12 pointer-events-none opacity-10">
-                      {Array.from({ length: 12 }).map((_, i) => (
-                        <div key={i} className={`h-full border-border ${i !== 11 ? 'border-r' : ''}`} />
+                    {/* Columns Background Lines */}
+                    <div className="absolute inset-0 left-[300px] flex pointer-events-none opacity-10">
+                      {timelineHeaders.map((_, i) => (
+                        <div key={i} className={`flex-1 h-full border-border ${i !== timelineHeaders.length - 1 ? 'border-r' : ''}`} />
                       ))}
                     </div>
+
+                    {/* Today Marker */}
+                    {isTodayInYear && (
+                      <div className="absolute inset-0 left-[300px] pointer-events-none z-20">
+                        <div 
+                          className="absolute top-0 bottom-0 w-0.5 bg-sky-500/80" 
+                          style={{ left: `${todayLeft}%` }}
+                        >
+                          <div className="absolute top-0 -translate-x-1/2 w-2 h-2 rounded-full bg-sky-500" />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-0 relative z-10 pb-6">
                       {Array.from(new Map(filteredTasks.map(t => [t.training.name, t.training])).values())
@@ -324,15 +402,15 @@ export default function TrainingTasksDashboard() {
                           <div key={trainingName}>
                             {/* Training Name Header Row */}
                             <div 
-                              className="bg-[#4b6073] text-white text-sm px-4 py-2 font-medium border-b border-[#3b4e5f] flex items-center justify-between cursor-pointer hover:bg-[#3b4e5f] transition-colors sticky left-0 z-20"
+                              className="bg-[#4b6073] text-white text-sm px-4 py-2 font-medium border-b border-[#3b4e5f] flex items-center justify-between cursor-pointer hover:bg-[#3b4e5f] transition-colors sticky left-0 z-20 min-w-max w-full"
                               onClick={() => toggleTraining(trainingName)}
                             >
-                              <div className="flex items-center">
+                              <div className="flex items-center sticky left-4">
                                 {isCollapsed ? <ChevronRight className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
                                 {trainingName}
                                 {getStatusBadge(training.status)}
                               </div>
-                              <div className="flex items-center gap-2 mr-4">
+                              <div className="flex items-center gap-2 mr-4 sticky right-4">
                                 <span className="text-xs text-white/80">Progres:</span>
                                 <div className="w-20 h-2 bg-black/20 rounded-full overflow-hidden shrink-0">
                                   <div 
@@ -347,54 +425,46 @@ export default function TrainingTasksDashboard() {
                             {!isCollapsed && (
                               <div className="space-y-0">
                                 {trainingTasks.map((task) => {
-                                  const taskStart = new Date(task.createdAt).getTime();
-                                const taskEnd = new Date(task.dueDate).getTime();
-                                const left = Math.max(0, Math.min(100, ((taskStart - minDate.getTime()) / (maxDate.getTime() - minDate.getTime())) * 100));
-                                const right = Math.max(0, Math.min(100, ((taskEnd - minDate.getTime()) / (maxDate.getTime() - minDate.getTime())) * 100));
-                                const width = Math.max(1, right - left); // at least 1% wide
-                                const isOverdue = !task.isCompleted && new Date(task.dueDate) < new Date();
-                                
-                                let barColor = "bg-sky-500";
-                                if (task.isCompleted) barColor = "bg-emerald-500";
-                                else if (isOverdue) barColor = "bg-rose-500";
-                                else if (task.priority === "Urgent" || task.priority === "Important") barColor = "bg-amber-500";
+                                  // Timeline Bar Math
+                                  const taskStart = new Date(task.startDate || task.createdAt).getTime();
+                                  const taskEnd = new Date(task.dueDate).getTime();
+                                  const left = Math.max(0, Math.min(100, ((taskStart - minDate.getTime()) / totalYearMs) * 100));
+                                  const right = Math.max(0, Math.min(100, ((taskEnd - minDate.getTime()) / totalYearMs) * 100));
+                                  const width = Math.max(0.5, right - left); // Ensure it's at least visible
+                                  const isOverdue = !task.isCompleted && new Date(task.dueDate) < new Date();
+                                  
+                                  let barColor = "bg-sky-500";
+                                  if (task.isCompleted) barColor = "bg-emerald-500";
+                                  else if (isOverdue) barColor = "bg-rose-500";
+                                  else if (task.priority === "Urgent" || task.priority === "Important") barColor = "bg-amber-500";
 
-                                return (
-                                  <div key={task.id} className="flex group relative border-b border-border/40 hover:bg-slate-50/50">
-                                    {/* Task Label */}
-                                    <div className="w-[300px] flex-shrink-0 p-3 pr-2 flex items-center bg-white">
-                                      <p className="text-sm font-medium text-navy line-clamp-2" title={task.activityName}>
-                                        • {task.activityName}
-                                      </p>
+                                  return (
+                                    <div key={task.id} className="flex group relative border-b border-border/40 hover:bg-slate-50/50">
+                                      {/* Task Label */}
+                                      <div className="w-[300px] flex-shrink-0 p-3 pr-2 flex items-center bg-white border-r border-border/20 sticky left-0 z-10">
+                                        <p className="text-sm font-medium text-navy line-clamp-2" title={task.activityName}>
+                                          • {task.activityName}
+                                        </p>
+                                      </div>
+                                      
+                                      {/* Gantt Bar Area */}
+                                      <div className="flex-1 relative bg-transparent h-10">
+                                        <div 
+                                          className={`absolute h-6 rounded ${barColor} opacity-90 transition-all hover:opacity-100 shadow-sm flex items-center justify-center cursor-default z-10 top-2`}
+                                          style={{ left: `${left}%`, width: `${width}%` }}
+                                          title={`Start: ${task.startDate ? new Date(task.startDate).toLocaleDateString('id-ID') : '-'} | Due: ${new Date(task.dueDate).toLocaleDateString('id-ID')} | Estimasi: ${task.workHours || 0} Jam | Progres: ${task.progress}`}
+                                        >
+                                          {width > 3 && (
+                                            <span className="text-[10px] text-white font-medium px-1 truncate">
+                                              {task.progress}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                    
-                                    {/* Gantt Bar Area */}
-                                    <div className="flex-1 grid grid-cols-12 relative bg-transparent">
-                                      {Array.from({ length: 12 }).map((_, i) => {
-                                        const taskMonth = new Date(task.dueDate).getMonth();
-                                        const taskYear = new Date(task.dueDate).getFullYear();
-                                        const isMatch = taskMonth === i && taskYear === targetYear;
-                                        
-                                        return (
-                                          <div key={i} className="flex items-center justify-center py-2 relative h-10">
-                                            {isMatch && (
-                                              <div 
-                                                className={`h-6 w-12 rounded ${barColor} opacity-90 transition-all hover:opacity-100 shadow-sm flex items-center justify-center cursor-default z-10`}
-                                                title={`Start: ${task.startDate ? new Date(task.startDate).toLocaleDateString('id-ID') : '-'} | Due: ${new Date(task.dueDate).toLocaleDateString('id-ID')} | Estimasi: ${task.workHours || 0} Jam | Progres: ${task.progress}`}
-                                              >
-                                                <span className="text-[10px] text-white font-medium px-1 truncate">
-                                                  {task.progress}
-                                                </span>
-                                              </div>
-                                            )}
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
+                                  )
+                                })}
+                              </div>
                             )}
                           </div>
                         )
