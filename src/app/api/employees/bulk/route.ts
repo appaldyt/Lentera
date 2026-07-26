@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
           lob: emp.lob ?? "",
           bodLevel: emp.bodLevel ?? "",
           employeeStatus: emp.employeeStatus ?? "PKWTT",
+          isActive: emp.isActive !== undefined ? emp.isActive : true,
         },
         update: {
           name: emp.name,
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
           lob: emp.lob ?? "",
           bodLevel: emp.bodLevel ?? "",
           employeeStatus: emp.employeeStatus ?? "PKWTT",
+          isActive: emp.isActive !== undefined ? emp.isActive : true,
         },
       });
 

@@ -27,6 +27,7 @@ interface Employee {
   lob: string;
   employeeStatus: string;
   bodLevel?: string;
+  isActive: boolean;
 }
 
 interface ImportRow {
@@ -40,6 +41,7 @@ interface ImportRow {
   lob: string;
   bodLevel: string;
   employeeStatus: string;
+  isActive?: boolean;
   _errors: string[];
 }
 
@@ -47,10 +49,10 @@ const BOD_LEVELS = ["", "BOD", "BOD-1", "BOD-2", "BOD-3", "BOD-4", "BOD-5"];
 
 const EMPTY_FORM = {
   nik: "", name: "", division: "", position: "",
-  email: "", phone: "", workLocation: "CGK", lob: "", employeeStatus: "PKWTT", bodLevel: "",
+  email: "", phone: "", workLocation: "CGK", lob: "", employeeStatus: "PKWTT", bodLevel: "", isActive: true,
 };
 
-const IMPORT_HEADERS = ["NIK", "Nama Karyawan", "Divisi", "Jabatan", "BOD Level", "Email", "No. Telepon", "Lokasi Kerja", "LOB", "Status Karyawan"];
+const IMPORT_HEADERS = ["NIK", "Nama Karyawan", "Divisi", "Jabatan", "BOD Level", "Email", "No. Telepon", "Lokasi Kerja", "LOB", "Status Karyawan", "Aktif"];
 
 function parseXLSX(buffer: ArrayBuffer): ImportRow[] {
   const wb = XLSX.read(buffer, { type: "array" });
@@ -68,6 +70,8 @@ function parseXLSX(buffer: ArrayBuffer): ImportRow[] {
     const workLocation = String(row["Lokasi Kerja"] ?? "").trim();
     const lob = String(row["LOB"] ?? "").trim();
     const employeeStatus = String(row["Status Karyawan"] ?? "").trim() || "PKWTT";
+    const aktifStr = String(row["Aktif"] ?? "Aktif").trim().toLowerCase();
+    const isActive = aktifStr === "aktif" || aktifStr === "true" || aktifStr === "yes";
 
     const errors: string[] = [];
     if (!nik) errors.push("NIK wajib diisi");
@@ -77,14 +81,14 @@ function parseXLSX(buffer: ArrayBuffer): ImportRow[] {
     if (!division) errors.push("Divisi wajib diisi");
     if (!position) errors.push("Jabatan wajib diisi");
 
-    return { nik, name, division, position, bodLevel, email, phone, workLocation, lob, employeeStatus, _errors: errors };
+    return { nik, name, division, position, bodLevel, email, phone, workLocation, lob, employeeStatus, isActive, _errors: errors };
   }).filter((row) => row.nik || row.name || row.email);
 }
 
 function downloadTemplate() {
   const sampleData = [
-    { NIK: "IAS-2024-0001", "Nama Karyawan": "Nama Karyawan", Divisi: "Operations", Jabatan: "Staff", "BOD Level": "BOD-1", Email: "nama@ias.id", "No. Telepon": "0812-XXXX-XXXX", "Lokasi Kerja": "CGK", LOB: "Ground Handling", "Status Karyawan": "PKWTT" },
-    { NIK: "IAS-2024-0002", "Nama Karyawan": "Karyawan Dua", Divisi: "Finance", Jabatan: "Officer", "BOD Level": "", Email: "karyawan2@ias.id", "No. Telepon": "0813-XXXX-XXXX", "Lokasi Kerja": "SUB", LOB: "Food", "Status Karyawan": "PKWT" },
+    { NIK: "IAS-2024-0001", "Nama Karyawan": "Nama Karyawan", Divisi: "Operations", Jabatan: "Staff", "BOD Level": "BOD-1", Email: "nama@ias.id", "No. Telepon": "0812-XXXX-XXXX", "Lokasi Kerja": "CGK", LOB: "Ground Handling", "Status Karyawan": "PKWTT", Aktif: "Aktif" },
+    { NIK: "IAS-2024-0002", "Nama Karyawan": "Karyawan Dua", Divisi: "Finance", Jabatan: "Officer", "BOD Level": "", Email: "karyawan2@ias.id", "No. Telepon": "0813-XXXX-XXXX", "Lokasi Kerja": "SUB", LOB: "Food", "Status Karyawan": "PKWT", Aktif: "Non Aktif" },
   ];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(sampleData, { header: IMPORT_HEADERS });
@@ -103,6 +107,7 @@ export default function EmployeesPage() {
   const [filterJabatan, setFilterJabatan] = useState("");
   const [filterLokasi, setFilterLokasi] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
+  const [filterAktif, setFilterAktif] = useState("ALL");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -164,7 +169,7 @@ export default function EmployeesPage() {
   };
 
   const handleEdit = (emp: Employee) => {
-    setFormData({ nik: emp.nik, name: emp.name, division: emp.division, position: emp.position, email: emp.email, phone: emp.phone, workLocation: emp.workLocation, lob: emp.lob, employeeStatus: emp.employeeStatus, bodLevel: emp.bodLevel ?? "" });
+    setFormData({ nik: emp.nik, name: emp.name, division: emp.division, position: emp.position, email: emp.email, phone: emp.phone, workLocation: emp.workLocation, lob: emp.lob, employeeStatus: emp.employeeStatus, bodLevel: emp.bodLevel ?? "", isActive: emp.isActive ?? true });
     setEditId(emp.id);
     setIsModalOpen(true);
     setOpenActionId(null);
@@ -270,7 +275,8 @@ export default function EmployeesPage() {
       (filterDivisi === "" || emp.division.toLowerCase().includes(filterDivisi.toLowerCase())) &&
       (filterJabatan === "" || emp.position.toLowerCase().includes(filterJabatan.toLowerCase())) &&
       (filterLokasi === "" || emp.workLocation.toLowerCase().includes(filterLokasi.toLowerCase())) &&
-      (filterStatus === "ALL" || emp.employeeStatus === filterStatus)
+      (filterStatus === "ALL" || emp.employeeStatus === filterStatus) &&
+      (filterAktif === "ALL" || (filterAktif === "Aktif" ? emp.isActive : !emp.isActive))
     );
   });
 
@@ -301,6 +307,7 @@ export default function EmployeesPage() {
       "Lokasi Kerja": emp.workLocation,
       "LOB": emp.lob,
       "Status Karyawan": emp.employeeStatus,
+      "Aktif": emp.isActive ? "Aktif" : "Non Aktif",
     }));
 
     const wb = XLSX.utils.book_new();
@@ -368,9 +375,17 @@ export default function EmployeesPage() {
                     <option value="OS">OS</option>
                   </select>
                 </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-text-secondary">Status Aktif</label>
+                  <select className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" value={filterAktif} onChange={(e) => setFilterAktif(e.target.value)}>
+                    <option value="ALL">Semua</option>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Non Aktif">Non Aktif</option>
+                  </select>
+                </div>
               </div>
               <div className="flex gap-2 mt-6">
-                <Button variant="outline" className="flex-1" onClick={() => { setFilterDivisi(""); setFilterJabatan(""); setFilterLokasi(""); setFilterStatus("ALL"); }}>Clear</Button>
+                <Button variant="outline" className="flex-1" onClick={() => { setFilterDivisi(""); setFilterJabatan(""); setFilterLokasi(""); setFilterStatus("ALL"); setFilterAktif("ALL"); }}>Clear</Button>
                 <Button className="flex-1 bg-sky hover:bg-sky/90 text-white" onClick={() => setIsFilterOpen(false)}>Terapkan</Button>
               </div>
             </Card>
@@ -391,15 +406,16 @@ export default function EmployeesPage() {
             <TableHead>No. Telepon</TableHead>
             <TableHead>Lokasi Kerja</TableHead>
             <TableHead>LOB</TableHead>
+            <TableHead>Aktif</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loading ? (
-            <TableRow><TableCell colSpan={11} className="text-center py-10 text-text-secondary">Memuat data...</TableCell></TableRow>
+            <TableRow><TableCell colSpan={12} className="text-center py-10 text-text-secondary">Memuat data...</TableCell></TableRow>
           ) : filteredEmployees.length === 0 ? (
-            <TableRow><TableCell colSpan={11} className="text-center py-10 text-text-secondary">Tidak ada data karyawan ditemukan.</TableCell></TableRow>
+            <TableRow><TableCell colSpan={12} className="text-center py-10 text-text-secondary">Tidak ada data karyawan ditemukan.</TableCell></TableRow>
           ) : (
             paginatedEmployees.map((emp) => (
               <TableRow key={emp.id}>
@@ -420,6 +436,11 @@ export default function EmployeesPage() {
                 <TableCell>{emp.phone}</TableCell>
                 <TableCell>{emp.workLocation}</TableCell>
                 <TableCell>{emp.lob}</TableCell>
+                <TableCell>
+                  <Badge className={emp.isActive ? "bg-success text-white hover:bg-success/90" : "bg-muted text-text-secondary hover:bg-muted/90"}>
+                    {emp.isActive ? "Aktif" : "Non Aktif"}
+                  </Badge>
+                </TableCell>
                 <TableCell>{emp.employeeStatus}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -754,6 +775,13 @@ export default function EmployeesPage() {
                     <option value="PKWT">PKWT</option>
                     <option value="PKWTT">PKWTT</option>
                     <option value="OS">OS</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Status Aktif</label>
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky" value={formData.isActive ? "Aktif" : "Non Aktif"} onChange={(e) => setFormData({ ...formData, isActive: e.target.value === "Aktif" })}>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Non Aktif">Non Aktif</option>
                   </select>
                 </div>
               </div>

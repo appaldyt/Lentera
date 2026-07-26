@@ -9,7 +9,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { nik, name, division, position, email, phone, workLocation, lob, employeeStatus, bodLevel } =
+  const { nik, name, division, position, email, phone, workLocation, lob, employeeStatus, bodLevel, isActive } =
     await request.json();
 
   if (!nik || !name || !division || !position || !email) {
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       lob: lob ?? "",
       bodLevel: bodLevel ?? "",
       employeeStatus: employeeStatus ?? "PKWTT",
+      isActive: isActive !== undefined ? isActive : true,
     },
   });
 
