@@ -66,6 +66,7 @@ export async function GET(request: Request) {
       "No": idx + 1,
       "NIK": item.nik,
       "Nama Karyawan": item.name,
+      "BOD Level": item.bodLevel || "-",
       "Nama Training": item.training.name,
       "Job Family": item.training.jobFamilies.join(", "),
       "Tgl. Mulai": formatDate(item.training.startDate),

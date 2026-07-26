@@ -105,6 +105,7 @@ export default async function TrainingHistoryPage(props: {
               <TableRow>
                 <TableHead>NIK</TableHead>
                 <TableHead>Nama Karyawan</TableHead>
+                <TableHead>BOD Level</TableHead>
                 <TableHead>Nama Training</TableHead>
                 <TableHead>Job Family</TableHead>
                 <TableHead>Tgl. Mulai</TableHead>
@@ -125,6 +126,7 @@ export default async function TrainingHistoryPage(props: {
                   <TableRow key={item.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{item.nik}</TableCell>
                     <TableCell>{item.name}</TableCell>
+                    <TableCell>{item.bodLevel || "-"}</TableCell>
                     <TableCell className="max-w-[250px] truncate" title={item.training.name}>
                       {item.training.name}
                     </TableCell>
