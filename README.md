@@ -1,6 +1,6 @@
 # LENTERA 
 
-[https://iaslentera.web.id/]
+https://iaslentera.web.id/
 
 **Learning, Evaluation, Needs, Training & Employee Reporting Application**
 
