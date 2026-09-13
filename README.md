@@ -1,5 +1,7 @@
 # LENTERA 
 
+[https://iaslentera.web.id/]
+
 **Learning, Evaluation, Needs, Training & Employee Reporting Application**
 
 LENTERA adalah aplikasi web internal perusahaan yang dirancang untuk memonitor dan mengelola seluruh kegiatan training karyawan serta lisensi/sertifikasi yang dimiliki perusahaan secara terpusat.
