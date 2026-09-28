@@ -50,6 +50,7 @@ interface AnnualBudget {
   year: number;
   approvedDate: string;
   amount: number;
+  realizedAmount: number;
   link: string;
   notes: string;
 }
@@ -284,7 +285,7 @@ export default function FinancePage() {
   const [annualBudgets, setAnnualBudgets] = useState<AnnualBudget[]>([]);
   const [isAnnualModalOpen, setIsAnnualModalOpen] = useState(false);
   const [editingAnnualId, setEditingAnnualId] = useState<string | null>(null);
-  const [annualFormData, setAnnualFormData] = useState({ year: new Date().getFullYear(), approvedDate: '', amount: 0, link: '', notes: '' });
+  const [annualFormData, setAnnualFormData] = useState({ year: new Date().getFullYear(), approvedDate: '', amount: 0, realizedAmount: 0, link: '', notes: '' });
 
   const [isAnnualDeleteModalOpen, setIsAnnualDeleteModalOpen] = useState(false);
   const [deletingAnnualItem, setDeletingAnnualItem] = useState<AnnualBudget | null>(null);
@@ -493,6 +494,7 @@ export default function FinancePage() {
       year: item.year,
       approvedDate: item.approvedDate,
       amount: item.amount,
+      realizedAmount: item.realizedAmount || 0,
       link: item.link,
       notes: item.notes
     });
@@ -1044,7 +1046,7 @@ export default function FinancePage() {
         <TabsContent value="INDUK" className="space-y-6 mt-0">
           <div className="flex items-center justify-end">
             <Button className="bg-navy hover:bg-navy/90 text-surface gap-2" onClick={() => {
-              setAnnualFormData({ year: new Date().getFullYear(), approvedDate: '', amount: 0, link: '', notes: '' });
+              setAnnualFormData({ year: new Date().getFullYear(), approvedDate: '', amount: 0, realizedAmount: 0, link: '', notes: '' });
               setEditingAnnualId(null);
               setIsAnnualModalOpen(true);
             }}>
@@ -1061,6 +1063,7 @@ export default function FinancePage() {
                       <TableHead className="font-semibold text-text-secondary text-center w-24">Tahun</TableHead>
                       <TableHead className="font-semibold text-text-secondary">Tanggal Disetujui</TableHead>
                       <TableHead className="font-semibold text-text-secondary">Total Anggaran (Rp)</TableHead>
+                      <TableHead className="font-semibold text-text-secondary">Total Realisasi (Rp)</TableHead>
                       <TableHead className="font-semibold text-text-secondary">Link Perhitungan</TableHead>
                       <TableHead className="font-semibold text-text-secondary">Keterangan</TableHead>
                       <TableHead className="font-semibold text-text-secondary text-center w-24">Aksi</TableHead>
@@ -1068,13 +1071,17 @@ export default function FinancePage() {
                   </TableHeader>
                   <TableBody>
                     {annualBudgets.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="h-24 text-center text-text-secondary">Belum ada data anggaran induk yang diset.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="h-24 text-center text-text-secondary">Belum ada data anggaran induk yang diset.</TableCell></TableRow>
                     ) : (
-                      annualBudgets.sort((a,b) => b.year - a.year).map((item) => (
+                      annualBudgets.sort((a,b) => b.year - a.year).map((item) => {
+                        const calculatedRealization = budgets.filter(b => b.budgetYear === item.year).reduce((sum, b) => sum + b.actualAmount, 0);
+                        const itemRealization = item.realizedAmount > 0 ? item.realizedAmount : calculatedRealization;
+                        return (
                         <TableRow key={item.id} className="hover:bg-muted/30">
                           <TableCell className="text-center font-bold text-navy">{item.year}</TableCell>
                           <TableCell className="text-text-secondary">{item.approvedDate || "-"}</TableCell>
                           <TableCell className="font-semibold text-green-600">{formatCurrency(item.amount)}</TableCell>
+                          <TableCell className="font-semibold text-sky">{formatCurrency(itemRealization)}</TableCell>
                           <TableCell>
                             {item.link ? (
                               <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-sky hover:underline flex items-center gap-1 text-sm">
@@ -1109,7 +1116,8 @@ export default function FinancePage() {
                             </DropdownMenu>
                           </TableCell>
                         </TableRow>
-                      ))
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -1192,6 +1200,11 @@ export default function FinancePage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-text-primary">Total Anggaran (Rp)</label>
                   <Input type="number" required min={0} value={annualFormData.amount || ''} onChange={(e) => setAnnualFormData({...annualFormData, amount: parseInt(e.target.value) || 0})} placeholder="Misal: 4000000000" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-primary">Total Realisasi (Rp)</label>
+                  <Input type="number" min={0} value={annualFormData.realizedAmount || ''} onChange={(e) => setAnnualFormData({...annualFormData, realizedAmount: parseInt(e.target.value) || 0})} placeholder="Misal: 3500000000" />
+                  <p className="text-xs text-text-secondary">Anda dapat mengisi nilai ini secara manual. Jika dikosongkan, di tabel akan dihitung otomatis.</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-text-primary">Link Perhitungan Anggaran</label>

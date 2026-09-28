@@ -229,14 +229,15 @@ model License {
 }
 
 model AnnualBudget {
-  id           String   @id @default(cuid())
-  year         Int      @unique
-  approvedDate String   @default("")
-  amount       Float    @default(0)
-  link         String   @default("")
-  notes        String   @default("")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(cuid())
+  year           Int      @unique
+  approvedDate   String   @default("")
+  amount         Float    @default(0)
+  realizedAmount Float    @default(0)
+  link           String   @default("")
+  notes          String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Competency {

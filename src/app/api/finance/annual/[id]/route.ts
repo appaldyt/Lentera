@@ -8,7 +8,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { approvedDate, amount, link, notes, year } = body;
+    const { approvedDate, amount, realizedAmount, link, notes, year } = body;
 
     const budget = await prisma.annualBudget.update({
       where: { id: id },
@@ -16,6 +16,7 @@ export async function PUT(
         ...(year ? { year: year } : {}),
         approvedDate: approvedDate || "",
         amount: Number(amount) || 0,
+        realizedAmount: Number(realizedAmount) || 0,
         link: link || "",
         notes: notes || "",
       },

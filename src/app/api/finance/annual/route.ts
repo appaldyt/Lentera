@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { year, approvedDate, amount, link, notes } = body;
+    const { year, approvedDate, amount, realizedAmount, link, notes } = body;
 
     // Check if year already exists
     const existing = await prisma.annualBudget.findUnique({
@@ -35,6 +35,7 @@ export async function POST(req: Request) {
         year,
         approvedDate: approvedDate || "",
         amount: Number(amount) || 0,
+        realizedAmount: Number(realizedAmount) || 0,
         link: link || "",
         notes: notes || "",
       },

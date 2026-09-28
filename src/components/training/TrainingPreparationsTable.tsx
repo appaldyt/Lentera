@@ -123,8 +123,36 @@ function parseTaskExcel(buffer: ArrayBuffer): ImportTaskRow[] {
 function downloadTaskTemplate() {
   const wsData = [
     TASK_CSV_HEADERS,
-    ['Distribusi undangan peserta', 'Administrasi', '2026-06-01', '2026-06-03', 4, 'Normal', 'Sari Dewi', 'HR', '-', 'Kirim via email'],
-    ['Setup ruangan & peralatan', 'Logistik', '2026-06-08', '2026-06-09', 16, 'Urgent', 'Rendi Pratama', 'GA', '-', ''],
+    ['Analisis Kebutuhan Program', 'PROGRAM INITIATION', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Program Design', 'PROGRAM INITIATION', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Penyusunan Proposal Program', 'PROGRAM INITIATION', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Approval Program', 'PROGRAM INITIATION', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Identifikasi Partnership', 'PARTNERSHIP', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Initial Meeting', 'PARTNERSHIP', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Penyusunan Konsep Collaboration', 'PARTNERSHIP', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Approval Collaboration', 'PARTNERSHIP', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Finalisasi MoU', 'PARTNERSHIP', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Penandatanganan Partnership', 'PARTNERSHIP', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Participant Management', 'PARTICIPANT MANAGEMENT', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['Permintaan Data Peserta ke HCBP', 'PARTICIPANT MANAGEMENT', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Seleksi Vendor / SME', 'VENDOR MANAGEMENT', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM & LO', 'IAS ACA', '-', ''],
+    ['Vendor Searching & Benchmarking', 'VENDOR MANAGEMENT', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM & LO', 'IAS ACA', '-', ''],
+    ['Finalisasi Vendor', 'VENDOR MANAGEMENT', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM & LO', 'IAS ACA', '-', ''],
+    ['Penerbitan SPK', 'VENDOR MANAGEMENT', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM & LO', 'IAS ACA', '-', ''],
+    ['Administrasi Program (PM)', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM', 'IAS ACA', '-', ''],
+    ['RAB & Kontrol Anggaran', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Surat Keikutsertaan Peserta', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Persiapan Venue', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Persiapan Logistik & Dukungan', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Persiapan Desain & Branding', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Bahan Pembelajaran di Kelas', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Kesiapan Ruangan', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Kesiapan Elektronik', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Konsumsi', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['K3K (Kesehatan, Keselamatan & Keamanan)', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Final Preparation', 'ADMINISTRASI & OPERASIONAL', '2026-08-05', '2026-08-21', 0, 'Normal', 'LO', 'IAS ACA', '-', ''],
+    ['Monitoring Pelaksanaan', 'MONITORING PELAKSANAAN', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM & LO', 'IAS ACA', '-', ''],
+    ['Evaluasi Program', 'EVALUASI', '2026-08-05', '2026-08-21', 0, 'Normal', 'PM & LO', 'IAS ACA', '-', '']
   ];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   const wb = XLSX.utils.book_new();
@@ -171,7 +199,7 @@ function SortableRow({ prep, index, isNestedView, toggleSubtaskCompletion, updat
           {isNestedView ? <CornerDownRight className="h-4 w-4" /> : index + 1}
         </div>
       </TableCell>
-      <TableCell className={cn("font-medium max-w-[200px] truncate", prep.isCompleted ? "text-text-secondary line-through" : "text-navy")}>
+      <TableCell className={cn("font-medium min-w-[200px]", prep.isCompleted ? "text-text-secondary line-through" : "text-navy")}>
         {prep.activityName}
       </TableCell>
       <TableCell className="text-text-secondary text-sm">{prep.category}</TableCell>
