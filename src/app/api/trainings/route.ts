@@ -41,6 +41,7 @@ function serializeTraining(t: Awaited<ReturnType<typeof fetchTrainings>>[number]
       nik: p.nik,
       name: p.name,
       department: p.department,
+      bodLevel: p.bodLevel,
       trainingDate: formatDate(p.trainingDate),
       attendedHours: p.attendedHours,
     })),
