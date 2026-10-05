@@ -25,6 +25,7 @@ model User {
   updatedAt DateTime  @updatedAt
 
   evaluatedParticipants TrainingParticipant[]
+  participantEvaluators ParticipantEvaluator[]
   evaluationResponses   EvaluationResponse[]
 }
 
@@ -55,6 +56,12 @@ model Training {
   evaluationQuestions EvaluationQuestion[]
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
+
+  // Pengaturan Evaluasi
+  evaluationMode    String @default("SUPERVISOR_ONLY")
+  weightSupervisor  Int    @default(100)
+  weightPeer        Int    @default(0)
+  weightSubordinate Int    @default(0)
 }
 
 model TrainingPreparation {
@@ -94,10 +101,27 @@ model TrainingParticipant {
   evaluationStatus String   @default("BELUM_DITUGASKAN") // BELUM_DITUGASKAN, MENUNGGU_EVALUASI, SELESAI
   evaluationSentAt DateTime?
 
+  participantEvaluators ParticipantEvaluator[]
   evaluationResponses EvaluationResponse[]
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model ParticipantEvaluator {
+  id            String              @id @default(cuid())
+  participantId String
+  participant   TrainingParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  evaluatorId   String
+  evaluator     User                @relation(fields: [evaluatorId], references: [id])
+  
+  role          String              // "ATASAN", "REKAN", "BAWAHAN"
+  status        String              @default("BELUM_DITUGASKAN") // BELUM_DITUGASKAN, MENUNGGU_EVALUASI, SELESAI
+  
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([participantId, evaluatorId])
 }
 
 model Employee {

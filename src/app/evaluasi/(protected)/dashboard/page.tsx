@@ -93,7 +93,10 @@ export default function EvaluasiDashboardPage() {
                     {evalData.status === 'PENDING' ? <ClipboardList className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-navy">{evalData.employeeName}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-navy leading-none">{evalData.employeeName}</h3>
+                      <Badge variant="outline" className="text-[10px] h-5 px-1.5 leading-none">{evalData.role}</Badge>
+                    </div>
                     <p className="text-sm text-text-secondary mb-1">{evalData.position}</p>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-text-secondary">
                       <span className="flex items-center gap-1 font-medium">
@@ -125,9 +128,11 @@ export default function EvaluasiDashboardPage() {
                       </Button>
                     </Link>
                   ) : (
-                    <Button size="sm" variant="outline" disabled>
-                      Sudah Diisi
-                    </Button>
+                    <Link href={`/evaluasi/form/${evalData.id}`}>
+                      <Button size="sm" variant="outline" className="border-slate-300 text-slate-700 hover:bg-slate-100">
+                        Lihat Hasil
+                      </Button>
+                    </Link>
                   )}
                 </div>
               </div>

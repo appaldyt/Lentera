@@ -20,6 +20,10 @@ function serializeFull(t: Awaited<ReturnType<typeof fetchOne>>) {
     duration: t.duration,
     cost: t.cost,
     status: t.status,
+    evaluationMode: t.evaluationMode,
+    weightSupervisor: t.weightSupervisor,
+    weightPeer: t.weightPeer,
+    weightSubordinate: t.weightSubordinate,
     preparations: t.preparations.map((p) => ({
       id: p.id,
       activityName: p.activityName,
@@ -71,6 +75,7 @@ export async function PUT(request: NextRequest, { params }: Ctx) {
     const {
       name, description, jobFamilies, classification, trainingType, organizer, room,
       startDate, endDate, duration, cost, status,
+      evaluationMode, weightSupervisor, weightPeer, weightSubordinate
     } = body;
 
     const training = await prisma.training.update({
@@ -90,6 +95,10 @@ export async function PUT(request: NextRequest, { params }: Ctx) {
         duration,
         cost,
         status,
+        evaluationMode,
+        weightSupervisor,
+        weightPeer,
+        weightSubordinate,
       },
       include: {
         preparations: { orderBy: { order: "asc" } },

@@ -31,6 +31,10 @@ interface Training {
   duration: string;
   cost: string;
   status: string;
+  evaluationMode: string;
+  weightSupervisor: number;
+  weightPeer: number;
+  weightSubordinate: number;
   preparations: Subtask[];
   participants: {
     id: string;
@@ -61,6 +65,7 @@ function getTypeBadge(type: string) {
 const emptyForm = {
   name: "", description: "", jobFamilies: "", classification: "", trainingType: "MANDATORY",
   organizer: "", room: "", startDate: "", endDate: "", duration: "", cost: "", status: "PLANNING",
+  evaluationMode: "SUPERVISOR_ONLY", weightSupervisor: 100, weightPeer: 0, weightSubordinate: 0,
 };
 
 export default function TrainingManagementPage() {
@@ -128,6 +133,10 @@ export default function TrainingManagementPage() {
         duration: training.duration,
         cost: training.cost,
         status: training.status,
+        evaluationMode: training.evaluationMode ?? "SUPERVISOR_ONLY",
+        weightSupervisor: training.weightSupervisor ?? 100,
+        weightPeer: training.weightPeer ?? 0,
+        weightSubordinate: training.weightSubordinate ?? 0,
       });
     } else {
       setEditingId(null);
@@ -602,6 +611,9 @@ export default function TrainingManagementPage() {
                               <TabsTrigger value="task" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-sky data-[state=active]:shadow-none rounded-none h-full px-6 gap-2 text-sm font-medium">
                                 Task Preparation
                               </TabsTrigger>
+                              <TabsTrigger value="participants" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-sky data-[state=active]:shadow-none rounded-none h-full px-6 gap-2 text-sm font-medium">
+                                Daftar Peserta
+                              </TabsTrigger>
                               <TabsTrigger value="questions" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-sky data-[state=active]:shadow-none rounded-none h-full px-6 gap-2 text-sm font-medium">
                                 Pertanyaan Khusus
                               </TabsTrigger>
@@ -614,8 +626,46 @@ export default function TrainingManagementPage() {
                                 isNestedView={true}
                               />
                             </TabsContent>
+                            <TabsContent value="participants" className="m-0 border-0 p-6">
+                              <div className="bg-white border rounded-md">
+                                <Table>
+                                  <TableHeader className="bg-muted/50">
+                                    <TableRow>
+                                      <TableHead className="font-semibold text-navy">NIK</TableHead>
+                                      <TableHead className="font-semibold text-navy">Nama Karyawan</TableHead>
+                                      <TableHead className="font-semibold text-navy">Divisi</TableHead>
+                                      <TableHead className="font-semibold text-navy">BOD Level</TableHead>
+                                      <TableHead className="font-semibold text-navy">Tanggal Training</TableHead>
+                                      <TableHead className="font-semibold text-navy">Jam Kehadiran</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {training.participants?.length > 0 ? (
+                                      training.participants.map((par: any) => (
+                                        <TableRow key={par.id}>
+                                          <TableCell className="font-medium text-navy">{par.nik}</TableCell>
+                                          <TableCell>{par.name}</TableCell>
+                                          <TableCell>
+                                            <Badge variant="outline" className="font-normal bg-background">{par.department}</Badge>
+                                          </TableCell>
+                                          <TableCell>{par.bodLevel || "-"}</TableCell>
+                                          <TableCell>{par.trainingDate}</TableCell>
+                                          <TableCell>{par.attendedHours} Jam</TableCell>
+                                        </TableRow>
+                                      ))
+                                    ) : (
+                                      <TableRow>
+                                        <TableCell colSpan={6} className="h-24 text-center text-text-secondary">
+                                          Belum ada peserta yang terdaftar.
+                                        </TableCell>
+                                      </TableRow>
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </TabsContent>
                             <TabsContent value="questions" className="m-0 border-0 p-6">
-                              <TrainingSpecificQuestions trainingId={training.id} />
+                              <TrainingSpecificQuestions training={training} />
                             </TabsContent>
                           </Tabs>
                         </div>
@@ -782,7 +832,7 @@ export default function TrainingManagementPage() {
                     <label className="text-sm font-medium text-text-secondary">Biaya</label>
                     <Input required value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="Contoh: Rp 15.000.000" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 col-span-2">
                     <label className="text-sm font-medium text-text-secondary">Status Training</label>
                     <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
                       value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
@@ -792,10 +842,63 @@ export default function TrainingManagementPage() {
                       <option value="CANCELLED">Cancelled</option>
                     </select>
                   </div>
+                  
+                  {/* PENGATURAN EVALUASI */}
+                  <div className="col-span-2 pt-4 pb-2 border-t mt-2">
+                    <h4 className="font-semibold text-navy mb-3">Pengaturan Evaluasi Pasca-Pelatihan</h4>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-text-secondary">Metode Evaluasi</label>
+                        <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
+                          value={formData.evaluationMode} 
+                          onChange={(e) => {
+                            const newMode = e.target.value;
+                            setFormData({
+                              ...formData, 
+                              evaluationMode: newMode,
+                              weightSupervisor: newMode === "SUPERVISOR_ONLY" ? 100 : formData.weightSupervisor,
+                              weightPeer: newMode === "SUPERVISOR_ONLY" ? 0 : formData.weightPeer,
+                              weightSubordinate: newMode === "SUPERVISOR_ONLY" ? 0 : formData.weightSubordinate
+                            });
+                          }}>
+                          <option value="SUPERVISOR_ONLY">Hanya Atasan (Supervisor Only)</option>
+                          <option value="360_DEGREE">360 Derajat (Atasan, Rekan, Bawahan)</option>
+                        </select>
+                      </div>
+
+                      {formData.evaluationMode === "360_DEGREE" && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-md border">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-text-secondary">Bobot Atasan (%)</label>
+                            <Input type="number" min="0" max="100" value={formData.weightSupervisor} 
+                              onChange={(e) => setFormData({ ...formData, weightSupervisor: parseInt(e.target.value) || 0 })} />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-text-secondary">Bobot Rekan (%)</label>
+                            <Input type="number" min="0" max="100" value={formData.weightPeer} 
+                              onChange={(e) => setFormData({ ...formData, weightPeer: parseInt(e.target.value) || 0 })} />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-text-secondary">Bobot Bawahan (%)</label>
+                            <Input type="number" min="0" max="100" value={formData.weightSubordinate} 
+                              onChange={(e) => setFormData({ ...formData, weightSubordinate: parseInt(e.target.value) || 0 })} />
+                          </div>
+                          
+                          {((formData.weightSupervisor + formData.weightPeer + formData.weightSubordinate) !== 100) && (
+                            <div className="col-span-3 text-xs text-danger font-medium mt-1">
+                              Total bobot harus 100% (Saat ini: {formData.weightSupervisor + formData.weightPeer + formData.weightSubordinate}%)
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-3 mt-8">
                   <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Batal</Button>
-                  <Button type="submit" disabled={saving} className="bg-sky hover:bg-sky/90 text-surface">
+                  <Button type="submit" 
+                    disabled={saving || (formData.evaluationMode === "360_DEGREE" && (formData.weightSupervisor + formData.weightPeer + formData.weightSubordinate !== 100))} 
+                    className="bg-sky hover:bg-sky/90 text-surface">
                     {saving ? "Menyimpan..." : modalMode === "add" ? "Simpan Data" : "Update Data"}
                   </Button>
                 </div>

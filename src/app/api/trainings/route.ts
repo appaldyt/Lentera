@@ -17,6 +17,10 @@ function serializeTraining(t: Awaited<ReturnType<typeof fetchTrainings>>[number]
     duration: t.duration,
     cost: t.cost,
     status: t.status,
+    evaluationMode: t.evaluationMode,
+    weightSupervisor: t.weightSupervisor,
+    weightPeer: t.weightPeer,
+    weightSubordinate: t.weightSubordinate,
     preparations: t.preparations.map((p) => ({
       id: p.id,
       activityName: p.activityName,
@@ -63,6 +67,7 @@ export async function POST(request: NextRequest) {
   const {
     name, description, jobFamilies, classification, trainingType, organizer, room,
     startDate, endDate, duration, cost, status,
+    evaluationMode, weightSupervisor, weightPeer, weightSubordinate
   } = body;
 
   if (!name || !organizer || !room || !startDate) {
@@ -85,6 +90,10 @@ export async function POST(request: NextRequest) {
       duration: duration ?? "",
       cost: cost ?? "",
       status: status ?? "PLANNING",
+      evaluationMode: evaluationMode ?? "SUPERVISOR_ONLY",
+      weightSupervisor: weightSupervisor ?? 100,
+      weightPeer: weightPeer ?? 0,
+      weightSubordinate: weightSubordinate ?? 0,
     },
     include: { preparations: true, participants: true },
   });

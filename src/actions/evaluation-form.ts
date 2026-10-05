@@ -21,11 +21,22 @@ export async function getEvaluationFormData(participantId: string) {
     // Fetch participant
     const participant = await prisma.trainingParticipant.findUnique({
       where: { id: participantId },
-      include: { training: true }
+      include: { training: true, participantEvaluators: true }
     });
 
     if (!participant) return { error: "Peserta tidak ditemukan" };
-    if (participant.evaluatorId !== evaluatorId) return { error: "Anda tidak berhak mengevaluasi peserta ini" };
+
+    const is360 = participant.training.evaluationMode === "360_DEGREE";
+    let evaluatorRole = "ATASAN";
+
+    if (is360) {
+      const pe = participant.participantEvaluators.find(p => p.evaluatorId === evaluatorId);
+      if (!pe) return { error: "Anda tidak berhak mengevaluasi peserta ini" };
+      evaluatorRole = pe.role;
+    } else {
+      if (participant.evaluatorId !== evaluatorId) return { error: "Anda tidak berhak mengevaluasi peserta ini" };
+    }
+
     const existingResponse = await prisma.evaluationResponse.findUnique({
       where: {
         participantId_evaluatorId: {
@@ -48,7 +59,7 @@ export async function getEvaluationFormData(participantId: string) {
       orderBy: { order: 'asc' }
     });
 
-    return { participant, questions, evaluatorId, existingResponse };
+    return { participant, questions, evaluatorId, evaluatorRole, existingResponse };
   } catch (error) {
     console.error("Failed to load evaluation form data", error);
     return { error: "Terjadi kesalahan server" };
@@ -101,11 +112,39 @@ export async function submitEvaluationResponse(data: {
         });
       }
 
-      // 4. Update Participant Status
-      await tx.trainingParticipant.update({
+      // 4. Update Participant Status and ParticipantEvaluator status
+      const participant = await tx.trainingParticipant.findUnique({
         where: { id: data.participantId },
-        data: { evaluationStatus: "SELESAI_DIEVALUASI" }
+        include: { training: true, participantEvaluators: true }
       });
+
+      const is360 = participant?.training?.evaluationMode === "360_DEGREE";
+
+      if (is360) {
+        // Update specific evaluator status
+        await tx.participantEvaluator.updateMany({
+          where: { participantId: data.participantId, evaluatorId: data.evaluatorId },
+          data: { status: "SELESAI_DIEVALUASI" }
+        });
+
+        // Check if all evaluators are done
+        const allEvaluators = await tx.participantEvaluator.findMany({
+          where: { participantId: data.participantId }
+        });
+        const allDone = allEvaluators.every(pe => pe.status === "SELESAI_DIEVALUASI" || (pe.evaluatorId === data.evaluatorId)); 
+        
+        if (allDone) {
+          await tx.trainingParticipant.update({
+            where: { id: data.participantId },
+            data: { evaluationStatus: "SELESAI_DIEVALUASI" }
+          });
+        }
+      } else {
+        await tx.trainingParticipant.update({
+          where: { id: data.participantId },
+          data: { evaluationStatus: "SELESAI_DIEVALUASI" }
+        });
+      }
     });
 
     revalidatePath("/evaluasi/dashboard");

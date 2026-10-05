@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getParticipantsForEvaluation, assignEvaluator, sendEvaluationForm } from "@/actions/evaluation-assignments";
+import { getParticipantsForEvaluation, assignEvaluator, assignMultipleEvaluators, sendEvaluationForm } from "@/actions/evaluation-assignments";
 import { getEvaluators } from "@/actions/evaluation-users";
 import { useEffect } from "react";
 
@@ -40,8 +40,17 @@ type Participant = {
   training: string;
   dateEnded: string;
   masaTraining: string;
+  evaluationMode: string;
   evaluatorId: string | null;
   evaluatorName: string;
+  evaluators: {
+    id: string;
+    evaluatorId: string;
+    nik: string | null;
+    name: string;
+    role: string;
+    status: string;
+  }[];
   status: string;
   isSent: boolean;
 };
@@ -72,6 +81,9 @@ export default function EvaluasiAssignmentsPage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [participantToSend, setParticipantToSend] = useState<Participant | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  const [assignedEvaluators, setAssignedEvaluators] = useState<{id: string, nik: string | null, name: string, role: string}[]>([]);
+  const [selectedRole, setSelectedRole] = useState("ATASAN");
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -117,9 +129,16 @@ export default function EvaluasiAssignmentsPage() {
 
   const handleOpenDialog = (participant: Participant) => {
     setSelectedParticipant(participant);
-    setSelectedEvaluatorId(participant.evaluatorId || "");
-    const existingEv = evaluators.find(e => e.id === participant.evaluatorId);
-    setNikInput(existingEv?.nik || "");
+    setNikInput("");
+    setSelectedEvaluatorId("");
+    setSelectedRole("ATASAN");
+    if (participant.evaluationMode === "360_DEGREE") {
+      setAssignedEvaluators(participant.evaluators.map(e => ({ id: e.evaluatorId, nik: e.nik, name: e.name, role: e.role })));
+    } else {
+      setSelectedEvaluatorId(participant.evaluatorId || "");
+      const existingEv = evaluators.find(e => e.id === participant.evaluatorId);
+      setNikInput(existingEv?.nik || "");
+    }
     setIsDialogOpen(true);
   };
 
@@ -138,11 +157,45 @@ export default function EvaluasiAssignmentsPage() {
     }
   };
 
+  const handleAddEvaluator = () => {
+    if (!selectedEvaluatorId) return;
+    const evaluator = evaluators.find(e => e.id === selectedEvaluatorId);
+    if (!evaluator) return;
+    
+    if (assignedEvaluators.some(a => a.id === selectedEvaluatorId)) {
+        alert("Evaluator ini sudah ditambahkan.");
+        return;
+    }
+    setAssignedEvaluators([...assignedEvaluators, { id: selectedEvaluatorId, nik: evaluator.nik, name: evaluator.name, role: selectedRole }]);
+    setNikInput("");
+    setSelectedEvaluatorId("");
+  };
+
+  const handleRemoveEvaluator = (id: string) => {
+    setAssignedEvaluators(assignedEvaluators.filter(a => a.id !== id));
+  };
+
   const handleAssign = async () => {
-    if (!selectedParticipant || !selectedEvaluatorId) return;
+    if (!selectedParticipant) return;
     
     setIsProcessing(true);
-    const result = await assignEvaluator(selectedParticipant.id, selectedEvaluatorId);
+    let result;
+    if (selectedParticipant.evaluationMode === "360_DEGREE") {
+      if (assignedEvaluators.length === 0) {
+        alert("Minimal pilih 1 evaluator.");
+        setIsProcessing(false);
+        return;
+      }
+      const payload = assignedEvaluators.map(a => ({ evaluatorId: a.id, role: a.role }));
+      result = await assignMultipleEvaluators(selectedParticipant.id, payload);
+    } else {
+      if (!selectedEvaluatorId) {
+         setIsProcessing(false);
+         return;
+      }
+      result = await assignMultipleEvaluators(selectedParticipant.id, [{ evaluatorId: selectedEvaluatorId, role: "ATASAN" }]);
+    }
+    
     if (result && !result.success) {
       alert(result.error);
     } else {
@@ -305,23 +358,40 @@ export default function EvaluasiAssignmentsPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-4">
-                      {data.evaluatorName === "Belum Dievaluasi" ? (
-                        <Badge variant="outline" className="bg-warning/10 text-warning-dark border-warning/20">
-                          Belum Dievaluasi
-                        </Badge>
+                      {data.evaluationMode === "360_DEGREE" ? (
+                        data.evaluators.length === 0 ? (
+                          <Badge variant="outline" className="bg-warning/10 text-warning-dark border-warning/20">
+                            Belum Dievaluasi
+                          </Badge>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            {data.evaluators.map((ev, idx) => (
+                              <div key={idx} className="flex flex-col gap-0.5">
+                                <span className="text-xs font-semibold text-text-secondary">{ev.role === "ATASAN" ? "Atasan" : ev.role === "REKAN" ? "Rekan" : "Bawahan"}</span>
+                                <span className="font-medium text-navy text-sm">{ev.nik ? `${ev.nik} - ${ev.name}` : ev.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )
                       ) : (
-                        <span className="font-medium text-navy">{data.evaluatorName}</span>
+                        data.evaluatorName === "Belum Dievaluasi" ? (
+                          <Badge variant="outline" className="bg-warning/10 text-warning-dark border-warning/20">
+                            Belum Dievaluasi
+                          </Badge>
+                        ) : (
+                          <span className="font-medium text-navy">{data.evaluatorName}</span>
+                        )
                       )}
                     </td>
                     <td className="px-4 py-4 text-right">
-                      {data.evaluatorName === "Belum Dievaluasi" ? (
+                      {(data.evaluationMode === "360_DEGREE" ? data.evaluators.length === 0 : data.evaluatorName === "Belum Dievaluasi") ? (
                         <Button 
                           size="sm" 
                           className="bg-sky hover:bg-sky-dark text-surface gap-2"
                           onClick={() => handleOpenDialog(data)}
                         >
                           <UserPlus className="h-4 w-4" />
-                          Pilih Atasan
+                          {data.evaluationMode === "360_DEGREE" ? "Tugaskan Evaluator" : "Pilih Atasan"}
                         </Button>
                       ) : (
                         <div className="flex justify-end items-center gap-2">
@@ -407,7 +477,9 @@ export default function EvaluasiAssignmentsPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px] p-6">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl font-bold text-navy">Pilih Atasan</DialogTitle>
+            <DialogTitle className="text-xl font-bold text-navy">
+              {selectedParticipant?.evaluationMode === "360_DEGREE" ? "Tugaskan Evaluator" : "Pilih Atasan"}
+            </DialogTitle>
             <DialogDescription className="sr-only">
               Form untuk menugaskan atasan yang akan mengevaluasi peserta training.
             </DialogDescription>
@@ -417,54 +489,87 @@ export default function EvaluasiAssignmentsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               <div className="space-y-1.5">
                 <span className="text-sm font-medium text-text-secondary">Nama Karyawan</span>
-                <Input 
-                  value={selectedParticipant.name} 
-                  disabled 
-                  className="bg-white text-navy border-slate-200 opacity-100" 
-                />
+                <Input value={selectedParticipant.name} disabled className="bg-white text-navy border-slate-200 opacity-100" />
               </div>
               
               <div className="space-y-1.5">
                 <span className="text-sm font-medium text-text-secondary">Pelatihan</span>
-                <Input 
-                  value={selectedParticipant.training} 
-                  disabled 
-                  className="bg-white text-navy border-slate-200 opacity-100" 
-                />
-              </div>
-              
-              <div className="space-y-1.5">
-                <span className="text-sm font-medium text-text-secondary">NIK Atasan</span>
-                <Input 
-                  value={nikInput}
-                  onChange={(e) => handleNikChange(e.target.value)}
-                  placeholder="Ketik NIK atasan..."
-                  className="bg-white text-navy border-slate-300 focus-visible:ring-sky focus-visible:border-sky" 
-                />
+                <Input value={selectedParticipant.training} disabled className="bg-white text-navy border-slate-200 opacity-100" />
               </div>
 
-              <div className="space-y-1.5">
-                <span className="text-sm font-medium text-text-secondary">Nama Atasan</span>
-                <Input 
-                  value={selectedEvaluatorName || "Nama akan otomatis muncul"} 
-                  disabled 
-                  className={`bg-white border-slate-200 opacity-100 ${selectedEvaluatorName ? 'text-navy font-semibold bg-sky/5' : 'text-text-secondary italic'}`} 
-                />
-              </div>
+              {selectedParticipant.evaluationMode === "360_DEGREE" ? (
+                <>
+                  <div className="col-span-1 md:col-span-2 border-t pt-4 mt-2">
+                    <h4 className="text-sm font-semibold text-navy mb-3">Daftar Evaluator Ditugaskan</h4>
+                    {assignedEvaluators.length === 0 ? (
+                      <div className="text-sm text-text-secondary italic mb-4">Belum ada evaluator yang ditugaskan.</div>
+                    ) : (
+                      <div className="flex flex-col gap-2 mb-4 max-h-32 overflow-y-auto">
+                        {assignedEvaluators.map(ev => (
+                          <div key={ev.id} className="flex justify-between items-center bg-slate-50 border border-slate-200 rounded-md p-2 px-3">
+                            <div>
+                              <Badge variant="outline" className="mr-2">{ev.role === "ATASAN" ? "Atasan" : ev.role === "REKAN" ? "Rekan" : "Bawahan"}</Badge>
+                              <span className="text-sm font-medium text-navy">{ev.nik ? `${ev.nik} - ${ev.name}` : ev.name}</span>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => handleRemoveEvaluator(ev.id)} className="h-6 w-6 p-0 text-danger hover:bg-danger/10">
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3 items-end bg-sky/5 p-3 rounded-md border border-sky/20">
+                      <div className="space-y-1.5 flex-1 w-full">
+                        <span className="text-xs font-medium text-text-secondary">Peran</span>
+                        <Select value={selectedRole} onValueChange={setSelectedRole}>
+                          <SelectTrigger className="h-9 bg-white">
+                            <SelectValue placeholder="Pilih Peran" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ATASAN">Atasan</SelectItem>
+                            <SelectItem value="REKAN">Rekan Kerja</SelectItem>
+                            <SelectItem value="BAWAHAN">Bawahan</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5 flex-1 w-full">
+                        <span className="text-xs font-medium text-text-secondary">NIK Evaluator</span>
+                        <Input value={nikInput} onChange={(e) => handleNikChange(e.target.value)} placeholder="Ketik NIK..." className="h-9 bg-white text-navy focus-visible:ring-sky" />
+                      </div>
+                      <div className="space-y-1.5 flex-1 w-full">
+                        <span className="text-xs font-medium text-text-secondary">Nama</span>
+                        <Input value={selectedEvaluatorName || "..."} disabled className="h-9 bg-white text-xs text-navy" />
+                      </div>
+                      <Button type="button" size="sm" onClick={handleAddEvaluator} disabled={!selectedEvaluatorId} className="h-9 bg-navy hover:bg-navy-dark text-white shrink-0">
+                        Tambah
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1.5">
+                    <span className="text-sm font-medium text-text-secondary">NIK Atasan</span>
+                    <Input value={nikInput} onChange={(e) => handleNikChange(e.target.value)} placeholder="Ketik NIK atasan..." className="bg-white text-navy border-slate-300 focus-visible:ring-sky focus-visible:border-sky" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-sm font-medium text-text-secondary">Nama Atasan</span>
+                    <Input value={selectedEvaluatorName || "Nama akan otomatis muncul"} disabled className={`bg-white border-slate-200 opacity-100 ${selectedEvaluatorName ? 'text-navy font-semibold bg-sky/5' : 'text-text-secondary italic'}`} />
+                  </div>
+                </>
+              )}
             </div>
           )}
           
           <DialogFooter className="mt-8 gap-2 sm:gap-0">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsDialogOpen(false)}
-              className="text-sky border-sky hover:bg-sky/5 font-medium"
-            >
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="text-sky border-sky hover:bg-sky/5 font-medium">
               Batal
             </Button>
             <Button 
               onClick={handleAssign} 
-              disabled={!selectedEvaluatorId || isProcessing} 
+              disabled={isProcessing || (selectedParticipant?.evaluationMode === "360_DEGREE" ? assignedEvaluators.length === 0 : !selectedEvaluatorId)} 
               className="bg-sky hover:bg-[#1565C0] text-white font-medium"
             >
               {isProcessing ? "Menyimpan..." : "Simpan Data"}

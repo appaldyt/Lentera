@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Send, CheckCircle2, Star } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, Star, Info } from "lucide-react";
 
 import { getEvaluationFormData, submitEvaluationResponse } from "@/actions/evaluation-form";
 import { Loader2 } from "lucide-react";
@@ -60,6 +60,8 @@ export default function EvaluationFormPage() {
     }
     loadData();
   }, [params?.id]);
+
+  const isReadOnly = formData?.existingResponse?.status === "SUBMITTED";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,6 +197,21 @@ export default function EvaluationFormPage() {
         </p>
       </div>
 
+      <div className={`p-4 rounded-md border flex items-start sm:items-center gap-3 ${
+        formData.evaluatorRole === 'ATASAN' ? 'bg-sky/5 border-sky/20 text-sky-dark' :
+        formData.evaluatorRole === 'REKAN' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+        'bg-emerald-50 border-emerald-200 text-emerald-800'
+      }`}>
+        <Info className={`h-5 w-5 shrink-0 mt-0.5 sm:mt-0 ${
+          formData.evaluatorRole === 'ATASAN' ? 'text-sky' :
+          formData.evaluatorRole === 'REKAN' ? 'text-amber-500' :
+          'text-emerald-500'
+        }`} />
+        <p className="font-medium text-sm">
+          Anda sedang mengevaluasi <strong>{formData.participant.name}</strong> dalam kapasitas Anda sebagai <strong className="uppercase underline decoration-2 underline-offset-4">{formData.evaluatorRole === 'ATASAN' ? 'Atasan' : formData.evaluatorRole === 'REKAN' ? 'Rekan Kerja' : 'Bawahan'}</strong>.
+        </p>
+      </div>
+
       <Card>
         <CardHeader className="bg-slate-50 border-b border-border/40">
           <CardTitle className="text-lg">Informasi Karyawan & Pelatihan</CardTitle>
@@ -246,11 +263,12 @@ export default function EvaluationFormPage() {
                   
                   {q.type === 'ESSAY' ? (
                     <Textarea 
-                      placeholder="Ketik jawaban Anda di sini..."
+                      placeholder={isReadOnly ? "Tidak ada jawaban" : "Ketik jawaban Anda di sini..."}
                       className="min-h-[100px] mt-2"
                       required
                       value={textAnswers[q.id] || ""}
                       onChange={(e) => setTextAnswers({...textAnswers, [q.id]: e.target.value})}
+                      disabled={isReadOnly}
                     />
                   ) : (
                     <div className="flex justify-center gap-6 sm:gap-8 py-2">
@@ -262,8 +280,9 @@ export default function EvaluationFormPage() {
                             value={val}
                             required
                             checked={scores[q.id] === val}
-                            className="h-5 w-5 text-sky focus:ring-sky"
+                            className={`h-5 w-5 text-sky focus:ring-sky ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}`}
                             onChange={() => setScores({ ...scores, [q.id]: val })}
+                            disabled={isReadOnly}
                           />
                           <span className="text-sm font-medium">{val}</span>
                         </label>
@@ -294,10 +313,11 @@ export default function EvaluationFormPage() {
               <p className="text-sm text-text-secondary">Adakah catatan khusus terkait performa karyawan atau saran untuk program pelatihan ini di masa depan?</p>
               <Textarea
                 id="feedback"
-                placeholder="Tuliskan komentar Anda di sini..."
+                placeholder={isReadOnly ? "Tidak ada catatan." : "Tuliskan komentar Anda di sini..."}
                 className="min-h-[120px] resize-y"
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
+                disabled={isReadOnly}
               />
             </div>
 
@@ -305,17 +325,19 @@ export default function EvaluationFormPage() {
           <CardFooter className="flex justify-end gap-3 border-t border-border/40 pt-6">
             <Link href="/evaluasi/dashboard">
               <Button type="button" variant="outline" className="border-border">
-                Batal
+                {isReadOnly ? "Kembali" : "Batal"}
               </Button>
             </Link>
-            <Button type="submit" disabled={submitting || formData.questions.length === 0} className="bg-navy hover:bg-navy-dark text-surface gap-2">
-              {submitting ? "Menyimpan..." : (
-                <>
-                  <Send className="h-4 w-4" />
-                  Kirim Evaluasi
-                </>
-              )}
-            </Button>
+            {!isReadOnly && (
+              <Button type="submit" disabled={submitting || formData.questions.length === 0} className="bg-navy hover:bg-navy-dark text-surface gap-2">
+                {submitting ? "Menyimpan..." : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Kirim Evaluasi
+                  </>
+                )}
+              </Button>
+            )}
           </CardFooter>
         </Card>
       </form>

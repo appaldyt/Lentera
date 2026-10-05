@@ -26,7 +26,8 @@ import {
   deleteEvaluationQuestion
 } from "@/actions/evaluation-questions";
 
-export default function TrainingSpecificQuestions({ trainingId }: { trainingId: string }) {
+export default function TrainingSpecificQuestions({ training }: { training: any }) {
+  const trainingId = training.id;
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -105,7 +106,25 @@ export default function TrainingSpecificQuestions({ trainingId }: { trainingId: 
 
   return (
     <div className="space-y-4">
-      <div className="p-4 rounded-md bg-sky-light/10 border border-sky-light/30 flex items-start gap-3">
+      {/* Evaluation Method Info */}
+      <div className="bg-slate-50 border border-slate-200 rounded-md p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-navy mb-2">Metode Evaluasi Pasca-Pelatihan</p>
+          {training.evaluationMode === "360_DEGREE" ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">360 Derajat</Badge>
+              <span className="text-xs text-text-secondary mx-1">|</span>
+              <Badge variant="outline" className="text-xs bg-white text-navy font-medium">Atasan: {training.weightSupervisor}%</Badge>
+              <Badge variant="outline" className="text-xs bg-white text-navy font-medium">Rekan: {training.weightPeer}%</Badge>
+              <Badge variant="outline" className="text-xs bg-white text-navy font-medium">Bawahan: {training.weightSubordinate}%</Badge>
+            </div>
+          ) : (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Hanya Atasan (Supervisor Only)</Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="p-4 rounded-md bg-sky-light/10 border border-sky-light/30 flex items-start gap-3 mt-4">
          <Info className="h-5 w-5 text-sky mt-0.5 shrink-0" />
          <div>
             <h4 className="text-sm font-semibold text-navy">Informasi Penggabungan Pertanyaan</h4>

@@ -40,6 +40,7 @@ export default function EvaluasiResultsPage() {
 
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [selectedReopenResult, setSelectedReopenResult] = useState<EvaluationResult | null>(null);
+  const [selectedReopenEvaluatorId, setSelectedReopenEvaluatorId] = useState<string>("all");
   const [isReopening, setIsReopening] = useState(false);
 
   useEffect(() => {
@@ -76,13 +77,15 @@ export default function EvaluasiResultsPage() {
 
   const handleOpenReopenDialog = (result: EvaluationResult) => {
     setSelectedReopenResult(result);
+    setSelectedReopenEvaluatorId("all");
     setIsReopenDialogOpen(true);
   };
 
   const confirmReopen = async () => {
     if (!selectedReopenResult) return;
     setIsReopening(true);
-    const res = await reopenEvaluation(selectedReopenResult.participantId);
+    const evaluatorId = selectedReopenEvaluatorId === "all" ? undefined : selectedReopenEvaluatorId;
+    const res = await reopenEvaluation(selectedReopenResult.participantId, evaluatorId);
     if (res.success) {
       // Remove from list or refresh
       setResults(results.filter(r => r.id !== selectedReopenResult.id));
@@ -390,7 +393,9 @@ export default function EvaluasiResultsPage() {
                 <div className="bg-slate-50 p-4 rounded-lg border border-border flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-navy mb-1">Rating Akhir Evaluasi</p>
-                    <p className="text-xs text-text-secondary mb-2">Rata-rata dari kriteria penilaian (Skala 1-5)</p>
+                    <p className="text-xs text-text-secondary mb-2">
+                      {selectedResult.is360 ? "Rata-rata berbobot dari seluruh penilai" : "Rata-rata dari kriteria penilaian (Skala 1-5)"}
+                    </p>
                   </div>
                   <div className="text-right">
                     <div className="flex items-baseline gap-1 justify-end">
@@ -412,32 +417,24 @@ export default function EvaluasiResultsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-slate-200 pt-4 mt-2">
-                  <p className="text-sm font-medium text-navy">Status Penilaian</p>
-                  {getStatusBadge(selectedResult.status, selectedResult.statusColor)}
-                </div>
-
-                {selectedResult.answers && selectedResult.answers.length > 0 && (
+                {selectedResult.is360 && selectedResult.breakdown && (
                   <div>
-                    <p className="text-sm font-medium text-navy mb-2 border-t border-slate-200 pt-4 mt-2">Detail Penilaian per Pertanyaan</p>
-                    <div className="space-y-3">
-                      {selectedResult.answers.map((ans, idx) => (
-                        <div key={idx} className="bg-white border border-slate-200 rounded-md p-3 text-sm">
-                          <div className={`flex ${ans.questionType === 'ESSAY' ? 'flex-col' : 'justify-between items-start'} gap-4`}>
-                            <div>
-                              <p className="font-medium text-navy">{ans.questionTitle}</p>
-                              <p className="text-text-secondary text-xs mt-1">{ans.questionText}</p>
+                    <p className="text-sm font-medium text-navy mb-2 border-t border-slate-200 pt-4 mt-2">Rincian Penilaian (360°)</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {selectedResult.breakdown.map((b, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-white border border-slate-200 rounded-md p-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-navy">
+                                {b.role === "ATASAN" ? "Atasan" : b.role === "REKAN" ? "Rekan Kerja" : "Bawahan"}
+                              </span>
+                              <Badge variant="outline" className="text-[10px] h-5 bg-slate-50">Bobot: {b.weight}%</Badge>
                             </div>
-                            {ans.questionType === 'ESSAY' ? (
-                              <div className="bg-slate-50 p-3 rounded text-sm text-navy w-full border border-slate-100">
-                                {ans.notes || <span className="text-slate-400 italic">Tidak ada jawaban</span>}
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded shrink-0">
-                                <span className="font-bold text-sky">{ans.score}</span>
-                                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                              </div>
-                            )}
+                            <p className="text-xs text-text-secondary mt-1">{b.evaluatorName || "-"}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-sky">{b.score.toFixed(1)} <span className="text-text-secondary text-xs font-normal">/ 5.0</span></p>
+                            <p className="text-[10px] text-text-secondary mt-0.5">Kontribusi: +{b.weightedScore.toFixed(2)}</p>
                           </div>
                         </div>
                       ))}
@@ -445,12 +442,80 @@ export default function EvaluasiResultsPage() {
                   </div>
                 )}
 
-                <div>
-                  <p className="text-sm font-medium text-navy mb-2 border-t border-slate-200 pt-4 mt-2">Feedback & Rekomendasi Keseluruhan</p>
-                  <div className="bg-white border border-slate-200 rounded-md p-4 text-sm text-text-secondary leading-relaxed">
-                    "{selectedResult.feedback}"
-                  </div>
+                <div className="flex items-center justify-between border-t border-slate-200 pt-4 mt-2">
+                  <p className="text-sm font-medium text-navy">Status Penilaian</p>
+                  {getStatusBadge(selectedResult.status, selectedResult.statusColor)}
                 </div>
+
+                {selectedResult.answers && selectedResult.answers.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-navy mb-4 border-t border-slate-200 pt-4 mt-2">Detail Penilaian per Evaluator</p>
+                    <div className="space-y-6">
+                      {Object.values(
+                        selectedResult.answers.reduce((acc: any, curr: any) => {
+                          const key = `${curr.evaluatorNik}_${curr.evaluatorName}_${curr.role}`;
+                          if (!acc[key]) acc[key] = { evaluatorName: curr.evaluatorName, evaluatorNik: curr.evaluatorNik, role: curr.role, answers: [] };
+                          acc[key].answers.push(curr);
+                          return acc;
+                        }, {})
+                      ).map((group: any, gIdx) => (
+                        <div key={gIdx} className="space-y-3">
+                          <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                            <span className="font-semibold text-navy text-sm">
+                              {group.evaluatorNik && group.evaluatorNik !== "-" ? `${group.evaluatorNik} - ` : ""}{group.evaluatorName}
+                            </span>
+                            {selectedResult.is360 && group.role && (
+                              <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal bg-sky-50 text-sky-dark border-sky/20">
+                                {group.role === "ATASAN" ? "Atasan" : group.role === "REKAN" ? "Rekan Kerja" : "Bawahan"}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            {group.answers.map((ans: any, idx: number) => (
+                              <div key={idx} className="bg-white border border-slate-200 rounded-md p-3 text-sm border-l-4 border-l-sky">
+                                <div className={`flex ${ans.questionType === 'ESSAY' ? 'flex-col' : 'justify-between items-start'} gap-4`}>
+                                  <div>
+                                    <p className="font-medium text-navy">{ans.questionTitle}</p>
+                                    <p className="text-text-secondary text-xs mt-1">{ans.questionText}</p>
+                                  </div>
+                                  {ans.questionType === 'ESSAY' ? (
+                                    <div className="bg-slate-50 p-3 rounded text-sm text-navy w-full border border-slate-100 mt-2">
+                                      {ans.notes || <span className="text-slate-400 italic">Tidak ada jawaban</span>}
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded shrink-0">
+                                      <span className="font-bold text-sky">{ans.score}</span>
+                                      <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {/* Evaluator's Feedback */}
+                          {(() => {
+                            const evaluatorFeedback = group.answers.find((a: any) => a.questionType === 'RATING')?.notes;
+                            return (
+                              <div className="mt-4 pt-4 border-t border-slate-100">
+                                <p className="text-sm font-medium text-navy mb-2">Feedback & Rekomendasi Keseluruhan</p>
+                                <div className="bg-white border border-slate-200 rounded-md p-4 text-sm text-text-secondary leading-relaxed">
+                                  {evaluatorFeedback ? (
+                                    evaluatorFeedback.split('\n').map((line: string, i: number) => (
+                                      <span key={i}>{line}<br /></span>
+                                    ))
+                                  ) : (
+                                    <span className="italic text-slate-400">"Tidak ada catatan."</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               
               <DialogFooter className="p-6 pt-0 sm:justify-end">
@@ -471,10 +536,25 @@ export default function EvaluasiResultsPage() {
           <DialogHeader>
             <DialogTitle>Buka Form Evaluasi?</DialogTitle>
             <DialogDescription>
-              Apakah Anda Yakin Ingin Membuka Form Evaluasi Ini?
+              Silakan pilih form evaluator mana yang ingin dibuka kembali (berubah menjadi DRAFT) untuk direvisi. Jika Anda memilih semua, proses evaluasi akan diulang sepenuhnya.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mt-4 sm:justify-end gap-2">
+          <div className="py-4">
+            <label className="mb-2 block text-sm font-medium text-navy">Pilih Penilai yang Dibuka:</label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky"
+              value={selectedReopenEvaluatorId}
+              onChange={(e) => setSelectedReopenEvaluatorId(e.target.value)}
+            >
+              <option value="all">Semua Penilai (Reset Total)</option>
+              {selectedReopenResult?.evaluators?.map(ev => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.name} ({ev.role === "ATASAN" ? "Atasan" : ev.role === "REKAN" ? "Rekan Kerja" : "Bawahan"})
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter className="mt-2 sm:justify-end gap-2">
             <Button variant="outline" onClick={() => setIsReopenDialogOpen(false)} disabled={isReopening}>
               Batal
             </Button>
