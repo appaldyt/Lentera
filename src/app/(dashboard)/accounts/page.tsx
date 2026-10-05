@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useUser, UserRole, ROLE_LABELS } from "@/context/user-context";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type AccountStatus = "AKTIF" | "NONAKTIF";
 
@@ -104,6 +105,7 @@ function AccountsContent() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterRole, setFilterRole] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
+  const [activeTab, setActiveTab] = useState("LENTERA");
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -233,6 +235,13 @@ function AccountsContent() {
   };
 
   const filteredAccounts = accounts.filter((acc) => {
+    const isLenteraTab = activeTab === "LENTERA";
+    const isLenteraRole = acc.role === "SUPER_ADMIN" || acc.role === "ADMIN" || acc.role === "USER";
+    const isEvaluatorRole = acc.role === "EVALUATION_ADMIN" || acc.role === "EVALUATOR";
+
+    if (isLenteraTab && !isLenteraRole) return false;
+    if (!isLenteraTab && !isEvaluatorRole) return false;
+
     const matchesSearch =
       acc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       acc.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -241,7 +250,7 @@ function AccountsContent() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterRole, filterStatus]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, filterRole, filterStatus, activeTab]);
 
   const totalPages = Math.ceil(filteredAccounts.length / ITEMS_PER_PAGE);
   const paginatedAccounts = filteredAccounts.slice(
@@ -298,6 +307,18 @@ function AccountsContent() {
         </Card>
       </div>
 
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); setFilterRole("ALL"); setCurrentPage(1); }} className="w-full">
+        <TabsList className="bg-muted border-b border-border/50 rounded-none w-full justify-start h-auto p-0">
+          <TabsTrigger value="LENTERA" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-sky data-[state=active]:shadow-none rounded-none py-3 px-6 gap-2">
+            <ShieldCheck className="h-4 w-4" /> Akun Sistem Lentera
+          </TabsTrigger>
+          <TabsTrigger value="EVALUATOR" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-sky data-[state=active]:shadow-none rounded-none py-3 px-6 gap-2">
+            <UserCog className="h-4 w-4" /> Akun Portal Evaluasi
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 py-2">
         <div className="relative w-full max-w-sm">
@@ -339,9 +360,18 @@ function AccountsContent() {
                     onChange={(e) => setFilterRole(e.target.value)}
                   >
                     <option value="ALL">Semua Role</option>
-                    <option value="SUPER_ADMIN">Super Admin</option>
-                    <option value="ADMIN">Admin</option>
-                    <option value="USER">User</option>
+                    {activeTab === "LENTERA" ? (
+                      <>
+                        <option value="SUPER_ADMIN">Super Admin</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="USER">User</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="EVALUATION_ADMIN">Evaluation Admin</option>
+                        <option value="EVALUATOR">Evaluator</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div className="space-y-2">

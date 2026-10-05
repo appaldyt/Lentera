@@ -125,7 +125,12 @@ export default function EvaluasiAssignmentsPage() {
 
   const handleNikChange = (nik: string) => {
     setNikInput(nik);
-    const found = evaluators.find(e => e.nik === nik);
+    const cleanInput = nik.trim().toLowerCase();
+    if (!cleanInput) {
+      setSelectedEvaluatorId("");
+      return;
+    }
+    const found = evaluators.find(e => e.nik && e.nik.trim().toLowerCase() === cleanInput);
     if (found) {
       setSelectedEvaluatorId(found.id);
     } else {
