@@ -15,19 +15,19 @@ export async function getParticipantsForEvaluation() {
       },
       orderBy: { createdAt: 'desc' }
     });
-    
+
     // Map to a cleaner format if needed for the UI, or just return as is
     return participants.map(p => {
       let masaTraining = "-";
       if (p.training.endDate) {
         const end = new Date(p.training.endDate);
         const now = new Date();
-        
+
         let months = (now.getFullYear() - end.getFullYear()) * 12 + (now.getMonth() - end.getMonth());
         if (now.getDate() < end.getDate()) {
-            months--;
+          months--;
         }
-        
+
         if (months < 3) {
           masaTraining = "Kurang dari 3 bulan";
         } else if (months >= 12) {
@@ -80,7 +80,7 @@ export async function assignMultipleEvaluators(participantId: string, assignment
     await prisma.$transaction(async (tx) => {
       // 1. Clear existing assignments
       await tx.participantEvaluator.deleteMany({ where: { participantId } });
-      
+
       // 2. Insert new assignments
       if (assignments.length > 0) {
         await tx.participantEvaluator.createMany({
@@ -124,7 +124,7 @@ export async function assignEvaluator(participantId: string, evaluatorId: string
           evaluatorId: evaluatorId,
         }
       });
-      
+
       // Delete any draft responses if the evaluator is changed
       await tx.evaluationResponse.deleteMany({
         where: {
@@ -142,14 +142,14 @@ export async function assignEvaluator(participantId: string, evaluatorId: string
   }
 }
 
-  export async function sendEvaluationForm(participantId: string) {
+export async function sendEvaluationForm(participantId: string) {
   try {
     // We check if it's assigned first
     const participant = await prisma.trainingParticipant.findUnique({
       where: { id: participantId },
       include: { training: true, participantEvaluators: true }
     });
-    
+
     const is360 = participant?.training?.evaluationMode === "360_DEGREE";
 
     if (is360) {
@@ -178,7 +178,7 @@ export async function assignEvaluator(participantId: string, evaluatorId: string
         });
       }
     });
-    
+
     revalidatePath("/evaluasi/admin/assignments");
     return { success: true };
   } catch (error) {

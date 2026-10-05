@@ -1,4 +1,4 @@
-import { Plane, LogOut, LayoutDashboard, Send, Users, FileText, BarChart, Settings } from "lucide-react";
+import { Plane, LogOut, LayoutDashboard, Send, Users, FileText, BarChart, Settings, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/actions/auth";
@@ -29,8 +29,12 @@ export default async function EvaluasiLayout({
         </div>
 
         <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
-          <Link href="/evaluasi/dashboard" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-text-secondary hover:bg-slate-100 hover:text-navy transition-colors">
+          <Link href="/evaluasi/my-dashboard" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-text-secondary hover:bg-slate-100 hover:text-navy transition-colors">
             <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </Link>
+          <Link href="/evaluasi/dashboard" className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-text-secondary hover:bg-slate-100 hover:text-navy transition-colors">
+            <ClipboardList className="h-4 w-4" />
             Evaluasi Saya
           </Link>
           {(session?.role === "EVALUATION_ADMIN" || session?.role === "SUPER_ADMIN") && (
