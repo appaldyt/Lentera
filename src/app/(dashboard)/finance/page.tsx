@@ -1046,8 +1046,22 @@ export default function FinancePage() {
         <TabsContent value="INDUK" className="space-y-6 mt-0">
           <div className="flex items-center justify-end">
             <Button className="bg-navy hover:bg-navy/90 text-surface gap-2" onClick={() => {
-              setAnnualFormData({ year: new Date().getFullYear(), approvedDate: '', amount: 0, realizedAmount: 0, link: '', notes: '' });
-              setEditingAnnualId(null);
+              const currentYear = new Date().getFullYear();
+              const existing = annualBudgets.find(b => b.year === currentYear);
+              if (existing) {
+                setAnnualFormData({
+                  year: existing.year,
+                  approvedDate: existing.approvedDate,
+                  amount: existing.amount,
+                  realizedAmount: existing.realizedAmount || 0,
+                  link: existing.link,
+                  notes: existing.notes
+                });
+                setEditingAnnualId(existing.id);
+              } else {
+                setAnnualFormData({ year: currentYear, approvedDate: '', amount: 0, realizedAmount: 0, link: '', notes: '' });
+                setEditingAnnualId(null);
+              }
               setIsAnnualModalOpen(true);
             }}>
               <Plus className="h-4 w-4" /> Set Anggaran Induk
@@ -1189,7 +1203,32 @@ export default function FinancePage() {
                   <label className="text-sm font-medium text-text-primary">Tahun Anggaran</label>
                   <select className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky" 
                     value={annualFormData.year} 
-                    onChange={(e) => setAnnualFormData({...annualFormData, year: parseInt(e.target.value)})}>
+                    onChange={(e) => {
+                      const selectedYear = parseInt(e.target.value);
+                      const existing = annualBudgets.find(b => b.year === selectedYear);
+                      if (existing) {
+                        setAnnualFormData({
+                          year: existing.year,
+                          approvedDate: existing.approvedDate,
+                          amount: existing.amount,
+                          realizedAmount: existing.realizedAmount || 0,
+                          link: existing.link,
+                          notes: existing.notes
+                        });
+                        setEditingAnnualId(existing.id);
+                      } else {
+                        setAnnualFormData({
+                          ...annualFormData,
+                          year: selectedYear,
+                          amount: 0,
+                          realizedAmount: 0,
+                          link: '',
+                          notes: '',
+                          approvedDate: ''
+                        });
+                        setEditingAnnualId(null);
+                      }
+                    }}>
                     {[2025, 2026, 2027, 2028, 2029].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
