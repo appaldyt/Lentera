@@ -79,20 +79,21 @@ export default async function PrintEvaluationPage(props: { params: Promise<{ id:
         <div className="space-y-4 mb-8">
           {result.answers?.map((ans, idx) => (
             <div key={idx} className="border border-gray-200 p-4 rounded bg-white">
-              <div className="flex justify-between items-start gap-4">
+              <div className={`flex ${ans.questionType === 'ESSAY' ? 'flex-col' : 'justify-between items-start'} gap-4`}>
                 <div>
                   <p className="font-medium text-gray-900">{ans.questionTitle}</p>
                   <p className="text-sm text-gray-600 mt-1">{ans.questionText}</p>
                 </div>
-                <div className="font-bold bg-sky-50 text-sky-800 px-3 py-1 rounded border border-sky-100 whitespace-nowrap">
-                  Skor: {ans.score}
-                </div>
+                {ans.questionType === 'ESSAY' ? (
+                  <div className="bg-gray-50 p-3 rounded text-sm text-gray-800 w-full border border-gray-200">
+                    {ans.notes || <span className="text-gray-400 italic">Tidak ada jawaban</span>}
+                  </div>
+                ) : (
+                  <div className="font-bold bg-sky-50 text-sky-800 px-3 py-1 rounded border border-sky-100 whitespace-nowrap">
+                    Skor: {ans.score}
+                  </div>
+                )}
               </div>
-              {ans.notes && (
-                <div className="mt-3 text-sm text-gray-700 bg-gray-50 p-3 border border-gray-100 rounded">
-                  <span className="font-medium">Catatan:</span> {ans.notes}
-                </div>
-              )}
             </div>
           ))}
         </div>

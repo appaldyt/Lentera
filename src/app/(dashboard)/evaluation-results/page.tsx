@@ -380,21 +380,22 @@ export default function EvaluationResultsDashboardPage() {
                     <div className="space-y-3">
                       {selectedResult.answers.map((ans, idx) => (
                         <div key={idx} className="bg-white border border-slate-200 rounded-md p-3 text-sm">
-                          <div className="flex justify-between items-start gap-4">
+                          <div className={`flex ${ans.questionType === 'ESSAY' ? 'flex-col' : 'justify-between items-start'} gap-4`}>
                             <div>
                               <p className="font-medium text-navy">{ans.questionTitle}</p>
                               <p className="text-text-secondary text-xs mt-1">{ans.questionText}</p>
                             </div>
-                            <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded">
-                              <span className="font-bold text-sky">{ans.score}</span>
-                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                            </div>
+                            {ans.questionType === 'ESSAY' ? (
+                              <div className="bg-slate-50 p-3 rounded text-sm text-navy w-full border border-slate-100">
+                                {ans.notes || <span className="text-slate-400 italic">Tidak ada jawaban</span>}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded shrink-0">
+                                <span className="font-bold text-sky">{ans.score}</span>
+                                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                              </div>
+                            )}
                           </div>
-                          {ans.notes && (
-                            <div className="mt-2 text-xs text-slate-500 bg-slate-50 p-2 rounded">
-                              <span className="font-medium">Catatan:</span> {ans.notes}
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>

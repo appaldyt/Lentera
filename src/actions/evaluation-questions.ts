@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 export async function getEvaluationQuestions() {
   try {
     const questions = await prisma.evaluationQuestion.findMany({
+      where: { isGlobal: true },
       orderBy: { order: 'asc' }
     });
     return questions;
@@ -15,13 +16,29 @@ export async function getEvaluationQuestions() {
   }
 }
 
-export async function createEvaluationQuestion(data: { title: string, text: string, status: string }) {
+export async function getEvaluationQuestionsByTrainingId(trainingId: string) {
+  try {
+    const questions = await prisma.evaluationQuestion.findMany({
+      where: { trainingId, isGlobal: false },
+      orderBy: { order: 'asc' }
+    });
+    return questions;
+  } catch (error) {
+    console.error("Failed to fetch evaluation questions by training", error);
+    return [];
+  }
+}
+
+export async function createEvaluationQuestion(data: { title: string, text: string, status: string, type?: string, isGlobal?: boolean, trainingId?: string }) {
   try {
     const question = await prisma.evaluationQuestion.create({
       data: {
         title: data.title,
         text: data.text,
-        status: data.status
+        status: data.status,
+        ...(data.type && { type: data.type }),
+        isGlobal: data.isGlobal ?? true,
+        trainingId: data.trainingId
       }
     });
     revalidatePath("/evaluasi/admin/questions");
@@ -32,14 +49,17 @@ export async function createEvaluationQuestion(data: { title: string, text: stri
   }
 }
 
-export async function updateEvaluationQuestion(id: string, data: { title: string, text: string, status: string }) {
+export async function updateEvaluationQuestion(id: string, data: { title: string, text: string, status: string, type?: string, isGlobal?: boolean, trainingId?: string }) {
   try {
     const question = await prisma.evaluationQuestion.update({
       where: { id },
       data: {
         title: data.title,
         text: data.text,
-        status: data.status
+        status: data.status,
+        ...(data.type && { type: data.type }),
+        ...(data.isGlobal !== undefined && { isGlobal: data.isGlobal }),
+        ...(data.trainingId !== undefined && { trainingId: data.trainingId })
       }
     });
     revalidatePath("/evaluasi/admin/questions");

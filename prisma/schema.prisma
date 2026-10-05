@@ -52,6 +52,7 @@ model Training {
   status       String                @default("PLANNING")
   preparations TrainingPreparation[]
   participants TrainingParticipant[]
+  evaluationQuestions EvaluationQuestion[]
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
 }
@@ -298,8 +299,14 @@ model EvaluationQuestion {
   id        String   @id @default(cuid())
   title     String
   text      String
+  type      String   @default("RATING") // RATING, ESSAY
   status    String   @default("Aktif")
   order     Int      @default(0)
+  
+  isGlobal    Boolean  @default(true) 
+  trainingId  String?
+  training    Training? @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -329,7 +336,7 @@ model EvaluationAnswer {
   response     EvaluationResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
   questionId   String
   question     EvaluationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  score        Int                @default(0)
+  score        Int?
   notes        String?
   
   createdAt    DateTime @default(now())

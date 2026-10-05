@@ -38,7 +38,13 @@ export async function getEvaluationFormData(participantId: string) {
 
     // Fetch active questions
     const questions = await prisma.evaluationQuestion.findMany({
-      where: { status: "Aktif" },
+      where: { 
+        status: "Aktif",
+        OR: [
+          { isGlobal: true },
+          { trainingId: participant.trainingId }
+        ]
+      },
       orderBy: { order: 'asc' }
     });
 
@@ -52,7 +58,7 @@ export async function getEvaluationFormData(participantId: string) {
 export async function submitEvaluationResponse(data: {
   participantId: string,
   evaluatorId: string,
-  answers: { questionId: string, score: number }[],
+  answers: { questionId: string, score: number | null, textAnswer?: string }[],
   feedback?: string
 }) {
   try {
@@ -90,7 +96,7 @@ export async function submitEvaluationResponse(data: {
             responseId: response.id,
             questionId: ans.questionId,
             score: ans.score,
-            notes: data.feedback
+            notes: ans.textAnswer !== undefined ? ans.textAnswer : (data.feedback || null)
           }))
         });
       }

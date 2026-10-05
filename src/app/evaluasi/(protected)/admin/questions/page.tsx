@@ -42,6 +42,7 @@ export default function EvaluasiAdminQuestionsPage() {
   const [formData, setFormData] = useState({
     title: "",
     text: "",
+    type: "RATING",
     status: "Aktif"
   });
 
@@ -58,13 +59,13 @@ export default function EvaluasiAdminQuestionsPage() {
 
   const handleOpenAdd = () => {
     setEditingId(null);
-    setFormData({ title: "", text: "", status: "Aktif" });
+    setFormData({ title: "", text: "", type: "RATING", status: "Aktif" });
     setIsDialogOpen(true);
   };
 
   const handleOpenEdit = (q: any) => {
     setEditingId(q.id);
-    setFormData({ title: q.title, text: q.text, status: q.status });
+    setFormData({ title: q.title, text: q.text, type: q.type || "RATING", status: q.status });
     setIsDialogOpen(true);
   };
 
@@ -118,6 +119,7 @@ export default function EvaluasiAdminQuestionsPage() {
                   <th className="px-4 py-3 font-medium w-12 text-center">No</th>
                   <th className="px-4 py-3 font-medium w-48">Judul Kriteria</th>
                   <th className="px-4 py-3 font-medium">Teks Pertanyaan</th>
+                  <th className="px-4 py-3 font-medium w-32 text-center">Tipe</th>
                   <th className="px-4 py-3 font-medium w-24">Status</th>
                   <th className="px-4 py-3 font-medium text-right w-24">Aksi</th>
                 </tr>
@@ -128,6 +130,13 @@ export default function EvaluasiAdminQuestionsPage() {
                     <td className="px-4 py-4 text-center font-medium text-navy">{index + 1}</td>
                     <td className="px-4 py-4 font-semibold text-navy">{q.title}</td>
                     <td className="px-4 py-4 text-text-secondary">{q.text}</td>
+                    <td className="px-4 py-4 text-center">
+                      {q.type === "ESSAY" ? (
+                        <Badge variant="outline" className="text-amber-600 bg-amber-50 border-amber-200">Essay</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-navy bg-slate-50 border-slate-200">Rating</Badge>
+                      )}
+                    </td>
                     <td className="px-4 py-4">
                       <Badge variant="outline" className={q.status === 'Aktif' ? 'bg-success/10 text-success-dark border-success/20' : 'bg-slate-100 text-text-secondary border-border'}>
                         {q.status}
@@ -191,6 +200,19 @@ export default function EvaluasiAdminQuestionsPage() {
                 placeholder="Tuliskan deskripsi lengkap kriteria evaluasi..."
                 className="min-h-[100px] bg-white text-navy border-slate-300 focus-visible:ring-sky focus-visible:border-sky" 
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-text-secondary">Tipe Pertanyaan</span>
+              <Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val })}>
+                <SelectTrigger className="w-full bg-white border-slate-300 text-navy focus:ring-sky focus:border-sky data-[state=open]:border-sky">
+                  <SelectValue placeholder="Pilih tipe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RATING">Rating (Skala 1-5)</SelectItem>
+                  <SelectItem value="ESSAY">Teks Bebas (Essay)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">

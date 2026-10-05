@@ -22,6 +22,7 @@ export default function EvaluationFormPage() {
 
   const [formData, setFormData] = useState<any>(null);
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [textAnswers, setTextAnswers] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState("");
 
   useEffect(() => {
@@ -36,13 +37,24 @@ export default function EvaluationFormPage() {
       setFormData(res);
       if (res.existingResponse) {
         const initialScores: Record<string, number> = {};
+        const initialTextAnswers: Record<string, string> = {};
+        let initialFeedback = "";
+
         res.existingResponse.answers.forEach((ans: any) => {
-          initialScores[ans.questionId] = ans.score;
+          // If the question data is included, check type. Otherwise, we can't reliably know.
+          // But wait, the answers from existingResponse might not include question data. 
+          // Let's find the question type from formData.questions
+          const q = res.questions.find((q: any) => q.id === ans.questionId);
+          if (q && q.type === 'ESSAY') {
+            initialTextAnswers[ans.questionId] = ans.notes || "";
+          } else {
+            if (ans.score !== null) initialScores[ans.questionId] = ans.score;
+            if (ans.notes && !initialFeedback) initialFeedback = ans.notes;
+          }
         });
         setScores(initialScores);
-        if (res.existingResponse.answers.length > 0) {
-          setFeedback(res.existingResponse.answers[0].notes || "");
-        }
+        setTextAnswers(initialTextAnswers);
+        setFeedback(initialFeedback);
       }
       setLoading(false);
     }
@@ -53,18 +65,38 @@ export default function EvaluationFormPage() {
     e.preventDefault();
     if (!formData) return;
 
-    // Check if all questions are answered
-    if (Object.keys(scores).length < formData.questions.length) {
-      alert("Mohon isi semua penilaian kriteria.");
+    // Check if all rating questions are answered, and essay questions are answered
+    const ratingQuestions = formData.questions.filter((q: any) => q.type !== 'ESSAY');
+    const essayQuestions = formData.questions.filter((q: any) => q.type === 'ESSAY');
+
+    if (Object.keys(scores).length < ratingQuestions.length) {
+      alert("Mohon isi semua penilaian rating (skala 1-5).");
       return;
+    }
+    
+    for (const eq of essayQuestions) {
+      if (!textAnswers[eq.id] || textAnswers[eq.id].trim() === "") {
+        alert(`Mohon isi jawaban untuk pertanyaan teks bebas: "${eq.title}"`);
+        return;
+      }
     }
 
     setSubmitting(true);
 
-    const answers = Object.entries(scores).map(([qId, score]) => ({
-      questionId: qId,
-      score: score
-    }));
+    const answers = formData.questions.map((q: any) => {
+      if (q.type === 'ESSAY') {
+        return {
+          questionId: q.id,
+          score: null,
+          textAnswer: textAnswers[q.id] || ""
+        };
+      } else {
+        return {
+          questionId: q.id,
+          score: scores[q.id]
+        };
+      }
+    });
 
     const res = await submitEvaluationResponse({
       participantId: params.id,
@@ -83,9 +115,12 @@ export default function EvaluationFormPage() {
   };
 
   const calculateAverageRating = () => {
-    if (Object.keys(scores).length === 0) return "0.0";
-    const total = Object.values(scores).reduce((a, b) => a + b, 0);
-    return (total / formData.questions.length).toFixed(1);
+    if (!formData || !formData.questions) return "0.0";
+    const ratingQuestions = formData.questions.filter((q: any) => q.type !== 'ESSAY');
+    if (ratingQuestions.length === 0) return "0.0";
+    
+    const total = ratingQuestions.reduce((acc: number, q: any) => acc + (scores[q.id] || 0), 0);
+    return (total / ratingQuestions.length).toFixed(1);
   };
 
   const renderStars = (rating: number) => {
@@ -208,22 +243,33 @@ export default function EvaluationFormPage() {
                 <div key={q.id} className="space-y-3">
                   <Label className="text-base text-navy font-semibold">{idx + 1}. {q.title}</Label>
                   <p className="text-sm text-text-secondary mb-3">{q.text}</p>
-                  <div className="flex justify-center gap-6 sm:gap-8 py-2">
-                    {[1, 2, 3, 4, 5].map((val) => (
-                      <label key={`q-${q.id}-${val}`} className="flex flex-col items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name={`q-${q.id}`}
-                          value={val}
-                          required
-                          checked={scores[q.id] === val}
-                          className="h-5 w-5 text-sky focus:ring-sky"
-                          onChange={() => setScores({ ...scores, [q.id]: val })}
-                        />
-                        <span className="text-sm font-medium">{val}</span>
-                      </label>
-                    ))}
-                  </div>
+                  
+                  {q.type === 'ESSAY' ? (
+                    <Textarea 
+                      placeholder="Ketik jawaban Anda di sini..."
+                      className="min-h-[100px] mt-2"
+                      required
+                      value={textAnswers[q.id] || ""}
+                      onChange={(e) => setTextAnswers({...textAnswers, [q.id]: e.target.value})}
+                    />
+                  ) : (
+                    <div className="flex justify-center gap-6 sm:gap-8 py-2">
+                      {[1, 2, 3, 4, 5].map((val) => (
+                        <label key={`q-${q.id}-${val}`} className="flex flex-col items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`q-${q.id}`}
+                            value={val}
+                            required
+                            checked={scores[q.id] === val}
+                            className="h-5 w-5 text-sky focus:ring-sky"
+                            onChange={() => setScores({ ...scores, [q.id]: val })}
+                          />
+                          <span className="text-sm font-medium">{val}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}

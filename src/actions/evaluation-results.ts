@@ -20,7 +20,8 @@ export type EvaluationResult = {
   answers: {
     questionTitle: string;
     questionText: string;
-    score: number;
+    questionType: string;
+    score: number | null;
     notes: string;
   }[];
 };
@@ -48,9 +49,10 @@ export async function getEvaluationResults(): Promise<EvaluationResult[]> {
   });
 
   return responses.map(response => {
-    // Calculate score (assuming 1-5 scale per answer)
-    const totalScore = response.answers.reduce((acc, curr) => acc + curr.score, 0);
-    const scoreCount = response.answers.length;
+    // Calculate score (only for RATING questions)
+    const ratingAnswers = response.answers.filter(a => a.question.type === "RATING" && a.score !== null);
+    const totalScore = ratingAnswers.reduce((acc, curr) => acc + (curr.score || 0), 0);
+    const scoreCount = ratingAnswers.length;
     const averageScore = scoreCount > 0 ? totalScore / scoreCount : 0;
     
     // Determine status and color based on dynamic criteria
@@ -65,11 +67,11 @@ export async function getEvaluationResults(): Promise<EvaluationResult[]> {
       }
     }
     
-    // Combine feedback from notes
-    const feedback = response.answers
-      .filter(a => a.notes && a.notes.trim() !== "")
-      .map(a => a.notes)
-      .join(" | ");
+    // Combine feedback from notes (removing duplicates), only from RATING questions
+    const feedbackList = response.answers
+      .filter(a => a.notes && a.notes.trim() !== "" && a.question.type === "RATING")
+      .map(a => a.notes);
+    const feedback = Array.from(new Set(feedbackList)).join("\n");
 
     return {
       id: response.id,
@@ -90,6 +92,7 @@ export async function getEvaluationResults(): Promise<EvaluationResult[]> {
       answers: response.answers.map(a => ({
         questionTitle: a.question.title,
         questionText: a.question.text,
+        questionType: a.question.type,
         score: a.score,
         notes: a.notes || ""
       }))

@@ -3,16 +3,18 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, ChevronDown, ChevronRight, X, Pencil, Trash2, MoreHorizontal, Eye, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Filter, ChevronDown, ChevronRight, X, Pencil, Trash2, MoreHorizontal, Eye, ArrowUpDown, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn, calculateOverallProgress } from "@/lib/utils";
 import TrainingPreparationsTable, { type Subtask } from "@/components/training/TrainingPreparationsTable";
+import TrainingSpecificQuestions from "@/components/training/TrainingSpecificQuestions";
 import * as XLSX from "xlsx";
 
 interface Training {
@@ -595,12 +597,27 @@ export default function TrainingManagementPage() {
                     <TableRow className="bg-sky-light/5 hover:bg-sky-light/5 border-b">
                       <TableCell colSpan={9} className="p-0 border-b">
                         <div className="bg-background">
-                          <TrainingPreparationsTable
-                            trainingId={training.id}
-                            preparations={training.preparations}
-                            onChange={(newPrep) => updateTrainingPreparations(training.id, newPrep)}
-                            isNestedView={true}
-                          />
+                          <Tabs defaultValue="task" className="w-full">
+                            <TabsList className="bg-muted w-full justify-start rounded-none border-b border-border px-4 py-0 h-12">
+                              <TabsTrigger value="task" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-sky data-[state=active]:shadow-none rounded-none h-full px-6 gap-2 text-sm font-medium">
+                                Task Preparation
+                              </TabsTrigger>
+                              <TabsTrigger value="questions" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-sky data-[state=active]:shadow-none rounded-none h-full px-6 gap-2 text-sm font-medium">
+                                Pertanyaan Khusus
+                              </TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="task" className="m-0 border-0 p-0">
+                              <TrainingPreparationsTable
+                                trainingId={training.id}
+                                preparations={training.preparations}
+                                onChange={(newPrep) => updateTrainingPreparations(training.id, newPrep)}
+                                isNestedView={true}
+                              />
+                            </TabsContent>
+                            <TabsContent value="questions" className="m-0 border-0 p-6">
+                              <TrainingSpecificQuestions trainingId={training.id} />
+                            </TabsContent>
+                          </Tabs>
                         </div>
                       </TableCell>
                     </TableRow>
