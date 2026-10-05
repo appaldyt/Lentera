@@ -119,11 +119,19 @@ export default function EvaluationResultsDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-navy">Hasil Evaluasi</h1>
-        <p className="mt-2 text-text-secondary">
-          Pantau hasil penilaian evaluasi efektivitas training yang telah diisi oleh atasan.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-navy">Hasil Evaluasi</h1>
+          <p className="mt-2 text-text-secondary">
+            Pantau hasil penilaian evaluasi efektivitas training yang telah diisi oleh atasan.
+          </p>
+        </div>
+        <Link href="/evaluasi/login" target="_blank">
+          <Button className="bg-sky hover:bg-[#1565C0] text-white gap-2">
+            <ExternalLink className="h-4 w-4" />
+            Buka Portal Evaluasi
+          </Button>
+        </Link>
       </div>
 
       {/* Summary Cards */}
