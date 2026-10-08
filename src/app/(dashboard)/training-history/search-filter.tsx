@@ -3,8 +3,9 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Search, Filter, X, Download } from "lucide-react";
+import { Search, Filter, X, Download, ChevronDown } from "lucide-react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useTransition, useState } from "react";
 
 export function SearchFilter() {
@@ -83,11 +84,25 @@ export function SearchFilter() {
         >
           <Filter className="h-4 w-4" /> Filter
         </Button>
-        <a href={`/api/export/training-history?${searchParams.toString()}`}>
-          <Button variant="outline" className="gap-2 border-sky/30 text-sky bg-white hover:bg-sky/5 w-full sm:w-auto">
-            <Download className="h-4 w-4" /> Export
-          </Button>
-        </a>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2 border-sky/30 text-sky bg-white hover:bg-sky/5 w-full sm:w-auto">
+              <Download className="h-4 w-4" /> Export <ChevronDown className="h-3 w-3 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem asChild>
+              <a href={`/api/export/training-history?${searchParams.toString()}`} className="w-full cursor-pointer">
+                Format per Peserta
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={`/api/export/training-history?${searchParams.toString()}&format=training`} className="w-full cursor-pointer">
+                Format per Pelatihan
+              </a>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {isFilterOpen && (
           <Card className="absolute right-0 top-[calc(100%+8px)] w-72 z-50 p-4 shadow-xl border-border animate-in fade-in zoom-in-95 duration-200">

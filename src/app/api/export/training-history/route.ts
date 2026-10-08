@@ -8,6 +8,7 @@ export async function GET(request: Request) {
     const search = searchParams.get("search") || "";
     const yearStr = searchParams.get("year");
     const monthStr = searchParams.get("month");
+    const format = searchParams.get("format");
 
     const year = yearStr && yearStr !== "ALL" ? parseInt(yearStr) : null;
     const month = monthStr && monthStr !== "ALL" ? parseInt(monthStr) : null;
@@ -62,18 +63,53 @@ export async function GET(request: Request) {
     };
 
     // Build Excel
-    const exportData = data.map((item, idx) => ({
-      "No": idx + 1,
-      "NIK": item.nik,
-      "Nama Karyawan": item.name,
-      "BOD Level": item.bodLevel || "-",
-      "Nama Training": item.training.name,
-      "Job Family": item.training.jobFamilies.join(", "),
-      "Tgl. Mulai": formatDate(item.training.startDate),
-      "Tgl. Selesai": formatDate(item.training.endDate),
-      "Jam Belajar": item.attendedHours,
-      "Status": "Selesai",
-    }));
+    let exportData: any[];
+
+    if (format === "training") {
+      const grouped = new Map<string, any>();
+      
+      data.forEach((item) => {
+        const key = item.trainingId;
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            "Entity": "PT Integrasi Aviasi Solusi",
+            "Nama Pelatihan": item.training.name,
+            "bodLevels": new Set<string>(),
+            "Tanggal Realisasi": formatDate(item.training.startDate),
+            "Peserta": [],
+          });
+        }
+        const group = grouped.get(key);
+        if (item.bodLevel) {
+          group.bodLevels.add(item.bodLevel);
+        }
+        group.Peserta.push(item.name);
+      });
+
+      exportData = Array.from(grouped.values()).map(g => {
+        const bodLevelsArr = Array.from(g.bodLevels);
+        return {
+          "Entity": g.Entity,
+          "Nama Pelatihan": g["Nama Pelatihan"],
+          "Level (BOD)": bodLevelsArr.length > 0 ? bodLevelsArr.join(", ") : "-",
+          "Tanggal Realisasi": g["Tanggal Realisasi"],
+          "Peserta": g.Peserta.join(", "),
+        };
+      });
+    } else {
+      exportData = data.map((item, idx) => ({
+        "No": idx + 1,
+        "NIK": item.nik,
+        "Nama Karyawan": item.name,
+        "BOD Level": item.bodLevel || "-",
+        "Nama Training": item.training.name,
+        "Job Family": item.training.jobFamilies.join(", "),
+        "Tgl. Mulai": formatDate(item.training.startDate),
+        "Tgl. Selesai": formatDate(item.training.endDate),
+        "Jam Belajar": item.attendedHours,
+        "Status": "Selesai",
+      }));
+    }
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportData);
