@@ -6,6 +6,7 @@ interface RawRow {
   nik: string;
   name: string;
   department: string;
+  bodLevel: string;
   year: string;
   totalHours: number;
 }
@@ -21,11 +22,12 @@ export async function GET(request: NextRequest) {
             nik,
             name,
             department,
+            "bodLevel",
             EXTRACT(YEAR FROM "trainingDate")::text AS year,
             CAST(SUM("attendedHours") AS INTEGER)   AS "totalHours"
           FROM "TrainingParticipant"
           WHERE EXTRACT(YEAR FROM "trainingDate") = ${parseInt(year)}
-          GROUP BY nik, name, department, EXTRACT(YEAR FROM "trainingDate")
+          GROUP BY nik, name, department, "bodLevel", EXTRACT(YEAR FROM "trainingDate")
           ORDER BY year DESC, "totalHours" DESC
         `
       : Prisma.sql`
@@ -33,10 +35,11 @@ export async function GET(request: NextRequest) {
             nik,
             name,
             department,
+            "bodLevel",
             EXTRACT(YEAR FROM "trainingDate")::text AS year,
             CAST(SUM("attendedHours") AS INTEGER)   AS "totalHours"
           FROM "TrainingParticipant"
-          GROUP BY nik, name, department, EXTRACT(YEAR FROM "trainingDate")
+          GROUP BY nik, name, department, "bodLevel", EXTRACT(YEAR FROM "trainingDate")
           ORDER BY year DESC, "totalHours" DESC
         `
   );
@@ -46,6 +49,7 @@ export async function GET(request: NextRequest) {
     nik: row.nik,
     name: row.name,
     department: row.department,
+    bodLevel: row.bodLevel,
     year: row.year,
     totalHours: Number(row.totalHours),
   }));
