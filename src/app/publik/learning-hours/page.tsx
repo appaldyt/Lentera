@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LabelList } from "recharts";
 
 export default function PublicDashboard() {
   const [password, setPassword] = useState("");
@@ -357,15 +357,25 @@ export default function PublicDashboard() {
             <CardContent className="pt-4 pb-6 px-6">
               <div className="h-[280px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartDataBod} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <BarChart data={chartDataBod} margin={{ top: 25, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 12}} axisLine={false} tickLine={false} />
-                    <YAxis tick={{fill: '#64748b', fontSize: 12}} axisLine={false} tickLine={false} />
+                    <YAxis tick={{fill: '#64748b', fontSize: 12}} axisLine={false} tickLine={false} domain={[0, (dataMax: number) => Math.max(Math.ceil(dataMax * 1.15), 10)]} />
                     <Tooltip 
                       cursor={{fill: '#f8fafc'}} 
                       contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} 
                     />
-                    <Bar dataKey="Total Jam" fill="#1e40af" radius={[4, 4, 0, 0]} maxBarSize={70} />
+                    <Bar dataKey="Total Jam" fill="#1e40af" radius={[4, 4, 0, 0]} maxBarSize={70}>
+                      <LabelList 
+                        dataKey="Total Jam" 
+                        position="top" 
+                        fill="#0f172a" 
+                        fontSize={12} 
+                        fontWeight={700} 
+                        offset={8}
+                        formatter={(val: any) => typeof val === "number" ? val.toLocaleString(undefined, { maximumFractionDigits: 1 }) : String(val ?? "")}
+                      />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
