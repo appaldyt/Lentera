@@ -30,55 +30,82 @@ export default function PublicDashboard() {
     if (!isAuth) return;
     
     setLoading(true);
-    // Mengambil data Training Hours dan Self-Learning Hours sesuai tahun yang dipilih
+    // Mengambil data Training Hours, Self-Learning Hours, dan Master Karyawan Aktif dari Manajemen Karyawan
     Promise.all([
       fetch(`/api/learning-hours?year=${selectedYear}`).then(r => r.json()),
-      fetch("/api/self-learning").then(r => r.json())
+      fetch(`/api/self-learning?year=${selectedYear}`).then(r => r.json()),
+      fetch("/api/employees").then(r => r.json())
     ])
-      .then(([trainingRes, selfRes]) => {
+      .then(([trainingRes, selfRes, empRes]) => {
         const trainingData = trainingRes.data || [];
-        // Filter self learning hanya untuk tahun yang dipilih
-        const selfData = (selfRes.entries || []).filter((e: any) => e.year === selectedYear);
+        const selfData = (selfRes.entries || []).filter((e: any) => !e.year || e.year === selectedYear);
+        const employeeList = empRes.employees || [];
+        const activeEmployees = employeeList.filter((e: any) => e.isActive !== false);
 
         const mergedMap: Record<string, any> = {};
 
-        // Proses Data Training
+        // 1. Inisialisasi dari seluruh karyawan aktif (Master Manajemen Karyawan)
+        activeEmployees.forEach((emp: any) => {
+          mergedMap[emp.nik] = {
+            id: emp.nik,
+            nik: emp.nik,
+            name: emp.name,
+            department: emp.division || "-",
+            bodLevel: emp.bodLevel || "-",
+            year: selectedYear,
+            trainingHours: 0,
+            selfLearningHours: 0,
+            totalHours: 0
+          };
+        });
+
+        // 2. Proses Data Training (Akumulasi per NIK)
         trainingData.forEach((t: any) => {
           if (t.year === selectedYear) {
-            mergedMap[t.nik] = {
-              id: t.nik,
-              nik: t.nik,
-              name: t.name,
-              department: t.department,
-              bodLevel: t.bodLevel || "-",
-              year: selectedYear,
-              trainingHours: t.totalHours || 0,
-              selfLearningHours: 0,
-              totalHours: t.totalHours || 0
-            };
+            if (mergedMap[t.nik]) {
+              mergedMap[t.nik].trainingHours = Number((mergedMap[t.nik].trainingHours + (t.totalHours || 0)).toFixed(2));
+              mergedMap[t.nik].totalHours = Number((mergedMap[t.nik].totalHours + (t.totalHours || 0)).toFixed(2));
+              if (mergedMap[t.nik].bodLevel === "-" && t.bodLevel) {
+                mergedMap[t.nik].bodLevel = t.bodLevel;
+              }
+            } else if (activeEmployees.length === 0) {
+              // Fallback jika master data karyawan kosong
+              mergedMap[t.nik] = {
+                id: t.nik,
+                nik: t.nik,
+                name: t.name,
+                department: t.department || "-",
+                bodLevel: t.bodLevel || "-",
+                year: selectedYear,
+                trainingHours: t.totalHours || 0,
+                selfLearningHours: 0,
+                totalHours: t.totalHours || 0
+              };
+            }
           }
         });
 
-        // Proses Data Self-Learning (Gabungkan berdasarkan NIK)
+        // 3. Proses Data Self-Learning (Gabungkan berdasarkan NIK)
         selfData.forEach((s: any) => {
-          if (!mergedMap[s.nik]) {
+          if (mergedMap[s.nik]) {
+            mergedMap[s.nik].selfLearningHours = Number((mergedMap[s.nik].selfLearningHours + (s.hours || 0)).toFixed(2));
+            mergedMap[s.nik].totalHours = Number((mergedMap[s.nik].trainingHours + mergedMap[s.nik].selfLearningHours).toFixed(2));
+            if (mergedMap[s.nik].bodLevel === "-" && s.bodLevel) {
+              mergedMap[s.nik].bodLevel = s.bodLevel;
+            }
+          } else if (activeEmployees.length === 0) {
+            // Fallback jika master data karyawan kosong
             mergedMap[s.nik] = {
               id: s.nik,
               nik: s.nik,
               name: s.name,
-              department: s.department,
+              department: s.department || "-",
               bodLevel: s.bodLevel || "-",
               year: selectedYear,
               trainingHours: 0,
               selfLearningHours: s.hours || 0,
               totalHours: s.hours || 0
             };
-          } else {
-            mergedMap[s.nik].selfLearningHours += (s.hours || 0);
-            mergedMap[s.nik].totalHours += (s.hours || 0);
-            if (mergedMap[s.nik].bodLevel === "-" && s.bodLevel) {
-               mergedMap[s.nik].bodLevel = s.bodLevel;
-            }
           }
         });
 
@@ -153,7 +180,7 @@ export default function PublicDashboard() {
   const totalEmployees = allData.length;
   const sumTraining = allData.reduce((acc, curr) => acc + curr.trainingHours, 0);
   const sumSelfLearning = allData.reduce((acc, curr) => acc + curr.selfLearningHours, 0);
-  const totalHours = sumTraining + sumSelfLearning;
+  const totalHours = Number((sumTraining + sumSelfLearning).toFixed(2));
   const avgHours = totalEmployees > 0 ? (totalHours / totalEmployees).toFixed(1) : "0";
   
   // Kalkulasi BOD
