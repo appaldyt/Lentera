@@ -63,8 +63,8 @@ export default function PublicDashboard() {
         trainingData.forEach((t: any) => {
           if (t.year === selectedYear) {
             if (mergedMap[t.nik]) {
-              mergedMap[t.nik].trainingHours = Number((mergedMap[t.nik].trainingHours + (t.totalHours || 0)).toFixed(2));
-              mergedMap[t.nik].totalHours = Number((mergedMap[t.nik].totalHours + (t.totalHours || 0)).toFixed(2));
+              mergedMap[t.nik].trainingHours = Number((mergedMap[t.nik].trainingHours + (t.totalHours || 0)).toFixed(1));
+              mergedMap[t.nik].totalHours = Number((mergedMap[t.nik].totalHours + (t.totalHours || 0)).toFixed(1));
               if (mergedMap[t.nik].bodLevel === "-" && t.bodLevel) {
                 mergedMap[t.nik].bodLevel = t.bodLevel;
               }
@@ -77,9 +77,9 @@ export default function PublicDashboard() {
                 department: t.department || "-",
                 bodLevel: t.bodLevel || "-",
                 year: selectedYear,
-                trainingHours: t.totalHours || 0,
+                trainingHours: Number((t.totalHours || 0).toFixed(1)),
                 selfLearningHours: 0,
-                totalHours: t.totalHours || 0
+                totalHours: Number((t.totalHours || 0).toFixed(1))
               };
             }
           }
@@ -88,8 +88,8 @@ export default function PublicDashboard() {
         // 3. Proses Data Self-Learning (Gabungkan berdasarkan NIK)
         selfData.forEach((s: any) => {
           if (mergedMap[s.nik]) {
-            mergedMap[s.nik].selfLearningHours = Number((mergedMap[s.nik].selfLearningHours + (s.hours || 0)).toFixed(2));
-            mergedMap[s.nik].totalHours = Number((mergedMap[s.nik].trainingHours + mergedMap[s.nik].selfLearningHours).toFixed(2));
+            mergedMap[s.nik].selfLearningHours = Number((mergedMap[s.nik].selfLearningHours + (s.hours || 0)).toFixed(1));
+            mergedMap[s.nik].totalHours = Number((mergedMap[s.nik].trainingHours + mergedMap[s.nik].selfLearningHours).toFixed(1));
             if (mergedMap[s.nik].bodLevel === "-" && s.bodLevel) {
               mergedMap[s.nik].bodLevel = s.bodLevel;
             }
@@ -103,8 +103,8 @@ export default function PublicDashboard() {
               bodLevel: s.bodLevel || "-",
               year: selectedYear,
               trainingHours: 0,
-              selfLearningHours: s.hours || 0,
-              totalHours: s.hours || 0
+              selfLearningHours: Number((s.hours || 0).toFixed(1)),
+              totalHours: Number((s.hours || 0).toFixed(1))
             };
           }
         });
@@ -180,8 +180,8 @@ export default function PublicDashboard() {
   const totalEmployees = allData.length;
   const sumTraining = allData.reduce((acc, curr) => acc + curr.trainingHours, 0);
   const sumSelfLearning = allData.reduce((acc, curr) => acc + curr.selfLearningHours, 0);
-  const totalHours = Number((sumTraining + sumSelfLearning).toFixed(2));
-  const avgHours = totalEmployees > 0 ? (totalHours / totalEmployees).toFixed(1) : "0";
+  const totalHours = Number((sumTraining + sumSelfLearning).toFixed(1));
+  const avgHours = totalEmployees > 0 ? (totalHours / totalEmployees).toFixed(1) : "0.0";
   
   // Kalkulasi BOD
   const calcAvg = (employees: any[]) => {
@@ -300,7 +300,7 @@ export default function PublicDashboard() {
           <Card className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <Activity className="w-7 h-7 text-emerald-500 mb-4 opacity-80"/>
-              <div className="text-4xl font-bold text-navy">{totalHours.toLocaleString()} <span className="text-xl text-text-secondary font-medium">jam</span></div>
+              <div className="text-4xl font-bold text-navy">{totalHours.toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-xl text-text-secondary font-medium">jam</span></div>
               <div className="text-sm font-medium text-text-secondary mt-1 uppercase tracking-wider">Total Akumulasi Jam</div>
             </CardContent>
           </Card>
@@ -310,7 +310,7 @@ export default function PublicDashboard() {
               <div className="text-4xl font-bold text-navy">
                 {allData.filter(d => d.totalHours === 0).length} 
                 <span className="text-xl font-medium text-text-secondary ml-2">
-                  ({totalEmployees > 0 ? ((allData.filter(d => d.totalHours === 0).length / totalEmployees)*100).toFixed(1) : 0}%)
+                  ({totalEmployees > 0 ? ((allData.filter(d => d.totalHours === 0).length / totalEmployees)*100).toFixed(1) : "0.0"}%)
                 </span>
               </div>
               <div className="text-sm font-medium text-text-secondary mt-1 uppercase tracking-wider">Nol Jam Belajar</div>
@@ -449,7 +449,7 @@ export default function PublicDashboard() {
                            <div className="text-xs text-text-secondary truncate w-[140px] md:w-[180px] lg:w-[120px]">{emp.department}</div>
                          </div>
                       </div>
-                      <div className="text-base font-extrabold text-navy">{emp.totalHours} <span className="text-xs font-normal text-text-secondary">jam</span></div>
+                      <div className="text-base font-extrabold text-navy">{Number(emp.totalHours).toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-xs font-normal text-text-secondary">jam</span></div>
                     </div>
                   ))}
                 </div>
@@ -508,13 +508,13 @@ export default function PublicDashboard() {
                       <TableCell className="font-semibold text-navy">{emp.name}</TableCell>
                       <TableCell className="text-text-secondary text-sm">{emp.department}</TableCell>
                       <TableCell className="text-center text-sm font-medium text-slate-700 bg-slate-50/50 border-l border-r border-border/30">
-                        {emp.trainingHours > 0 ? emp.trainingHours : <span className="text-slate-400">0</span>}
+                        {emp.trainingHours > 0 ? Number(emp.trainingHours).toLocaleString(undefined, { maximumFractionDigits: 1 }) : <span className="text-slate-400">0</span>}
                       </TableCell>
                       <TableCell className="text-center text-sm font-medium text-sky border-r border-border/30">
-                        {emp.selfLearningHours > 0 ? emp.selfLearningHours : <span className="text-slate-400">0</span>}
+                        {emp.selfLearningHours > 0 ? Number(emp.selfLearningHours).toLocaleString(undefined, { maximumFractionDigits: 1 }) : <span className="text-slate-400">0</span>}
                       </TableCell>
                       <TableCell className="text-right font-black text-navy px-6 text-lg bg-slate-50/50">
-                        {emp.totalHours}
+                        {Number(emp.totalHours).toLocaleString(undefined, { maximumFractionDigits: 1 })}
                       </TableCell>
                     </TableRow>
                   ))}
