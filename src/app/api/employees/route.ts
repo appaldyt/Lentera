@@ -9,7 +9,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { nik, name, division, position, email, phone, workLocation, lob, employeeStatus, bodLevel, isActive } =
+  const { nik, name, directorate, group, division, position, positionCode, email, phone, workLocation, lob, employeeStatus, bodLevel, isActive } =
     await request.json();
 
   if (!nik || !name || !division || !position || !email) {
@@ -20,8 +20,11 @@ export async function POST(request: NextRequest) {
     data: {
       nik,
       name,
+      directorate: directorate ?? "",
+      group: group ?? "",
       division,
       position,
+      positionCode: positionCode ?? "",
       email,
       phone: phone ?? "",
       workLocation: workLocation ?? "",

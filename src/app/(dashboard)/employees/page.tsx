@@ -19,8 +19,11 @@ interface Employee {
   id: string;
   nik: string;
   name: string;
+  directorate?: string;
+  group?: string;
   division: string;
   position: string;
+  positionCode?: string;
   email: string;
   phone: string;
   workLocation: string;
@@ -33,8 +36,11 @@ interface Employee {
 interface ImportRow {
   nik: string;
   name: string;
+  directorate: string;
+  group: string;
   division: string;
   position: string;
+  positionCode: string;
   email: string;
   phone: string;
   workLocation: string;
@@ -48,11 +54,11 @@ interface ImportRow {
 const BOD_LEVELS = ["", "BOD", "BOD-1", "BOD-2", "BOD-3", "BOD-4", "BOD-5"];
 
 const EMPTY_FORM = {
-  nik: "", name: "", division: "", position: "",
+  nik: "", name: "", directorate: "", group: "", division: "", position: "", positionCode: "",
   email: "", phone: "", workLocation: "CGK", lob: "", employeeStatus: "PKWTT", bodLevel: "", isActive: true,
 };
 
-const IMPORT_HEADERS = ["NIK", "Nama Karyawan", "Divisi", "Jabatan", "BOD Level", "Email", "No. Telepon", "Lokasi Kerja", "LOB", "Status Karyawan", "Aktif"];
+const IMPORT_HEADERS = ["NIK", "Nama Karyawan", "Direktorat", "Group", "Divisi", "Jabatan", "Kode Posisi", "BOD Level", "Email", "No. Telepon", "Lokasi Kerja", "LOB", "Status Karyawan", "Aktif"];
 
 function parseXLSX(buffer: ArrayBuffer): ImportRow[] {
   const wb = XLSX.read(buffer, { type: "array" });
@@ -62,8 +68,11 @@ function parseXLSX(buffer: ArrayBuffer): ImportRow[] {
   return rows.map((row) => {
     const nik = String(row["NIK"] ?? "").trim();
     const name = String(row["Nama Karyawan"] ?? "").trim();
+    const directorate = String(row["Direktorat"] ?? "").trim();
+    const group = String(row["Group"] ?? "").trim();
     const division = String(row["Divisi"] ?? "").trim();
     const position = String(row["Jabatan"] ?? "").trim();
+    const positionCode = String(row["Kode Posisi"] ?? "").trim();
     const bodLevel = String(row["BOD Level"] ?? "").trim();
     const email = String(row["Email"] ?? "").trim();
     const phone = String(row["No. Telepon"] ?? "").trim();
@@ -81,14 +90,14 @@ function parseXLSX(buffer: ArrayBuffer): ImportRow[] {
     if (!division) errors.push("Divisi wajib diisi");
     if (!position) errors.push("Jabatan wajib diisi");
 
-    return { nik, name, division, position, bodLevel, email, phone, workLocation, lob, employeeStatus, isActive, _errors: errors };
+    return { nik, name, directorate, group, division, position, positionCode, bodLevel, email, phone, workLocation, lob, employeeStatus, isActive, _errors: errors };
   }).filter((row) => row.nik || row.name || row.email);
 }
 
 function downloadTemplate() {
   const sampleData = [
-    { NIK: "IAS-2024-0001", "Nama Karyawan": "Nama Karyawan", Divisi: "Operations", Jabatan: "Staff", "BOD Level": "BOD-1", Email: "nama@ias.id", "No. Telepon": "0812-XXXX-XXXX", "Lokasi Kerja": "CGK", LOB: "Ground Handling", "Status Karyawan": "PKWTT", Aktif: "Aktif" },
-    { NIK: "IAS-2024-0002", "Nama Karyawan": "Karyawan Dua", Divisi: "Finance", Jabatan: "Officer", "BOD Level": "", Email: "karyawan2@ias.id", "No. Telepon": "0813-XXXX-XXXX", "Lokasi Kerja": "SUB", LOB: "Food", "Status Karyawan": "PKWT", Aktif: "Non Aktif" },
+    { NIK: "IAS-2024-0001", "Nama Karyawan": "Nama Karyawan", Direktorat: "Operasi", Group: "Ground Operations", Divisi: "Operations", Jabatan: "Staff", "Kode Posisi": "OPS-001", "BOD Level": "BOD-1", Email: "nama@ias.id", "No. Telepon": "0812-XXXX-XXXX", "Lokasi Kerja": "CGK", LOB: "Ground Handling", "Status Karyawan": "PKWTT", Aktif: "Aktif" },
+    { NIK: "IAS-2024-0002", "Nama Karyawan": "Karyawan Dua", Direktorat: "Keuangan", Group: "Finance & Accounting", Divisi: "Finance", Jabatan: "Officer", "Kode Posisi": "FIN-002", "BOD Level": "", Email: "karyawan2@ias.id", "No. Telepon": "0813-XXXX-XXXX", "Lokasi Kerja": "SUB", LOB: "Food", "Status Karyawan": "PKWT", Aktif: "Non Aktif" },
   ];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(sampleData, { header: IMPORT_HEADERS });
@@ -103,6 +112,8 @@ export default function EmployeesPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterDirektorat, setFilterDirektorat] = useState("");
+  const [filterGroup, setFilterGroup] = useState("");
   const [filterDivisi, setFilterDivisi] = useState("");
   const [filterJabatan, setFilterJabatan] = useState("");
   const [filterLokasi, setFilterLokasi] = useState("");
@@ -169,7 +180,22 @@ export default function EmployeesPage() {
   };
 
   const handleEdit = (emp: Employee) => {
-    setFormData({ nik: emp.nik, name: emp.name, division: emp.division, position: emp.position, email: emp.email, phone: emp.phone, workLocation: emp.workLocation, lob: emp.lob, employeeStatus: emp.employeeStatus, bodLevel: emp.bodLevel ?? "", isActive: emp.isActive ?? true });
+    setFormData({
+      nik: emp.nik,
+      name: emp.name,
+      directorate: emp.directorate ?? "",
+      group: emp.group ?? "",
+      division: emp.division,
+      position: emp.position,
+      positionCode: emp.positionCode ?? "",
+      email: emp.email,
+      phone: emp.phone,
+      workLocation: emp.workLocation,
+      lob: emp.lob,
+      employeeStatus: emp.employeeStatus,
+      bodLevel: emp.bodLevel ?? "",
+      isActive: emp.isActive ?? true,
+    });
     setEditId(emp.id);
     setIsModalOpen(true);
     setOpenActionId(null);
@@ -266,12 +292,14 @@ export default function EmployeesPage() {
 
   // ── Filter ─────────────────────────────────────────────────────────────────
 
-  React.useEffect(() => { setCurrentPage(1); }, [searchTerm, filterDivisi, filterJabatan, filterLokasi, filterStatus]);
+  React.useEffect(() => { setCurrentPage(1); }, [searchTerm, filterDirektorat, filterGroup, filterDivisi, filterJabatan, filterLokasi, filterStatus, filterAktif]);
 
   const filteredEmployees = employees.filter((emp) => {
     const q = searchTerm.toLowerCase();
     return (
-      (emp.name.toLowerCase().includes(q) || emp.nik.toLowerCase().includes(q)) &&
+      (emp.name.toLowerCase().includes(q) || emp.nik.toLowerCase().includes(q) || (emp.positionCode && emp.positionCode.toLowerCase().includes(q))) &&
+      (filterDirektorat === "" || (emp.directorate && emp.directorate.toLowerCase().includes(filterDirektorat.toLowerCase()))) &&
+      (filterGroup === "" || (emp.group && emp.group.toLowerCase().includes(filterGroup.toLowerCase()))) &&
       (filterDivisi === "" || emp.division.toLowerCase().includes(filterDivisi.toLowerCase())) &&
       (filterJabatan === "" || emp.position.toLowerCase().includes(filterJabatan.toLowerCase())) &&
       (filterLokasi === "" || emp.workLocation.toLowerCase().includes(filterLokasi.toLowerCase())) &&
@@ -299,8 +327,11 @@ export default function EmployeesPage() {
       "No": idx + 1,
       "NIK": emp.nik,
       "Nama Karyawan": emp.name,
+      "Direktorat": emp.directorate ?? "",
+      "Group": emp.group ?? "",
       "Divisi": emp.division,
       "Jabatan": emp.position,
+      "Kode Posisi": emp.positionCode ?? "",
       "BOD Level": emp.bodLevel ?? "",
       "Email": emp.email,
       "No. Telepon": emp.phone,
@@ -355,6 +386,14 @@ export default function EmployeesPage() {
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
+                  <label className="text-xs font-medium text-text-secondary">Direktorat</label>
+                  <Input placeholder="Filter Direktorat..." className="h-8 text-sm" value={filterDirektorat} onChange={(e) => setFilterDirektorat(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-text-secondary">Group</label>
+                  <Input placeholder="Filter Group..." className="h-8 text-sm" value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)} />
+                </div>
+                <div className="space-y-2">
                   <label className="text-xs font-medium text-text-secondary">Divisi</label>
                   <Input placeholder="Filter Divisi..." className="h-8 text-sm" value={filterDivisi} onChange={(e) => setFilterDivisi(e.target.value)} />
                 </div>
@@ -385,7 +424,7 @@ export default function EmployeesPage() {
                 </div>
               </div>
               <div className="flex gap-2 mt-6">
-                <Button variant="outline" className="flex-1" onClick={() => { setFilterDivisi(""); setFilterJabatan(""); setFilterLokasi(""); setFilterStatus("ALL"); setFilterAktif("ALL"); }}>Clear</Button>
+                <Button variant="outline" className="flex-1" onClick={() => { setFilterDirektorat(""); setFilterGroup(""); setFilterDivisi(""); setFilterJabatan(""); setFilterLokasi(""); setFilterStatus("ALL"); setFilterAktif("ALL"); }}>Clear</Button>
                 <Button className="flex-1 bg-sky hover:bg-sky/90 text-white" onClick={() => setIsFilterOpen(false)}>Terapkan</Button>
               </div>
             </Card>
@@ -399,6 +438,7 @@ export default function EmployeesPage() {
           <TableRow>
             <TableHead>NIK</TableHead>
             <TableHead>Nama Karyawan</TableHead>
+            <TableHead>Direktorat</TableHead>
             <TableHead>Divisi</TableHead>
             <TableHead>Jabatan</TableHead>
             <TableHead>BOD Level</TableHead>
@@ -413,16 +453,27 @@ export default function EmployeesPage() {
         </TableHeader>
         <TableBody>
           {loading ? (
-            <TableRow><TableCell colSpan={12} className="text-center py-10 text-text-secondary">Memuat data...</TableCell></TableRow>
+            <TableRow><TableCell colSpan={13} className="text-center py-10 text-text-secondary">Memuat data...</TableCell></TableRow>
           ) : filteredEmployees.length === 0 ? (
-            <TableRow><TableCell colSpan={12} className="text-center py-10 text-text-secondary">Tidak ada data karyawan ditemukan.</TableCell></TableRow>
+            <TableRow><TableCell colSpan={13} className="text-center py-10 text-text-secondary">Tidak ada data karyawan ditemukan.</TableCell></TableRow>
           ) : (
             paginatedEmployees.map((emp) => (
               <TableRow key={emp.id}>
                 <TableCell className="font-medium text-navy">{emp.nik}</TableCell>
                 <TableCell className="font-medium">{emp.name}</TableCell>
+                <TableCell>
+                  <div className="font-medium text-navy text-sm">{emp.directorate || "-"}</div>
+                  {emp.group && <div className="text-xs text-text-secondary">{emp.group}</div>}
+                </TableCell>
                 <TableCell>{emp.division}</TableCell>
-                <TableCell>{emp.position}</TableCell>
+                <TableCell>
+                  <div>{emp.position}</div>
+                  {emp.positionCode && (
+                    <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-mono bg-sky/10 text-sky border border-sky/20 mt-0.5">
+                      {emp.positionCode}
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell>
                   {emp.bodLevel ? (
                     <Badge variant="outline" className="border-sky/40 text-sky bg-sky/5 font-medium text-xs">
@@ -599,6 +650,7 @@ export default function EmployeesPage() {
                         <TableHead className="w-8">#</TableHead>
                         <TableHead>NIK</TableHead>
                         <TableHead>Nama</TableHead>
+                        <TableHead>Direktorat</TableHead>
                         <TableHead>Divisi</TableHead>
                         <TableHead>Jabatan</TableHead>
                         <TableHead>Email</TableHead>
@@ -613,8 +665,17 @@ export default function EmployeesPage() {
                           <TableCell className="text-text-secondary text-xs">{i + 1}</TableCell>
                           <TableCell className="font-mono text-xs">{row.nik || <span className="text-danger italic">kosong</span>}</TableCell>
                           <TableCell>{row.name || <span className="text-danger italic">kosong</span>}</TableCell>
+                          <TableCell>
+                            <div className="text-xs">{row.directorate || "-"}</div>
+                            {row.group && <div className="text-[10px] text-text-secondary">{row.group}</div>}
+                          </TableCell>
                           <TableCell>{row.division}</TableCell>
-                          <TableCell>{row.position}</TableCell>
+                          <TableCell>
+                            <div>{row.position}</div>
+                            {row.positionCode && (
+                              <span className="text-[10px] text-sky font-mono">[{row.positionCode}]</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-xs">{row.email}</TableCell>
                           <TableCell>
                             {existingNiks.has(row.nik)
@@ -737,12 +798,24 @@ export default function EmployeesPage() {
                   <Input required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Nama Lengkap" />
                 </div>
                 <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Direktorat</label>
+                  <Input value={formData.directorate} onChange={(e) => setFormData({ ...formData, directorate: e.target.value })} placeholder="Contoh: Direktorat Operasi" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Group / Unit</label>
+                  <Input value={formData.group} onChange={(e) => setFormData({ ...formData, group: e.target.value })} placeholder="Contoh: Ground Operations Group" />
+                </div>
+                <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">Divisi</label>
                   <Input required value={formData.division} onChange={(e) => setFormData({ ...formData, division: e.target.value })} placeholder="Contoh: Operations" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">Jabatan</label>
                   <Input required value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} placeholder="Contoh: Manager" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Kode Posisi</label>
+                  <Input value={formData.positionCode} onChange={(e) => setFormData({ ...formData, positionCode: e.target.value })} placeholder="Contoh: OPS-001" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">BOD Level</label>

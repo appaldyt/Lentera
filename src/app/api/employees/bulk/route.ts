@@ -29,8 +29,11 @@ export async function POST(request: NextRequest) {
         create: {
           nik: emp.nik,
           name: emp.name,
+          directorate: emp.directorate ?? "",
+          group: emp.group ?? "",
           division: emp.division,
           position: emp.position,
+          positionCode: emp.positionCode ?? "",
           email: emp.email,
           phone: emp.phone ?? "",
           workLocation: emp.workLocation ?? "",
@@ -41,8 +44,11 @@ export async function POST(request: NextRequest) {
         },
         update: {
           name: emp.name,
+          directorate: emp.directorate ?? "",
+          group: emp.group ?? "",
           division: emp.division,
           position: emp.position,
+          positionCode: emp.positionCode ?? "",
           email: emp.email,
           phone: emp.phone ?? "",
           workLocation: emp.workLocation ?? "",

@@ -95,6 +95,7 @@ model TrainingParticipant {
   bodLevel         String   @default("")
   trainingDate     DateTime
   attendedHours    Int      @default(0)
+  selfLearningHours Int     @default(0)
 
   evaluatorId      String?
   evaluator        User?    @relation(fields: [evaluatorId], references: [id])
@@ -128,8 +129,11 @@ model Employee {
   id             String   @id @default(cuid())
   nik            String   @unique
   name           String
+  directorate    String   @default("")
+  group          String   @default("")
   division       String
   position       String
+  positionCode   String   @default("")
   email          String   @unique
   phone          String
   workLocation   String

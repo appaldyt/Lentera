@@ -5,12 +5,27 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function PUT(request: NextRequest, { params }: Ctx) {
   const { id } = await params;
-  const { nik, name, division, position, email, phone, workLocation, lob, employeeStatus, bodLevel, isActive } =
+  const { nik, name, directorate, group, division, position, positionCode, email, phone, workLocation, lob, employeeStatus, bodLevel, isActive } =
     await request.json();
 
   const employee = await prisma.employee.update({
     where: { id },
-    data: { nik, name, division, position, email, phone, workLocation, lob, bodLevel: bodLevel ?? "", employeeStatus, isActive: isActive !== undefined ? isActive : true },
+    data: {
+      nik,
+      name,
+      directorate: directorate ?? "",
+      group: group ?? "",
+      division,
+      position,
+      positionCode: positionCode ?? "",
+      email,
+      phone,
+      workLocation,
+      lob,
+      bodLevel: bodLevel ?? "",
+      employeeStatus,
+      isActive: isActive !== undefined ? isActive : true,
+    },
   });
 
   return Response.json({ employee });
