@@ -1,13 +1,39 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Lock, Search, Users, Clock, AlertCircle, Activity, BookOpen, GraduationCap, Calendar, Building2, Layers, Briefcase, Filter, RotateCcw } from "lucide-react";
+import { Lock, Search, Users, Clock, AlertCircle, Activity, BookOpen, GraduationCap, Calendar, Building2, Layers, Briefcase, Filter, RotateCcw, BarChart2, BarChartHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LabelList } from "recharts";
+
+function CustomRotatedTick(props: any) {
+  const { x, y, payload } = props;
+  const text = String(payload?.value || "");
+  const displayText = text.length > 18 ? `${text.substring(0, 16)}...` : text;
+
+  return (
+    <g transform={`translate(${x},${y + 4})`}>
+      <text
+        x={0}
+        y={0}
+        dx={-4}
+        dy={4}
+        textAnchor="end"
+        fill="#334155"
+        fontSize={10}
+        fontWeight={500}
+        transform="rotate(-40)"
+        className="select-none"
+      >
+        <title>{text}</title>
+        {displayText}
+      </text>
+    </g>
+  );
+}
 
 function CustomOrgTooltip({ active, payload, label }: any) {
   if (active && payload && payload.length) {
@@ -44,6 +70,7 @@ export default function PublicDashboard() {
 
   // Filter & Top-N Limit States (Opsi 1)
   const [directorateChartLimit, setDirectorateChartLimit] = useState<number | "ALL">(10);
+  const [directorateChartType, setDirectorateChartType] = useState<"horizontal" | "vertical">("horizontal");
   const [groupChartLimit, setGroupChartLimit] = useState<number | "ALL">(10);
   const [groupChartDirectorate, setGroupChartDirectorate] = useState("ALL");
   const [tableFilterDirectorate, setTableFilterDirectorate] = useState("ALL");
@@ -326,8 +353,11 @@ export default function PublicDashboard() {
     ? rawChartDataGroup
     : rawChartDataGroup.slice(0, groupChartLimit);
 
-  // Tinggi dinamis grafik Group agar tetap proporsional dan tidak saling berhimpitan
+  // Tinggi dinamis grafik agar tetap proporsional dan tidak saling berhimpitan
   const groupChartHeight = Math.max(320, chartDataGroup.length * 36 + 40);
+  const directorateChartHeight = directorateChartType === "horizontal"
+    ? Math.max(320, chartDataDirectorate.length * 36 + 40)
+    : 420;
 
   // Filter data tabel karyawan (pencarian teks + filter Direktorat & Group dari database)
   const filteredData = allData.filter(e => {
@@ -520,6 +550,35 @@ export default function PublicDashboard() {
                   <p className="text-xs text-text-secondary mt-0.5">Rata-rata jam belajar per karyawan per Direktorat</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Toggle Orientasi Grafik: Horizontal vs Vertikal */}
+                  <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg border border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setDirectorateChartType("horizontal")}
+                      className={`p-1.5 rounded-md text-xs transition-colors flex items-center gap-1 ${
+                        directorateChartType === "horizontal"
+                          ? "bg-white text-navy font-bold shadow-sm"
+                          : "text-text-secondary hover:text-navy"
+                      }`}
+                      title="Tampilan Mendatar (Horizontal - Keterangan Sisi Kiri Jelas)"
+                    >
+                      <BarChartHorizontal className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDirectorateChartType("vertical")}
+                      className={`p-1.5 rounded-md text-xs transition-colors flex items-center gap-1 ${
+                        directorateChartType === "vertical"
+                          ? "bg-white text-navy font-bold shadow-sm"
+                          : "text-text-secondary hover:text-navy"
+                      }`}
+                      title="Tampilan Tegak (Vertikal - Keterangan Miring Rapi)"
+                    >
+                      <BarChart2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Limit Top-N */}
                   <div className="flex items-center gap-1.5 bg-slate-50 border border-border/80 rounded-lg px-2.5 py-1">
                     <Filter className="w-3.5 h-3.5 text-text-secondary" />
                     <select 
@@ -538,22 +597,43 @@ export default function PublicDashboard() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-6">
-              <div className="h-[320px] w-full">
+            <CardContent className="pt-6 pb-6">
+              <div style={{ height: `${directorateChartHeight}px` }} className="w-full min-h-[320px] transition-all duration-300">
                 {loading ? (
                   <div className="h-full w-full flex items-center justify-center text-text-secondary">Memuat grafik...</div>
                 ) : chartDataDirectorate.length === 0 ? (
                   <div className="h-full w-full flex items-center justify-center text-text-secondary">Tidak ada data direktorat</div>
+                ) : directorateChartType === "horizontal" ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartDataDirectorate} layout="vertical" margin={{ top: 5, right: 35, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="#f1f5f9" />
+                      <XAxis type="number" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="name" type="category" width={150} tick={{ fill: '#334155', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<CustomOrgTooltip />} />
+                      <Bar dataKey="Total Jam" fill="#0B2A4A" radius={[0, 6, 6, 0]} maxBarSize={22}>
+                        <LabelList 
+                          dataKey="Total Jam" 
+                          position="right" 
+                          fill="#0f172a" 
+                          fontSize={11} 
+                          fontWeight={600} 
+                          offset={6}
+                          formatter={(val: any) => typeof val === "number" ? `${val.toLocaleString(undefined, { maximumFractionDigits: 1 })} jam` : String(val ?? "")}
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartDataDirectorate} margin={{ top: 25, right: 20, left: -10, bottom: 20 }}>
+                    <BarChart data={chartDataDirectorate} margin={{ top: 25, right: 15, left: -10, bottom: 95 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis 
                         dataKey="name" 
-                        tick={{ fill: '#334155', fontSize: 11, fontWeight: 500 }} 
+                        tick={<CustomRotatedTick />} 
                         axisLine={false} 
                         tickLine={false}
                         interval={0}
+                        height={95}
                       />
                       <YAxis 
                         tick={{ fill: '#64748b', fontSize: 11 }} 
@@ -562,15 +642,15 @@ export default function PublicDashboard() {
                         domain={[0, (dataMax: number) => Math.max(Math.ceil(dataMax * 1.15), 10)]} 
                       />
                       <Tooltip content={<CustomOrgTooltip />} />
-                      <Bar dataKey="Total Jam" fill="#0B2A4A" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                      <Bar dataKey="Total Jam" fill="#0B2A4A" radius={[6, 6, 0, 0]} maxBarSize={45}>
                         <LabelList 
                           dataKey="Total Jam" 
                           position="top" 
                           fill="#0f172a" 
-                          fontSize={12} 
+                          fontSize={chartDataDirectorate.length > 8 ? 10 : 11} 
                           fontWeight={700} 
-                          offset={8}
-                          formatter={(val: any) => typeof val === "number" ? `${val.toLocaleString(undefined, { maximumFractionDigits: 1 })} jam` : String(val ?? "")}
+                          offset={6}
+                          formatter={(val: any) => typeof val === "number" ? `${val.toLocaleString(undefined, { maximumFractionDigits: 1 })}${chartDataDirectorate.length > 8 ? '' : ' jam'}` : String(val ?? "")}
                         />
                       </Bar>
                     </BarChart>
