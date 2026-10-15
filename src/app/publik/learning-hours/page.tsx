@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Lock, Search, Users, Clock, AlertCircle, Activity, BookOpen, GraduationCap, Calendar, Building2, Layers, Briefcase, Filter, RotateCcw, BarChart2, BarChartHorizontal } from "lucide-react";
+import { Lock, Search, Users, Clock, AlertCircle, Activity, BookOpen, GraduationCap, Calendar, Building2, Layers, Briefcase, Filter, RotateCcw, BarChart2, BarChartHorizontal, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,7 +66,10 @@ export default function PublicDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedYear, setSelectedYear] = useState("2026");
   const [currentPage, setCurrentPage] = useState(1);
-  const [chartTopLimit, setChartTopLimit] = useState(15);
+  const [divisionChartDirectorate, setDivisionChartDirectorate] = useState("ALL");
+  const [divisionChartSelected, setDivisionChartSelected] = useState("ALL");
+  const [divisionChartLimit, setDivisionChartLimit] = useState<number | "ALL">(15);
+  const [employeeTopLimit, setEmployeeTopLimit] = useState<number>(5);
 
   // Filter & Top-N Limit States (Opsi 1)
   const [directorateChartLimit, setDirectorateChartLimit] = useState<number | "ALL">(10);
@@ -256,34 +259,19 @@ export default function PublicDashboard() {
   const bod1to4Emps = [...bod1to3Emps, ...bod4Emps];
   const allBodEmps = allData.filter(e => typeof e.bodLevel === "string" && e.bodLevel.startsWith("BOD"));
   
-  // Grouping by department untuk Chart (Top 10)
-  const deptMap: Record<string, { training: number, self: number, total: number, count: number }> = {};
-  allData.forEach(emp => {
-    const dept = emp.department || "Lainnya";
-    if (!deptMap[dept]) deptMap[dept] = { training: 0, self: 0, total: 0, count: 0 };
-    deptMap[dept].training += emp.trainingHours;
-    deptMap[dept].self += emp.selfLearningHours;
-    deptMap[dept].total += emp.totalHours;
-    deptMap[dept].count += 1;
-  });
-
-  const chartData = Object.keys(deptMap).map(key => ({
-    name: key,
-    "Total Jam": Number((deptMap[key].total / deptMap[key].count).toFixed(1)),
-    avgTotal: Number((deptMap[key].total / deptMap[key].count).toFixed(1))
-  })).sort((a,b) => b.avgTotal - a.avgTotal).slice(0, chartTopLimit);
-
   const chartDataBod = [
     { name: "BOD-1", "Total Jam": Number(calcAvg(bod1Emps)) },
     { name: "BOD-2", "Total Jam": Number(calcAvg(bod2Emps)) },
     { name: "BOD-3", "Total Jam": Number(calcAvg(bod3Emps)) },
     { name: "BOD-4", "Total Jam": Number(calcAvg(bod4Emps)) },
   ];
-
-  // 1. Ekstrak daftar unik Direktorat & Group dinamis dari database (Master Karyawan Aktif)
+  
+  // 1. Ekstrak daftar unik Direktorat, Group, dan Divisi dinamis dari database (Master Karyawan Aktif)
   const dirSet = new Set<string>();
   const grpSet = new Set<string>();
   const tableGrpSet = new Set<string>();
+  const divSet = new Set<string>();
+  const availableDivSet = new Set<string>();
 
   allData.forEach((emp) => {
     if (emp.directorate && emp.directorate.trim() !== "") {
@@ -291,6 +279,12 @@ export default function PublicDashboard() {
     }
     if (emp.group && emp.group.trim() !== "") {
       grpSet.add(emp.group.trim());
+    }
+    if (emp.department && emp.department.trim() !== "" && emp.department.trim() !== "-") {
+      divSet.add(emp.department.trim());
+      if (divisionChartDirectorate === "ALL" || emp.directorate === divisionChartDirectorate) {
+        availableDivSet.add(emp.department.trim());
+      }
     }
     if (tableFilterDirectorate === "ALL" || emp.directorate === tableFilterDirectorate) {
       if (emp.group && emp.group.trim() !== "") {
@@ -302,6 +296,39 @@ export default function PublicDashboard() {
   const uniqueDirectorates = Array.from(dirSet).sort();
   const uniqueGroups = Array.from(grpSet).sort();
   const availableTableGroups = Array.from(tableGrpSet).sort();
+  const uniqueDivisions = Array.from(divSet).sort();
+  const availableDivisions = Array.from(availableDivSet).sort();
+
+  // Grouping by department untuk Chart Divisi (dengan filter Direktorat & Divisi dari database)
+  const divisionFilteredEmployees = allData.filter(emp => {
+    const matchesDir = divisionChartDirectorate === "ALL" || emp.directorate === divisionChartDirectorate;
+    const matchesDiv = divisionChartSelected === "ALL" || emp.department === divisionChartSelected;
+    return matchesDir && matchesDiv;
+  });
+
+  const deptMap: Record<string, { training: number, self: number, total: number, count: number }> = {};
+  divisionFilteredEmployees.forEach(emp => {
+    const dept = emp.department || "Lainnya";
+    if (!deptMap[dept]) deptMap[dept] = { training: 0, self: 0, total: 0, count: 0 };
+    deptMap[dept].training += emp.trainingHours;
+    deptMap[dept].self += emp.selfLearningHours;
+    deptMap[dept].total += emp.totalHours;
+    deptMap[dept].count += 1;
+  });
+
+  const rawChartData = Object.keys(deptMap).map(key => ({
+    name: key,
+    "Total Jam": Number((deptMap[key].total / deptMap[key].count).toFixed(1)),
+    avgTotal: Number((deptMap[key].total / deptMap[key].count).toFixed(1)),
+    totalCount: deptMap[key].count,
+    sumHours: Number(deptMap[key].total.toFixed(1)),
+  })).sort((a,b) => b.avgTotal - a.avgTotal);
+
+  const chartData = divisionChartLimit === "ALL"
+    ? rawChartData
+    : rawChartData.slice(0, divisionChartLimit);
+
+  const divisionChartHeight = Math.max(380, chartData.length * 34 + 50);
 
   // Grouping by Directorate
   const directorateMap: Record<string, { training: number; self: number; total: number; count: number }> = {};
@@ -749,40 +776,99 @@ export default function PublicDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
            {/* Chart */}
+           {/* Chart */}
            <Card className="border border-border/50 shadow-sm lg:col-span-2">
              <CardHeader className="pb-4 border-b border-border/40">
-               <CardTitle className="text-lg font-bold text-navy mb-4">Rata-rata Total Learning Hours per Divisi</CardTitle>
-               <div className="flex flex-row items-center gap-3">
-                 <select className="border border-slate-300 rounded-md px-3 py-1.5 text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500">
-                    <option>Semua Divisi</option>
-                 </select>
-                 <select 
-                    className="border border-slate-300 rounded-md px-3 py-1.5 text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    value={chartTopLimit}
-                    onChange={(e) => setChartTopLimit(Number(e.target.value))}
-                 >
-                    <option value={5}>Top 5</option>
-                    <option value={10}>Top 10</option>
-                    <option value={15}>Top 15</option>
-                    <option value={20}>Top 20</option>
-                 </select>
+               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                 <div>
+                   <CardTitle className="text-lg font-bold text-navy flex items-center gap-2">
+                     <Briefcase className="w-5 h-5 text-amber-500" />
+                     Rata-rata Total Learning Hours per Divisi
+                   </CardTitle>
+                   <p className="text-xs text-text-secondary mt-0.5">Distribusi rata-rata jam belajar berdasarkan divisi unit kerja</p>
+                 </div>
+                 <div className="flex flex-wrap items-center gap-2">
+                   {/* Filter Direktorat Dinamis dari Database */}
+                   <div className="flex items-center gap-1.5 bg-slate-50 border border-border/80 rounded-lg px-2.5 py-1">
+                     <Building2 className="w-3.5 h-3.5 text-text-secondary" />
+                     <select
+                       value={divisionChartDirectorate}
+                       onChange={(e) => {
+                         setDivisionChartDirectorate(e.target.value);
+                         setDivisionChartSelected("ALL");
+                       }}
+                       className="bg-transparent text-xs font-semibold text-navy focus:outline-none cursor-pointer max-w-[130px] truncate"
+                       title="Filter berdasarkan Direktorat"
+                     >
+                       <option value="ALL">Semua Direktorat</option>
+                       {uniqueDirectorates.map((dir) => (
+                         <option key={dir} value={dir}>{dir}</option>
+                       ))}
+                     </select>
+                   </div>
+
+                   {/* Filter Divisi Dinamis dari Database */}
+                   <div className="flex items-center gap-1.5 bg-slate-50 border border-border/80 rounded-lg px-2.5 py-1">
+                     <Briefcase className="w-3.5 h-3.5 text-text-secondary" />
+                     <select 
+                       value={divisionChartSelected}
+                       onChange={(e) => setDivisionChartSelected(e.target.value)}
+                       className="bg-transparent text-xs font-semibold text-navy focus:outline-none cursor-pointer max-w-[140px] truncate"
+                       title="Filter Divisi Spesifik"
+                     >
+                       <option value="ALL">Semua Divisi</option>
+                       {availableDivisions.map((dept) => (
+                         <option key={dept} value={dept}>{dept}</option>
+                       ))}
+                     </select>
+                   </div>
+
+                   {/* Opsi 1: Filter Limit Top-N */}
+                   <div className="flex items-center gap-1.5 bg-slate-50 border border-border/80 rounded-lg px-2.5 py-1">
+                     <Filter className="w-3.5 h-3.5 text-text-secondary" />
+                     <select 
+                       value={divisionChartLimit}
+                       onChange={(e) => setDivisionChartLimit(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
+                       className="bg-transparent text-xs font-semibold text-navy focus:outline-none cursor-pointer"
+                     >
+                       <option value={5}>Top 5</option>
+                       <option value={10}>Top 10</option>
+                       <option value={15}>Top 15</option>
+                       <option value={20}>Top 20</option>
+                       <option value="ALL">Semua ({rawChartData.length})</option>
+                     </select>
+                   </div>
+
+                   <Badge variant="outline" className="text-xs font-normal text-text-secondary bg-slate-50">
+                     {chartData.length} Div
+                   </Badge>
+                 </div>
                </div>
              </CardHeader>
              <CardContent className="pt-6">
-                <div className="h-[450px] w-full">
+                <div style={{ height: `${divisionChartHeight}px` }} className="w-full min-h-[380px] transition-all duration-300">
                   {loading ? (
                     <div className="h-full w-full flex items-center justify-center text-text-secondary">Memuat grafik...</div>
+                  ) : chartData.length === 0 ? (
+                    <div className="h-full w-full flex items-center justify-center text-text-secondary">Tidak ada data divisi</div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="#e2e8f0" />
-                        <XAxis type="number" tick={{fill: '#64748b', fontSize: 12}} axisLine={false} tickLine={false} />
+                      <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 35, left: 10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="#f1f5f9" />
+                        <XAxis type="number" tick={{fill: '#64748b', fontSize: 11}} axisLine={false} tickLine={false} />
                         <YAxis dataKey="name" type="category" width={220} tick={{fill: '#334155', fontSize: 11}} axisLine={false} tickLine={false} />
-                        <Tooltip 
-                          cursor={{fill: '#f8fafc'}} 
-                          contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} 
-                        />
-                        <Bar dataKey="Total Jam" fill="#dfa543" radius={[0, 10, 10, 0]} maxBarSize={18} />
+                        <Tooltip content={<CustomOrgTooltip />} />
+                        <Bar dataKey="Total Jam" fill="#dfa543" radius={[0, 8, 8, 0]} maxBarSize={22}>
+                          <LabelList 
+                            dataKey="Total Jam" 
+                            position="right" 
+                            fill="#0f172a" 
+                            fontSize={11} 
+                            fontWeight={600} 
+                            offset={6}
+                            formatter={(val: any) => typeof val === "number" ? `${val.toLocaleString(undefined, { maximumFractionDigits: 1 })} jam` : String(val ?? "")}
+                          />
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -790,34 +876,54 @@ export default function PublicDashboard() {
              </CardContent>
            </Card>
 
-           {/* Top 10 Employees */}
-           <Card className="border border-border/50 shadow-sm">
-             <CardHeader className="pb-2 border-b border-border/40 flex flex-row items-center justify-between">
-               <CardTitle className="text-lg font-bold text-navy flex items-center gap-2">Top 5 Karyawan</CardTitle>
-               <Badge variant="outline" className="font-normal text-text-secondary">Tahun {selectedYear}</Badge>
+           {/* Top Employees */}
+           <Card className="border border-border/50 shadow-sm flex flex-col">
+             <CardHeader className="pb-3 border-b border-border/40 flex flex-row items-center justify-between">
+               <div>
+                 <CardTitle className="text-base font-bold text-navy flex items-center gap-2">
+                   <Trophy className="w-4 h-4 text-amber-500" />
+                   Top {employeeTopLimit} Karyawan
+                 </CardTitle>
+                 <p className="text-xs text-text-secondary mt-0.5">Tahun {selectedYear}</p>
+               </div>
+               <div className="flex items-center gap-1.5 bg-slate-50 border border-border/80 rounded-lg px-2.5 py-1">
+                 <Filter className="w-3.5 h-3.5 text-text-secondary" />
+                 <select 
+                   value={employeeTopLimit}
+                   onChange={(e) => setEmployeeTopLimit(Number(e.target.value))}
+                   className="bg-transparent text-xs font-semibold text-navy focus:outline-none cursor-pointer"
+                 >
+                   <option value={5}>Top 5</option>
+                   <option value={10}>Top 10</option>
+                   <option value={15}>Top 15</option>
+                   <option value={20}>Top 20</option>
+                 </select>
+               </div>
              </CardHeader>
-             <CardContent className="pt-6">
-                <div className="space-y-5">
+             <CardContent className="pt-5 pb-5 flex-1">
+                <div className="space-y-4 max-h-[580px] overflow-y-auto pr-1">
                   {loading ? (
-                    <div className="text-center text-sm text-text-secondary py-4">Memuat data...</div>
+                    <div className="text-center text-sm text-text-secondary py-8">Memuat data...</div>
                   ) : allData.length === 0 ? (
-                    <div className="text-center text-sm text-text-secondary py-4">Tidak ada data untuk tahun {selectedYear}</div>
-                  ) : allData.sort((a,b) => b.totalHours - a.totalHours).slice(0,5).map((emp, i) => (
+                    <div className="text-center text-sm text-text-secondary py-8">Tidak ada data untuk tahun {selectedYear}</div>
+                  ) : allData.sort((a,b) => b.totalHours - a.totalHours).slice(0, employeeTopLimit).map((emp, i) => (
                     <div key={emp.id} className="flex items-center justify-between group">
-                      <div className="flex items-center gap-4">
-                         <div className={`w-9 h-9 rounded-full font-bold flex items-center justify-center text-sm shadow-sm
+                      <div className="flex items-center gap-3 min-w-0">
+                         <div className={`w-8 h-8 rounded-full font-bold flex items-center justify-center text-xs shadow-sm shrink-0
                             ${i === 0 ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-200' : 
                               i === 1 ? 'bg-slate-200 text-slate-700 ring-2 ring-slate-300' : 
                               i === 2 ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-200' : 
                               'bg-sky/10 text-sky ring-1 ring-sky/20'}`}>
                             {i+1}
                          </div>
-                         <div>
-                           <div className="text-sm font-bold text-navy group-hover:text-sky transition-colors">{emp.name}</div>
-                           <div className="text-xs text-text-secondary truncate w-[140px] md:w-[180px] lg:w-[120px]">{emp.department}</div>
+                         <div className="min-w-0">
+                           <div className="text-sm font-bold text-navy group-hover:text-sky transition-colors truncate">{emp.name}</div>
+                           <div className="text-xs text-text-secondary truncate">{emp.department || "-"}</div>
                          </div>
                       </div>
-                      <div className="text-base font-extrabold text-navy">{Number(emp.totalHours).toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-xs font-normal text-text-secondary">jam</span></div>
+                      <div className="text-sm font-extrabold text-navy shrink-0 ml-2">
+                        {Number(emp.totalHours).toLocaleString(undefined, { maximumFractionDigits: 1 })} <span className="text-xs font-normal text-text-secondary">jam</span>
+                      </div>
                     </div>
                   ))}
                 </div>
