@@ -249,6 +249,7 @@ export default function PublicDashboard() {
     const total = employees.reduce((acc, curr) => acc + curr.totalHours, 0);
     return (total / employees.length).toFixed(1);
   };
+  const calcSum = (employees: any[]) => Number(employees.reduce((acc, curr) => acc + curr.totalHours, 0).toFixed(1));
 
   const bod1Emps = allData.filter(e => e.bodLevel === "BOD-1");
   const bod2Emps = allData.filter(e => e.bodLevel === "BOD-2");
@@ -260,10 +261,30 @@ export default function PublicDashboard() {
   const allBodEmps = allData.filter(e => typeof e.bodLevel === "string" && e.bodLevel.startsWith("BOD"));
   
   const chartDataBod = [
-    { name: "BOD-1", "Total Jam": Number(calcAvg(bod1Emps)) },
-    { name: "BOD-2", "Total Jam": Number(calcAvg(bod2Emps)) },
-    { name: "BOD-3", "Total Jam": Number(calcAvg(bod3Emps)) },
-    { name: "BOD-4", "Total Jam": Number(calcAvg(bod4Emps)) },
+    { 
+      name: "BOD-1", 
+      "Total Jam": Number(calcAvg(bod1Emps)), 
+      sumHours: calcSum(bod1Emps), 
+      totalCount: bod1Emps.length 
+    },
+    { 
+      name: "BOD-2", 
+      "Total Jam": Number(calcAvg(bod2Emps)), 
+      sumHours: calcSum(bod2Emps), 
+      totalCount: bod2Emps.length 
+    },
+    { 
+      name: "BOD-3", 
+      "Total Jam": Number(calcAvg(bod3Emps)), 
+      sumHours: calcSum(bod3Emps), 
+      totalCount: bod3Emps.length 
+    },
+    { 
+      name: "BOD-4", 
+      "Total Jam": Number(calcAvg(bod4Emps)), 
+      sumHours: calcSum(bod4Emps), 
+      totalCount: bod4Emps.length 
+    },
   ];
   
   // 1. Ekstrak daftar unik Direktorat, Group, dan Divisi dinamis dari database (Master Karyawan Aktif)
@@ -504,18 +525,27 @@ export default function PublicDashboard() {
                   <div className="bg-sky text-white rounded-full px-4 py-1 text-xs font-bold mb-3 uppercase">BOD-1 s/d BOD-3</div>
                   <div className="text-3xl font-black text-navy">{calcAvg(bod1to3Emps)}</div>
                   <div className="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-medium">Jam/Karyawan</div>
+                  <div className="text-[11px] text-slate-500 mt-2 font-medium bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+                    Total: {calcSum(bod1to3Emps)} jam • {bod1to3Emps.length} orang
+                  </div>
                 </div>
                 {/* BOD-1 s/d BOD-4 */}
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 flex flex-col items-center justify-center text-center">
                   <div className="bg-sky/80 text-white rounded-full px-4 py-1 text-xs font-bold mb-3 uppercase">BOD-1 s/d BOD-4</div>
                   <div className="text-3xl font-black text-navy">{calcAvg(bod1to4Emps)}</div>
                   <div className="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-medium">Jam/Karyawan</div>
+                  <div className="text-[11px] text-slate-500 mt-2 font-medium bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+                    Total: {calcSum(bod1to4Emps)} jam • {bod1to4Emps.length} orang
+                  </div>
                 </div>
                 {/* Seluruh BOD */}
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 flex flex-col items-center justify-center text-center">
                   <div className="bg-navy text-white rounded-full px-4 py-1 text-xs font-bold mb-3 uppercase">Seluruh BOD</div>
                   <div className="text-3xl font-black text-navy">{calcAvg(allBodEmps)}</div>
                   <div className="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-medium">Jam/Karyawan</div>
+                  <div className="text-[11px] text-slate-500 mt-2 font-medium bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+                    Total: {calcSum(allBodEmps)} jam • {allBodEmps.length} orang
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -533,10 +563,7 @@ export default function PublicDashboard() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 12}} axisLine={false} tickLine={false} />
                     <YAxis tick={{fill: '#64748b', fontSize: 12}} axisLine={false} tickLine={false} domain={[0, (dataMax: number) => Math.max(Math.ceil(dataMax * 1.15), 10)]} />
-                    <Tooltip 
-                      cursor={{fill: '#f8fafc'}} 
-                      contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} 
-                    />
+                    <Tooltip content={<CustomOrgTooltip />} />
                     <Bar dataKey="Total Jam" fill="#1e40af" radius={[4, 4, 0, 0]} maxBarSize={70}>
                       <LabelList 
                         dataKey="Total Jam" 
