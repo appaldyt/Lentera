@@ -1,13 +1,34 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Lock, Search, Users, Clock, AlertCircle, Activity, BookOpen, GraduationCap, Calendar } from "lucide-react";
+import { Lock, Search, Users, Clock, AlertCircle, Activity, BookOpen, GraduationCap, Calendar, Building2, Layers, Briefcase, Filter, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LabelList } from "recharts";
+
+function CustomOrgTooltip({ active, payload, label }: any) {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white p-3 rounded-lg shadow-lg border border-border text-xs space-y-1">
+        <p className="font-bold text-navy text-sm">{label || data.name}</p>
+        <p className="text-sky font-semibold">
+          Rata-rata: <span className="text-navy">{data["Total Jam"]} jam/karyawan</span>
+        </p>
+        <p className="text-text-secondary">
+          Total Akumulasi: <span className="font-medium text-navy">{data.sumHours} jam</span>
+        </p>
+        <p className="text-text-secondary">
+          Jumlah Karyawan: <span className="font-medium text-navy">{data.totalCount} orang</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function PublicDashboard() {
   const [password, setPassword] = useState("");
@@ -20,6 +41,13 @@ export default function PublicDashboard() {
   const [selectedYear, setSelectedYear] = useState("2026");
   const [currentPage, setCurrentPage] = useState(1);
   const [chartTopLimit, setChartTopLimit] = useState(15);
+
+  // Filter & Top-N Limit States (Opsi 1)
+  const [directorateChartLimit, setDirectorateChartLimit] = useState<number | "ALL">(10);
+  const [groupChartLimit, setGroupChartLimit] = useState<number | "ALL">(10);
+  const [groupChartDirectorate, setGroupChartDirectorate] = useState("ALL");
+  const [tableFilterDirectorate, setTableFilterDirectorate] = useState("ALL");
+  const [tableFilterGroup, setTableFilterGroup] = useState("ALL");
 
   useEffect(() => {
     const auth = sessionStorage.getItem("public_dashboard_auth");
@@ -50,6 +78,8 @@ export default function PublicDashboard() {
             id: emp.nik,
             nik: emp.nik,
             name: emp.name,
+            directorate: emp.directorate || "",
+            group: emp.group || "",
             department: emp.division || "-",
             bodLevel: emp.bodLevel || "-",
             year: selectedYear,
@@ -223,11 +253,96 @@ export default function PublicDashboard() {
     { name: "BOD-4", "Total Jam": Number(calcAvg(bod4Emps)) },
   ];
 
-  const filteredData = allData.filter(e => 
-    e.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    e.nik.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (e.department && e.department.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // 1. Ekstrak daftar unik Direktorat & Group dinamis dari database (Master Karyawan Aktif)
+  const dirSet = new Set<string>();
+  const grpSet = new Set<string>();
+  const tableGrpSet = new Set<string>();
+
+  allData.forEach((emp) => {
+    if (emp.directorate && emp.directorate.trim() !== "") {
+      dirSet.add(emp.directorate.trim());
+    }
+    if (emp.group && emp.group.trim() !== "") {
+      grpSet.add(emp.group.trim());
+    }
+    if (tableFilterDirectorate === "ALL" || emp.directorate === tableFilterDirectorate) {
+      if (emp.group && emp.group.trim() !== "") {
+        tableGrpSet.add(emp.group.trim());
+      }
+    }
+  });
+
+  const uniqueDirectorates = Array.from(dirSet).sort();
+  const uniqueGroups = Array.from(grpSet).sort();
+  const availableTableGroups = Array.from(tableGrpSet).sort();
+
+  // Grouping by Directorate
+  const directorateMap: Record<string, { training: number; self: number; total: number; count: number }> = {};
+  allData.forEach(emp => {
+    const dir = emp.directorate && emp.directorate.trim() !== "" ? emp.directorate.trim() : "Lainnya";
+    if (!directorateMap[dir]) directorateMap[dir] = { training: 0, self: 0, total: 0, count: 0 };
+    directorateMap[dir].training += emp.trainingHours;
+    directorateMap[dir].self += emp.selfLearningHours;
+    directorateMap[dir].total += emp.totalHours;
+    directorateMap[dir].count += 1;
+  });
+
+  const rawChartDataDirectorate = Object.keys(directorateMap).map(key => ({
+    name: key,
+    "Total Jam": Number((directorateMap[key].total / directorateMap[key].count).toFixed(1)),
+    totalCount: directorateMap[key].count,
+    sumHours: Number(directorateMap[key].total.toFixed(1)),
+  })).sort((a, b) => b["Total Jam"] - a["Total Jam"]);
+
+  // Opsi 1: Pembatas Top-N untuk Grafik Direktorat
+  const chartDataDirectorate = directorateChartLimit === "ALL"
+    ? rawChartDataDirectorate
+    : rawChartDataDirectorate.slice(0, directorateChartLimit);
+
+  // Grouping by Group (dengan opsi filter Direktorat dinamis dari database)
+  const groupFilteredEmployees = groupChartDirectorate === "ALL"
+    ? allData
+    : allData.filter(emp => emp.directorate === groupChartDirectorate);
+
+  const groupMap: Record<string, { training: number; self: number; total: number; count: number }> = {};
+  groupFilteredEmployees.forEach(emp => {
+    const grp = emp.group && emp.group.trim() !== "" ? emp.group.trim() : "Lainnya";
+    if (!groupMap[grp]) groupMap[grp] = { training: 0, self: 0, total: 0, count: 0 };
+    groupMap[grp].training += emp.trainingHours;
+    groupMap[grp].self += emp.selfLearningHours;
+    groupMap[grp].total += emp.totalHours;
+    groupMap[grp].count += 1;
+  });
+
+  const rawChartDataGroup = Object.keys(groupMap).map(key => ({
+    name: key,
+    "Total Jam": Number((groupMap[key].total / groupMap[key].count).toFixed(1)),
+    totalCount: groupMap[key].count,
+    sumHours: Number(groupMap[key].total.toFixed(1)),
+  })).sort((a, b) => b["Total Jam"] - a["Total Jam"]);
+
+  // Opsi 1: Pembatas Top-N untuk Grafik Group
+  const chartDataGroup = groupChartLimit === "ALL"
+    ? rawChartDataGroup
+    : rawChartDataGroup.slice(0, groupChartLimit);
+
+  // Tinggi dinamis grafik Group agar tetap proporsional dan tidak saling berhimpitan
+  const groupChartHeight = Math.max(320, chartDataGroup.length * 36 + 40);
+
+  // Filter data tabel karyawan (pencarian teks + filter Direktorat & Group dari database)
+  const filteredData = allData.filter(e => {
+    const matchesSearch = 
+      e.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      e.nik.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (e.department && e.department.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (e.directorate && e.directorate.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (e.group && e.group.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesDirectorate = tableFilterDirectorate === "ALL" || e.directorate === tableFilterDirectorate;
+    const matchesGroup = tableFilterGroup === "ALL" || e.group === tableFilterGroup;
+
+    return matchesSearch && matchesDirectorate && matchesGroup;
+  });
 
   const PAGE_SIZE = 10;
   const sortedData = [...filteredData].sort((a,b) => b.totalHours - a.totalHours);
@@ -383,6 +498,169 @@ export default function PublicDashboard() {
           </Card>
         </div>
 
+        {/* Section: Ringkasan per Direktorat & Group */}
+        <div className="mb-4 mt-8">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-sky" />
+            <h2 className="text-xl font-extrabold text-navy">Ringkasan per Direktorat & Group</h2>
+          </div>
+          <p className="text-sm text-text-secondary mt-1">Distribusi rata-rata jam belajar berdasarkan unit Direktorat dan Group kerja.</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Card Direktorat */}
+          <Card className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3 border-b border-border/40">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-bold text-navy flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-sky" />
+                    Rata-rata Jam Belajar per Direktorat
+                  </CardTitle>
+                  <p className="text-xs text-text-secondary mt-0.5">Rata-rata jam belajar per karyawan per Direktorat</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-border/80 rounded-lg px-2.5 py-1">
+                    <Filter className="w-3.5 h-3.5 text-text-secondary" />
+                    <select 
+                      value={directorateChartLimit}
+                      onChange={(e) => setDirectorateChartLimit(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
+                      className="bg-transparent text-xs font-semibold text-navy focus:outline-none cursor-pointer"
+                    >
+                      <option value={5}>Top 5</option>
+                      <option value={10}>Top 10</option>
+                      <option value="ALL">Semua ({rawChartDataDirectorate.length})</option>
+                    </select>
+                  </div>
+                  <Badge variant="outline" className="text-xs font-normal text-text-secondary bg-slate-50">
+                    {chartDataDirectorate.length} Dir
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="h-[320px] w-full">
+                {loading ? (
+                  <div className="h-full w-full flex items-center justify-center text-text-secondary">Memuat grafik...</div>
+                ) : chartDataDirectorate.length === 0 ? (
+                  <div className="h-full w-full flex items-center justify-center text-text-secondary">Tidak ada data direktorat</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartDataDirectorate} margin={{ top: 25, right: 20, left: -10, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fill: '#334155', fontSize: 11, fontWeight: 500 }} 
+                        axisLine={false} 
+                        tickLine={false}
+                        interval={0}
+                      />
+                      <YAxis 
+                        tick={{ fill: '#64748b', fontSize: 11 }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        domain={[0, (dataMax: number) => Math.max(Math.ceil(dataMax * 1.15), 10)]} 
+                      />
+                      <Tooltip content={<CustomOrgTooltip />} />
+                      <Bar dataKey="Total Jam" fill="#0B2A4A" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                        <LabelList 
+                          dataKey="Total Jam" 
+                          position="top" 
+                          fill="#0f172a" 
+                          fontSize={12} 
+                          fontWeight={700} 
+                          offset={8}
+                          formatter={(val: any) => typeof val === "number" ? `${val.toLocaleString(undefined, { maximumFractionDigits: 1 })} jam` : String(val ?? "")}
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card Group */}
+          <Card className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3 border-b border-border/40">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-bold text-navy flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-sky" />
+                    Rata-rata Jam Belajar per Group
+                  </CardTitle>
+                  <p className="text-xs text-text-secondary mt-0.5">Rata-rata jam belajar per karyawan per Group kerja</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Filter Direktorat Dinamis dari Database */}
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-border/80 rounded-lg px-2.5 py-1">
+                    <Building2 className="w-3.5 h-3.5 text-text-secondary" />
+                    <select
+                      value={groupChartDirectorate}
+                      onChange={(e) => setGroupChartDirectorate(e.target.value)}
+                      className="bg-transparent text-xs font-semibold text-navy focus:outline-none cursor-pointer max-w-[130px] truncate"
+                      title="Filter berdasarkan Direktorat"
+                    >
+                      <option value="ALL">Semua Direktorat</option>
+                      {uniqueDirectorates.map((dir) => (
+                        <option key={dir} value={dir}>{dir}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Opsi 1: Filter Limit Top-N */}
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-border/80 rounded-lg px-2.5 py-1">
+                    <Filter className="w-3.5 h-3.5 text-text-secondary" />
+                    <select 
+                      value={groupChartLimit}
+                      onChange={(e) => setGroupChartLimit(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
+                      className="bg-transparent text-xs font-semibold text-navy focus:outline-none cursor-pointer"
+                    >
+                      <option value={5}>Top 5</option>
+                      <option value={10}>Top 10</option>
+                      <option value={15}>Top 15</option>
+                      <option value="ALL">Semua ({rawChartDataGroup.length})</option>
+                    </select>
+                  </div>
+
+                  <Badge variant="outline" className="text-xs font-normal text-text-secondary bg-slate-50">
+                    {chartDataGroup.length} Group
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div style={{ height: `${groupChartHeight}px` }} className="w-full min-h-[320px] transition-all duration-300">
+                {loading ? (
+                  <div className="h-full w-full flex items-center justify-center text-text-secondary">Memuat grafik...</div>
+                ) : chartDataGroup.length === 0 ? (
+                  <div className="h-full w-full flex items-center justify-center text-text-secondary">Tidak ada data group</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartDataGroup} layout="vertical" margin={{ top: 5, right: 35, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="#f1f5f9" />
+                      <XAxis type="number" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis dataKey="name" type="category" width={140} tick={{ fill: '#334155', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<CustomOrgTooltip />} />
+                      <Bar dataKey="Total Jam" fill="#1E88E5" radius={[0, 6, 6, 0]} maxBarSize={22}>
+                        <LabelList 
+                          dataKey="Total Jam" 
+                          position="right" 
+                          fill="#0f172a" 
+                          fontSize={11} 
+                          fontWeight={600} 
+                          offset={6}
+                          formatter={(val: any) => typeof val === "number" ? `${val.toLocaleString(undefined, { maximumFractionDigits: 1 })} jam` : String(val ?? "")}
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Section Title */}
         <div className="mb-4 mt-8">
           <h2 className="text-xl font-extrabold text-navy">Ringkasan per Divisi</h2>
@@ -469,19 +747,78 @@ export default function PublicDashboard() {
 
         {/* Detail Karyawan Table */}
         <Card className="border border-border/50 shadow-sm overflow-hidden">
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/20 border-b border-border/40 pb-4">
+          <CardHeader className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-muted/20 border-b border-border/40 pb-4">
             <div>
               <CardTitle className="text-lg font-bold text-navy">Kalkulasi Lengkap Karyawan (Tahun {selectedYear})</CardTitle>
               <p className="text-sm text-text-secondary mt-1">Total Jam = (Training Hours) + (Self-Learning Hours).</p>
             </div>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-secondary" />
-              <Input 
-                placeholder="Cari nama, NIK, atau divisi..." 
-                className="pl-9 h-9 border-border/60 focus:border-sky/50 bg-white"
-                value={searchQuery}
-                onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              />
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+              {/* Filter Direktorat Dinamis dari Database */}
+              <div className="relative">
+                <select
+                  value={tableFilterDirectorate}
+                  onChange={(e) => {
+                    setTableFilterDirectorate(e.target.value);
+                    setTableFilterGroup("ALL");
+                    setCurrentPage(1);
+                  }}
+                  className="appearance-none border border-border/80 rounded-lg pl-3 pr-8 h-9 text-xs bg-white text-navy font-medium focus:outline-none focus:ring-2 focus:ring-sky/40 shadow-sm cursor-pointer min-w-[150px]"
+                >
+                  <option value="ALL">Semua Direktorat</option>
+                  {uniqueDirectorates.map((dir) => (
+                    <option key={dir} value={dir}>{dir}</option>
+                  ))}
+                </select>
+                <Building2 className="w-3.5 h-3.5 text-text-secondary pointer-events-none absolute right-2.5 top-3" />
+              </div>
+
+              {/* Filter Group Dinamis dari Database */}
+              <div className="relative">
+                <select
+                  value={tableFilterGroup}
+                  onChange={(e) => {
+                    setTableFilterGroup(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="appearance-none border border-border/80 rounded-lg pl-3 pr-8 h-9 text-xs bg-white text-navy font-medium focus:outline-none focus:ring-2 focus:ring-sky/40 shadow-sm cursor-pointer min-w-[140px]"
+                >
+                  <option value="ALL">Semua Group</option>
+                  {availableTableGroups.map((grp) => (
+                    <option key={grp} value={grp}>{grp}</option>
+                  ))}
+                </select>
+                <Layers className="w-3.5 h-3.5 text-text-secondary pointer-events-none absolute right-2.5 top-3" />
+              </div>
+
+              {/* Reset Filter Button */}
+              {(tableFilterDirectorate !== "ALL" || tableFilterGroup !== "ALL" || searchQuery !== "") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setTableFilterDirectorate("ALL");
+                    setTableFilterGroup("ALL");
+                    setSearchQuery("");
+                    setCurrentPage(1);
+                  }}
+                  className="h-9 px-2 text-xs text-text-secondary hover:text-navy hover:bg-slate-100"
+                  title="Reset Filter & Pencarian"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                  Reset
+                </Button>
+              )}
+
+              {/* Input Search */}
+              <div className="relative w-full sm:w-60">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-secondary" />
+                <Input 
+                  placeholder="Cari nama, NIK, divisi..." 
+                  className="pl-9 h-9 border-border/60 focus:border-sky/50 bg-white text-xs"
+                  value={searchQuery}
+                  onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -491,6 +828,7 @@ export default function PublicDashboard() {
                   <TableRow className="border-b-border/40">
                     <TableHead className="font-bold text-navy px-6 py-4">NIK</TableHead>
                     <TableHead className="font-bold text-navy">Nama Karyawan</TableHead>
+                    <TableHead className="font-bold text-navy">Direktorat / Group</TableHead>
                     <TableHead className="font-bold text-navy">Divisi</TableHead>
                     <TableHead className="font-bold text-navy text-center">
                        <div className="flex flex-col items-center">
@@ -509,13 +847,17 @@ export default function PublicDashboard() {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                     <TableRow><TableCell colSpan={6} className="text-center h-32 text-text-secondary">Memuat data...</TableCell></TableRow>
+                     <TableRow><TableCell colSpan={7} className="text-center h-32 text-text-secondary">Memuat data...</TableCell></TableRow>
                   ) : filteredData.length === 0 ? (
-                     <TableRow><TableCell colSpan={6} className="text-center h-32 text-text-secondary">Tidak ada data karyawan ditemukan</TableCell></TableRow>
+                     <TableRow><TableCell colSpan={7} className="text-center h-32 text-text-secondary">Tidak ada data karyawan ditemukan</TableCell></TableRow>
                   ) : paginatedData.map((emp) => (
                     <TableRow key={emp.id} className="hover:bg-slate-50 border-b-border/40 transition-colors">
                       <TableCell className="font-medium text-navy px-6">{emp.nik}</TableCell>
                       <TableCell className="font-semibold text-navy">{emp.name}</TableCell>
+                      <TableCell>
+                        <div className="text-xs font-semibold text-navy">{emp.directorate || "-"}</div>
+                        {emp.group && <div className="text-[11px] text-text-secondary">{emp.group}</div>}
+                      </TableCell>
                       <TableCell className="text-text-secondary text-sm">{emp.department}</TableCell>
                       <TableCell className="text-center text-sm font-medium text-slate-700 bg-slate-50/50 border-l border-r border-border/30">
                         {emp.trainingHours > 0 ? Number(emp.trainingHours).toLocaleString(undefined, { maximumFractionDigits: 1 }) : <span className="text-slate-400">0</span>}
