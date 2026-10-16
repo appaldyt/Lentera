@@ -43,6 +43,16 @@ interface SelfLearningEntry {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
+// Default filter tahun = tahun berjalan, agar angka sama dengan Dashboard Publik
+const CURRENT_YEAR = String(new Date().getFullYear());
+const YEAR_OPTIONS = ["2023", "2024", "2025", "2026", "2027", "2028", "2029", "2030"];
+
+interface YearFilterProps {
+  filterYear: string;
+}
+
+const yearLabel = (y: string) => (y === "all" ? "semua tahun" : `tahun ${y}`);
+
 const EMPTY_SELF_FORM: Omit<SelfLearningEntry, "id"> = {
   nik: "", name: "", department: "", bodLevel: "", year: "", platform: "", hours: 0,
 };
@@ -229,16 +239,17 @@ function SelfLearningModal({
 
 // ─── Training Hours Tab ──────────────────────────────────────────────────────
 
-function TrainingHoursTab() {
+function TrainingHoursTab({ filterYear }: YearFilterProps) {
   const [allData, setAllData] = useState<LearningHoursEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterYear, setFilterYear] = useState("all");
   const [filterColNama, setFilterColNama] = useState("");
   const [filterColDivisi, setFilterColDivisi] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
+
+  useEffect(() => { setCurrentPage(1); }, [filterYear]);
 
   useEffect(() => {
     fetch("/api/learning-hours")
@@ -263,7 +274,6 @@ function TrainingHoursTab() {
   const totalHours = parseFloat(filteredData.reduce((s, e) => s + e.totalHours, 0).toFixed(2));
   const activeEmployees = filteredData.length;
   const averageHours = activeEmployees > 0 ? (totalHours / activeEmployees).toFixed(1) : "0.0";
-  const availableYears = Array.from(new Set(allData.map((d) => d.year))).sort((a, b) => b.localeCompare(a));
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const paginatedData = filteredData.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -302,7 +312,7 @@ function TrainingHoursTab() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-navy">{averageHours} Jam</div>
-            <p className="text-xs text-text-secondary mt-1">Per karyawan {filterYear !== "all" ? `tahun ${filterYear}` : "keseluruhan"}</p>
+            <p className="text-xs text-text-secondary mt-1">Per karyawan {yearLabel(filterYear)}</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-border">
@@ -312,7 +322,7 @@ function TrainingHoursTab() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-navy">{totalHours} Jam</div>
-            <p className="text-xs text-text-secondary mt-1">Seluruh partisipasi pelatihan</p>
+            <p className="text-xs text-text-secondary mt-1">Seluruh partisipasi pelatihan {yearLabel(filterYear)}</p>
           </CardContent>
         </Card>
       </div>
@@ -346,20 +356,9 @@ function TrainingHoursTab() {
                   <label className="text-xs font-medium text-text-secondary">Divisi</label>
                   <Input placeholder="Filter by Divisi..." className="h-8 text-sm" value={filterColDivisi} onChange={(e) => { setFilterColDivisi(e.target.value); setCurrentPage(1); }} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-text-secondary">Tahun</label>
-                  <select
-                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
-                    value={filterYear}
-                    onChange={(e) => { setFilterYear(e.target.value); setCurrentPage(1); }}
-                  >
-                    <option value="all">Semua Tahun</option>
-                    {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
               </div>
               <div className="flex gap-2 mt-6">
-                <Button variant="outline" className="flex-1" onClick={() => { setFilterColNama(""); setFilterColDivisi(""); setFilterYear("all"); setCurrentPage(1); }}>Clear</Button>
+                <Button variant="outline" className="flex-1" onClick={() => { setFilterColNama(""); setFilterColDivisi(""); setCurrentPage(1); }}>Clear</Button>
                 <Button className="flex-1 bg-sky hover:bg-sky/90 text-white" onClick={() => setIsFilterOpen(false)}>Terapkan</Button>
               </div>
             </Card>
@@ -438,12 +437,10 @@ function TrainingHoursTab() {
 
 // ─── Self-Learning Hours Tab ─────────────────────────────────────────────────
 
-function SelfLearningTab() {
+function SelfLearningTab({ filterYear }: YearFilterProps) {
   const [entries, setEntries] = useState<SelfLearningEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterYear, setFilterYear] = useState("all");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<SelfLearningEntry | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -467,7 +464,7 @@ function SelfLearningTab() {
       .finally(() => setLoading(false));
   }, []);
 
-  const availableYears = Array.from(new Set(entries.map((e) => e.year).filter(Boolean))).sort((a, b) => b.localeCompare(a));
+  useEffect(() => { setCurrentPage(1); }, [filterYear]);
 
   const filteredEntries = entries.filter((e) => {
     const q = searchQuery.toLowerCase();
@@ -874,7 +871,7 @@ function SelfLearningTab() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-navy">{averageHours} Jam</div>
-            <p className="text-xs text-text-secondary mt-1">Per karyawan {filterYear !== "all" ? `tahun ${filterYear}` : "keseluruhan"}</p>
+            <p className="text-xs text-text-secondary mt-1">Per karyawan {yearLabel(filterYear)}</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-border">
@@ -884,7 +881,7 @@ function SelfLearningTab() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-navy">{totalHours} Jam</div>
-            <p className="text-xs text-text-secondary mt-1">Akumulasi jam self-learning</p>
+            <p className="text-xs text-text-secondary mt-1">Akumulasi jam self-learning {yearLabel(filterYear)}</p>
           </CardContent>
         </Card>
       </div>
@@ -896,9 +893,6 @@ function SelfLearningTab() {
           <Input placeholder="Cari NIK, Nama, atau Judul..." className="pl-9" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }} />
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto relative">
-          <Button variant="outline" className="gap-2 border-border/50 text-text-secondary" onClick={() => setIsFilterOpen(!isFilterOpen)}>
-            <Filter className="h-4 w-4" /> Filter
-          </Button>
           <Button variant="outline" className="gap-2 text-success border-success/30 hover:bg-success/10 hover:text-success" onClick={handleExport}>
             <FileSpreadsheet className="h-4 w-4" /> Export
           </Button>
@@ -911,32 +905,6 @@ function SelfLearningTab() {
           >
             <Plus className="h-4 w-4" /> Tambah
           </Button>
-
-          {isFilterOpen && (
-            <Card className="absolute right-0 top-[calc(100%+8px)] w-72 z-50 p-4 shadow-xl border-border animate-in fade-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-semibold text-navy text-sm flex items-center gap-2"><Filter className="h-4 w-4" /> Filter Data</h4>
-                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setIsFilterOpen(false)}><X className="h-3 w-3" /></Button>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-text-secondary">Tahun</label>
-                  <select
-                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky"
-                    value={filterYear}
-                    onChange={(e) => { setFilterYear(e.target.value); setCurrentPage(1); }}
-                  >
-                    <option value="all">Semua Tahun</option>
-                    {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-6">
-                <Button variant="outline" className="flex-1" onClick={() => { setFilterYear("all"); setCurrentPage(1); }}>Clear</Button>
-                <Button className="flex-1 bg-sky hover:bg-sky/90 text-white" onClick={() => setIsFilterOpen(false)}>Terapkan</Button>
-              </div>
-            </Card>
-          )}
         </div>
       </div>
 
@@ -1058,6 +1026,7 @@ function SelfLearningTab() {
 
 export default function LearningHoursPage() {
   const [activeTab, setActiveTab] = useState<"training" | "self">("training");
+  const [filterYear, setFilterYear] = useState(CURRENT_YEAR);
 
   return (
     <div className="space-y-6">
@@ -1070,7 +1039,8 @@ export default function LearningHoursPage() {
         <p className="text-text-secondary">Kelola jam pelatihan formal dan belajar mandiri karyawan.</p>
       </div>
 
-      {/* Tab Switcher */}
+      {/* Tab Switcher + Filter Tahun (berlaku untuk kedua tab) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div className="flex gap-1 rounded-lg bg-muted/50 p-1 border border-border/50 w-fit">
         <button
           onClick={() => setActiveTab("training")}
@@ -1097,9 +1067,22 @@ export default function LearningHoursPage() {
           Self-Learning Hours
         </button>
       </div>
+      <div className="flex items-center gap-2">
+        <label htmlFor="learning-hours-year" className="text-sm font-medium text-text-secondary">Tahun</label>
+        <select
+          id="learning-hours-year"
+          value={filterYear}
+          onChange={(e) => setFilterYear(e.target.value)}
+          className="h-9 rounded-md border border-input bg-white px-3 text-sm font-medium text-navy shadow-sm focus:outline-none focus:ring-1 focus:ring-sky cursor-pointer"
+        >
+          <option value="all">Semua Tahun</option>
+          {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+      </div>
 
       {/* Tab Content */}
-      {activeTab === "training" ? <TrainingHoursTab /> : <SelfLearningTab />}
+      {activeTab === "training" ? <TrainingHoursTab filterYear={filterYear} /> : <SelfLearningTab filterYear={filterYear} />}
     </div>
   );
 }
