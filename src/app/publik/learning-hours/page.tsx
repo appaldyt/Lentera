@@ -48,8 +48,13 @@ function CustomOrgTooltip({ active, payload, label }: any) {
           Total Akumulasi: <span className="font-medium text-navy">{data.sumHours} jam</span>
         </p>
         <p className="text-text-secondary">
-          Jumlah Karyawan: <span className="font-medium text-navy">{data.totalCount} orang</span>
+          Karyawan Aktif (Pembagi): <span className="font-medium text-navy">{data.totalCount} orang</span>
         </p>
+        {data.inactiveCount > 0 && (
+          <p className="text-amber-600 text-[11px] font-medium pt-0.5">
+            *Termasuk {data.inactiveCount} karyawan non-aktif ({data.inactiveHours} jam)
+          </p>
+        )}
       </div>
     );
   }
@@ -98,11 +103,14 @@ export default function PublicDashboard() {
         const trainingData = trainingRes.data || [];
         const selfData = (selfRes.entries || []).filter((e: any) => !e.year || e.year === selectedYear);
         const employeeList = empRes.employees || [];
-        const activeEmployees = employeeList.filter((e: any) => e.isActive !== false);
+        const empLookup = new Map<string, any>();
+        employeeList.forEach((e: any) => empLookup.set(e.nik, e));
 
+        const activeEmployees = employeeList.filter((e: any) => e.isActive !== false);
         const mergedMap: Record<string, any> = {};
 
         // 1. Inisialisasi dari seluruh karyawan aktif (Master Manajemen Karyawan)
+        // Karyawan aktif dengan 0 jam belajar tetap tercatat sebagai peserta dengan 0 jam
         activeEmployees.forEach((emp: any) => {
           mergedMap[emp.nik] = {
             id: emp.nik,
@@ -112,6 +120,7 @@ export default function PublicDashboard() {
             group: emp.group || "",
             department: emp.division || "-",
             bodLevel: emp.bodLevel || "-",
+            isActive: true,
             year: selectedYear,
             trainingHours: 0,
             selfLearningHours: 0,
@@ -119,7 +128,7 @@ export default function PublicDashboard() {
           };
         });
 
-        // 2. Proses Data Training (Akumulasi per NIK)
+        // 2. Proses Data Training (Akumulasi per NIK - mencakup karyawan aktif maupun non-aktif)
         trainingData.forEach((t: any) => {
           if (t.year === selectedYear) {
             if (mergedMap[t.nik]) {
@@ -128,14 +137,18 @@ export default function PublicDashboard() {
               if (mergedMap[t.nik].bodLevel === "-" && t.bodLevel) {
                 mergedMap[t.nik].bodLevel = t.bodLevel;
               }
-            } else if (activeEmployees.length === 0) {
-              // Fallback jika master data karyawan kosong
+            } else {
+              // Karyawan non-aktif atau karyawan luar yang memiliki jam training di tahun terpilih
+              const masterEmp = empLookup.get(t.nik);
               mergedMap[t.nik] = {
                 id: t.nik,
                 nik: t.nik,
-                name: t.name,
-                department: t.department || "-",
-                bodLevel: t.bodLevel || "-",
+                name: masterEmp?.name || t.name,
+                directorate: masterEmp?.directorate || "",
+                group: masterEmp?.group || "",
+                department: masterEmp?.division || t.department || "-",
+                bodLevel: masterEmp?.bodLevel || t.bodLevel || "-",
+                isActive: masterEmp ? (masterEmp.isActive !== false) : false,
                 year: selectedYear,
                 trainingHours: Number((t.totalHours || 0).toFixed(1)),
                 selfLearningHours: 0,
@@ -145,7 +158,7 @@ export default function PublicDashboard() {
           }
         });
 
-        // 3. Proses Data Self-Learning (Gabungkan berdasarkan NIK)
+        // 3. Proses Data Self-Learning (Gabungkan berdasarkan NIK - mencakup karyawan aktif maupun non-aktif)
         selfData.forEach((s: any) => {
           if (mergedMap[s.nik]) {
             mergedMap[s.nik].selfLearningHours = Number((mergedMap[s.nik].selfLearningHours + (s.hours || 0)).toFixed(1));
@@ -153,14 +166,18 @@ export default function PublicDashboard() {
             if (mergedMap[s.nik].bodLevel === "-" && s.bodLevel) {
               mergedMap[s.nik].bodLevel = s.bodLevel;
             }
-          } else if (activeEmployees.length === 0) {
-            // Fallback jika master data karyawan kosong
+          } else {
+            // Karyawan non-aktif yang memiliki jam self-learning
+            const masterEmp = empLookup.get(s.nik);
             mergedMap[s.nik] = {
               id: s.nik,
               nik: s.nik,
-              name: s.name,
-              department: s.department || "-",
-              bodLevel: s.bodLevel || "-",
+              name: masterEmp?.name || s.name,
+              directorate: masterEmp?.directorate || "",
+              group: masterEmp?.group || "",
+              department: masterEmp?.division || s.department || "-",
+              bodLevel: masterEmp?.bodLevel || s.bodLevel || "-",
+              isActive: masterEmp ? (masterEmp.isActive !== false) : false,
               year: selectedYear,
               trainingHours: 0,
               selfLearningHours: Number((s.hours || 0).toFixed(1)),
@@ -237,17 +254,19 @@ export default function PublicDashboard() {
   }
 
   // Kalkulasi Statistik
-  const totalEmployees = allData.length;
+  const activeEmployeesList = allData.filter(e => e.isActive !== false);
+  const totalEmployees = activeEmployeesList.length; // Pembagi dan kartu jumlah karyawan tetap yang aktif
   const sumTraining = allData.reduce((acc, curr) => acc + curr.trainingHours, 0);
   const sumSelfLearning = allData.reduce((acc, curr) => acc + curr.selfLearningHours, 0);
-  const totalHours = Number((sumTraining + sumSelfLearning).toFixed(1));
+  const totalHours = Number((sumTraining + sumSelfLearning).toFixed(1)); // Akumulasi total jam mencakup semua (aktif + non-aktif)
   const avgHours = totalEmployees > 0 ? (totalHours / totalEmployees).toFixed(1) : "0.0";
   
-  // Kalkulasi BOD
+  // Kalkulasi BOD (Jam mencakup seluruhnya, pembagi rata-rata tetap karyawan aktif)
   const calcAvg = (employees: any[]) => {
-    if (employees.length === 0) return "0.0";
+    const activeEmps = employees.filter(e => e.isActive !== false);
+    if (activeEmps.length === 0) return "0.0";
     const total = employees.reduce((acc, curr) => acc + curr.totalHours, 0);
-    return (total / employees.length).toFixed(1);
+    return (total / activeEmps.length).toFixed(1);
   };
   const calcSum = (employees: any[]) => Number(employees.reduce((acc, curr) => acc + curr.totalHours, 0).toFixed(1));
 
@@ -259,35 +278,47 @@ export default function PublicDashboard() {
   const bod1to3Emps = [...bod1Emps, ...bod2Emps, ...bod3Emps];
   const bod1to4Emps = [...bod1to3Emps, ...bod4Emps];
   const allBodEmps = allData.filter(e => typeof e.bodLevel === "string" && e.bodLevel.startsWith("BOD"));
+
+  const bod1to3ActiveEmps = bod1to3Emps.filter(e => e.isActive !== false);
+  const bod1to4ActiveEmps = bod1to4Emps.filter(e => e.isActive !== false);
+  const allBodActiveEmps = allBodEmps.filter(e => e.isActive !== false);
   
   const chartDataBod = [
     { 
       name: "BOD-1", 
       "Total Jam": Number(calcAvg(bod1Emps)), 
       sumHours: calcSum(bod1Emps), 
-      totalCount: bod1Emps.length 
+      totalCount: bod1Emps.filter(e => e.isActive !== false).length,
+      inactiveCount: bod1Emps.filter(e => e.isActive === false).length,
+      inactiveHours: calcSum(bod1Emps.filter(e => e.isActive === false))
     },
     { 
       name: "BOD-2", 
       "Total Jam": Number(calcAvg(bod2Emps)), 
       sumHours: calcSum(bod2Emps), 
-      totalCount: bod2Emps.length 
+      totalCount: bod2Emps.filter(e => e.isActive !== false).length,
+      inactiveCount: bod2Emps.filter(e => e.isActive === false).length,
+      inactiveHours: calcSum(bod2Emps.filter(e => e.isActive === false))
     },
     { 
       name: "BOD-3", 
       "Total Jam": Number(calcAvg(bod3Emps)), 
       sumHours: calcSum(bod3Emps), 
-      totalCount: bod3Emps.length 
+      totalCount: bod3Emps.filter(e => e.isActive !== false).length,
+      inactiveCount: bod3Emps.filter(e => e.isActive === false).length,
+      inactiveHours: calcSum(bod3Emps.filter(e => e.isActive === false))
     },
     { 
       name: "BOD-4", 
       "Total Jam": Number(calcAvg(bod4Emps)), 
       sumHours: calcSum(bod4Emps), 
-      totalCount: bod4Emps.length 
+      totalCount: bod4Emps.filter(e => e.isActive !== false).length,
+      inactiveCount: bod4Emps.filter(e => e.isActive === false).length,
+      inactiveHours: calcSum(bod4Emps.filter(e => e.isActive === false))
     },
   ];
   
-  // 1. Ekstrak daftar unik Direktorat, Group, dan Divisi dinamis dari database (Master Karyawan Aktif)
+  // 1. Ekstrak daftar unik Direktorat, Group, dan Divisi dinamis dari database
   const dirSet = new Set<string>();
   const grpSet = new Set<string>();
   const tableGrpSet = new Set<string>();
@@ -327,23 +358,34 @@ export default function PublicDashboard() {
     return matchesDir && matchesDiv;
   });
 
-  const deptMap: Record<string, { training: number, self: number, total: number, count: number }> = {};
+  const deptMap: Record<string, { training: number, self: number, total: number, activeCount: number, inactiveCount: number, inactiveHours: number }> = {};
   divisionFilteredEmployees.forEach(emp => {
     const dept = emp.department || "Lainnya";
-    if (!deptMap[dept]) deptMap[dept] = { training: 0, self: 0, total: 0, count: 0 };
+    if (!deptMap[dept]) deptMap[dept] = { training: 0, self: 0, total: 0, activeCount: 0, inactiveCount: 0, inactiveHours: 0 };
     deptMap[dept].training += emp.trainingHours;
     deptMap[dept].self += emp.selfLearningHours;
     deptMap[dept].total += emp.totalHours;
-    deptMap[dept].count += 1;
+    if (emp.isActive !== false) {
+      deptMap[dept].activeCount += 1;
+    } else {
+      deptMap[dept].inactiveCount += 1;
+      deptMap[dept].inactiveHours += emp.totalHours;
+    }
   });
 
-  const rawChartData = Object.keys(deptMap).map(key => ({
-    name: key,
-    "Total Jam": Number((deptMap[key].total / deptMap[key].count).toFixed(1)),
-    avgTotal: Number((deptMap[key].total / deptMap[key].count).toFixed(1)),
-    totalCount: deptMap[key].count,
-    sumHours: Number(deptMap[key].total.toFixed(1)),
-  })).sort((a,b) => b.avgTotal - a.avgTotal);
+  const rawChartData = Object.keys(deptMap).map(key => {
+    const d = deptMap[key];
+    const avg = d.activeCount > 0 ? Number((d.total / d.activeCount).toFixed(1)) : Number(d.total.toFixed(1));
+    return {
+      name: key,
+      "Total Jam": avg,
+      avgTotal: avg,
+      totalCount: d.activeCount, // Pembagi tetap karyawan aktif
+      inactiveCount: d.inactiveCount,
+      inactiveHours: Number(d.inactiveHours.toFixed(1)),
+      sumHours: Number(d.total.toFixed(1)),
+    };
+  }).sort((a,b) => b.avgTotal - a.avgTotal);
 
   const chartData = divisionChartLimit === "ALL"
     ? rawChartData
@@ -351,23 +393,34 @@ export default function PublicDashboard() {
 
   const divisionChartHeight = Math.max(380, chartData.length * 34 + 50);
 
-  // Grouping by Directorate
-  const directorateMap: Record<string, { training: number; self: number; total: number; count: number }> = {};
+  // Grouping by Directorate (Jam total akumulatif, pembagi rata-rata tetap karyawan aktif)
+  const directorateMap: Record<string, { training: number; self: number; total: number; activeCount: number; inactiveCount: number; inactiveHours: number }> = {};
   allData.forEach(emp => {
     const dir = emp.directorate && emp.directorate.trim() !== "" ? emp.directorate.trim() : "Lainnya";
-    if (!directorateMap[dir]) directorateMap[dir] = { training: 0, self: 0, total: 0, count: 0 };
+    if (!directorateMap[dir]) directorateMap[dir] = { training: 0, self: 0, total: 0, activeCount: 0, inactiveCount: 0, inactiveHours: 0 };
     directorateMap[dir].training += emp.trainingHours;
     directorateMap[dir].self += emp.selfLearningHours;
     directorateMap[dir].total += emp.totalHours;
-    directorateMap[dir].count += 1;
+    if (emp.isActive !== false) {
+      directorateMap[dir].activeCount += 1;
+    } else {
+      directorateMap[dir].inactiveCount += 1;
+      directorateMap[dir].inactiveHours += emp.totalHours;
+    }
   });
 
-  const rawChartDataDirectorate = Object.keys(directorateMap).map(key => ({
-    name: key,
-    "Total Jam": Number((directorateMap[key].total / directorateMap[key].count).toFixed(1)),
-    totalCount: directorateMap[key].count,
-    sumHours: Number(directorateMap[key].total.toFixed(1)),
-  })).sort((a, b) => b["Total Jam"] - a["Total Jam"]);
+  const rawChartDataDirectorate = Object.keys(directorateMap).map(key => {
+    const d = directorateMap[key];
+    const avg = d.activeCount > 0 ? Number((d.total / d.activeCount).toFixed(1)) : Number(d.total.toFixed(1));
+    return {
+      name: key,
+      "Total Jam": avg,
+      totalCount: d.activeCount, // Pembagi tetap karyawan aktif
+      inactiveCount: d.inactiveCount,
+      inactiveHours: Number(d.inactiveHours.toFixed(1)),
+      sumHours: Number(d.total.toFixed(1)),
+    };
+  }).sort((a, b) => b["Total Jam"] - a["Total Jam"]);
 
   // Opsi 1: Pembatas Top-N untuk Grafik Direktorat
   const chartDataDirectorate = directorateChartLimit === "ALL"
@@ -379,22 +432,33 @@ export default function PublicDashboard() {
     ? allData
     : allData.filter(emp => emp.directorate === groupChartDirectorate);
 
-  const groupMap: Record<string, { training: number; self: number; total: number; count: number }> = {};
+  const groupMap: Record<string, { training: number; self: number; total: number; activeCount: number; inactiveCount: number; inactiveHours: number }> = {};
   groupFilteredEmployees.forEach(emp => {
     const grp = emp.group && emp.group.trim() !== "" ? emp.group.trim() : "Lainnya";
-    if (!groupMap[grp]) groupMap[grp] = { training: 0, self: 0, total: 0, count: 0 };
+    if (!groupMap[grp]) groupMap[grp] = { training: 0, self: 0, total: 0, activeCount: 0, inactiveCount: 0, inactiveHours: 0 };
     groupMap[grp].training += emp.trainingHours;
     groupMap[grp].self += emp.selfLearningHours;
     groupMap[grp].total += emp.totalHours;
-    groupMap[grp].count += 1;
+    if (emp.isActive !== false) {
+      groupMap[grp].activeCount += 1;
+    } else {
+      groupMap[grp].inactiveCount += 1;
+      groupMap[grp].inactiveHours += emp.totalHours;
+    }
   });
 
-  const rawChartDataGroup = Object.keys(groupMap).map(key => ({
-    name: key,
-    "Total Jam": Number((groupMap[key].total / groupMap[key].count).toFixed(1)),
-    totalCount: groupMap[key].count,
-    sumHours: Number(groupMap[key].total.toFixed(1)),
-  })).sort((a, b) => b["Total Jam"] - a["Total Jam"]);
+  const rawChartDataGroup = Object.keys(groupMap).map(key => {
+    const g = groupMap[key];
+    const avg = g.activeCount > 0 ? Number((g.total / g.activeCount).toFixed(1)) : Number(g.total.toFixed(1));
+    return {
+      name: key,
+      "Total Jam": avg,
+      totalCount: g.activeCount, // Pembagi tetap karyawan aktif
+      inactiveCount: g.inactiveCount,
+      inactiveHours: Number(g.inactiveHours.toFixed(1)),
+      sumHours: Number(g.total.toFixed(1)),
+    };
+  }).sort((a, b) => b["Total Jam"] - a["Total Jam"]);
 
   // Opsi 1: Pembatas Top-N untuk Grafik Group
   const chartDataGroup = groupChartLimit === "ALL"
@@ -501,9 +565,9 @@ export default function PublicDashboard() {
             <CardContent className="p-6">
               <AlertCircle className="w-7 h-7 text-orange-500 mb-4 opacity-80"/>
               <div className="text-4xl font-bold text-navy">
-                {allData.filter(d => d.totalHours === 0).length} 
+                {activeEmployeesList.filter(d => d.totalHours === 0).length} 
                 <span className="text-xl font-medium text-text-secondary ml-2">
-                  ({totalEmployees > 0 ? ((allData.filter(d => d.totalHours === 0).length / totalEmployees)*100).toFixed(1) : "0.0"}%)
+                  ({totalEmployees > 0 ? ((activeEmployeesList.filter(d => d.totalHours === 0).length / totalEmployees)*100).toFixed(1) : "0.0"}%)
                 </span>
               </div>
               <div className="text-sm font-medium text-text-secondary mt-1 uppercase tracking-wider">Nol Jam Belajar</div>
@@ -524,27 +588,27 @@ export default function PublicDashboard() {
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 flex flex-col items-center justify-center text-center">
                   <div className="bg-sky text-white rounded-full px-4 py-1 text-xs font-bold mb-3 uppercase">BOD-1 s/d BOD-3</div>
                   <div className="text-3xl font-black text-navy">{calcAvg(bod1to3Emps)}</div>
-                  <div className="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-medium">Jam/Karyawan</div>
+                  <div className="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-medium">Jam/Karyawan Aktif</div>
                   <div className="text-[11px] text-slate-500 mt-2 font-medium bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
-                    Total: {calcSum(bod1to3Emps)} jam • {bod1to3Emps.length} orang
+                    Total: {calcSum(bod1to3Emps)} jam • {bod1to3ActiveEmps.length} orang aktif
                   </div>
                 </div>
                 {/* BOD-1 s/d BOD-4 */}
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 flex flex-col items-center justify-center text-center">
                   <div className="bg-sky/80 text-white rounded-full px-4 py-1 text-xs font-bold mb-3 uppercase">BOD-1 s/d BOD-4</div>
                   <div className="text-3xl font-black text-navy">{calcAvg(bod1to4Emps)}</div>
-                  <div className="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-medium">Jam/Karyawan</div>
+                  <div className="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-medium">Jam/Karyawan Aktif</div>
                   <div className="text-[11px] text-slate-500 mt-2 font-medium bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
-                    Total: {calcSum(bod1to4Emps)} jam • {bod1to4Emps.length} orang
+                    Total: {calcSum(bod1to4Emps)} jam • {bod1to4ActiveEmps.length} orang aktif
                   </div>
                 </div>
                 {/* Seluruh BOD */}
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 flex flex-col items-center justify-center text-center">
                   <div className="bg-navy text-white rounded-full px-4 py-1 text-xs font-bold mb-3 uppercase">Seluruh BOD</div>
                   <div className="text-3xl font-black text-navy">{calcAvg(allBodEmps)}</div>
-                  <div className="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-medium">Jam/Karyawan</div>
+                  <div className="text-[10px] text-text-secondary mt-1 uppercase tracking-wider font-medium">Jam/Karyawan Aktif</div>
                   <div className="text-[11px] text-slate-500 mt-2 font-medium bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
-                    Total: {calcSum(allBodEmps)} jam • {allBodEmps.length} orang
+                    Total: {calcSum(allBodEmps)} jam • {allBodActiveEmps.length} orang aktif
                   </div>
                 </div>
               </div>
@@ -933,7 +997,7 @@ export default function PublicDashboard() {
                     <div className="text-center text-sm text-text-secondary py-8">Memuat data...</div>
                   ) : allData.length === 0 ? (
                     <div className="text-center text-sm text-text-secondary py-8">Tidak ada data untuk tahun {selectedYear}</div>
-                  ) : allData.sort((a,b) => b.totalHours - a.totalHours).slice(0, employeeTopLimit).map((emp, i) => (
+                  ) : [...allData].sort((a,b) => b.totalHours - a.totalHours).slice(0, employeeTopLimit).map((emp, i) => (
                     <div key={emp.id} className="flex items-center justify-between group">
                       <div className="flex items-center gap-3 min-w-0">
                          <div className={`w-8 h-8 rounded-full font-bold flex items-center justify-center text-xs shadow-sm shrink-0
@@ -944,7 +1008,14 @@ export default function PublicDashboard() {
                             {i+1}
                          </div>
                          <div className="min-w-0">
-                           <div className="text-sm font-bold text-navy group-hover:text-sky transition-colors truncate">{emp.name}</div>
+                           <div className="text-sm font-bold text-navy group-hover:text-sky transition-colors truncate flex items-center gap-1.5">
+                             <span className="truncate">{emp.name}</span>
+                             {emp.isActive === false && (
+                               <span className="shrink-0 text-[9px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-600 border border-rose-200 font-semibold">
+                                 Non-Aktif
+                               </span>
+                             )}
+                           </div>
                            <div className="text-xs text-text-secondary truncate">{emp.department || "-"}</div>
                          </div>
                       </div>
@@ -1065,7 +1136,16 @@ export default function PublicDashboard() {
                      <TableRow><TableCell colSpan={7} className="text-center h-32 text-text-secondary">Tidak ada data karyawan ditemukan</TableCell></TableRow>
                   ) : paginatedData.map((emp) => (
                     <TableRow key={emp.id} className="hover:bg-slate-50 border-b-border/40 transition-colors">
-                      <TableCell className="font-medium text-navy px-6">{emp.nik}</TableCell>
+                      <TableCell className="font-medium text-navy px-6">
+                        <div className="flex items-center gap-1.5">
+                          <span>{emp.nik}</span>
+                          {emp.isActive === false && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200">
+                              Non-Aktif
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="font-semibold text-navy">{emp.name}</TableCell>
                       <TableCell>
                         <div className="text-xs font-semibold text-navy">{emp.directorate || "-"}</div>
