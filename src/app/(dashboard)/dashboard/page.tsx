@@ -38,6 +38,7 @@ interface LearningHourItem {
   name: string;
   year: string;
   totalHours: number;
+  bodLevel?: string;
 }
 
 interface BudgetItem {
@@ -64,6 +65,7 @@ interface SelfLearningItem {
   year: string;
   hours: number;
   platform?: string;
+  bodLevel?: string;
 }
 
 interface LicenseItem {
@@ -159,7 +161,7 @@ export default function DashboardPage() {
   const anggaranTerpakai = (filteredBudgets.reduce((s, b) => s + b.actualAmount, 0) / 1_000_000).toFixed(1);
   const pesertaTerdaftar = filteredLH.length;
   const totalLearningHours = parseFloat(filteredLH.reduce((s, lh) => s + lh.totalHours, 0).toFixed(2));
-  const activeEmployees = employees.filter((e) => e.isActive);
+  const activeEmployees = employees.filter((e) => e.isActive !== false);
   const totalActiveEmployees = activeEmployees.length;
   const rataRataJamBelajar = totalActiveEmployees > 0 ? (totalLearningHours / totalActiveEmployees).toFixed(1) : "0.0";
 
@@ -169,14 +171,23 @@ export default function DashboardPage() {
   const totalSelfLearningHours = parseFloat(filteredSelfLearning.reduce((s, sl) => s + sl.hours, 0).toFixed(2));
   const rataRataSelfLearning = totalActiveEmployees > 0 ? (totalSelfLearningHours / totalActiveEmployees).toFixed(1) : "0.0";
 
+  const empMap = new Map<string, any>(employees.map((e) => [e.nik, e]));
+  const getBodLevel = (nik: string, fallbackBod?: string) => {
+    const masterEmp = empMap.get(nik);
+    return masterEmp?.bodLevel || fallbackBod || "";
+  };
+
   const bodAverages = [1, 2, 3, 4].map((level) => {
     const bodKey = `BOD-${level}`;
-    const bodEmployees = activeEmployees.filter((e) => e.bodLevel === bodKey);
-    const bodCount = bodEmployees.length;
-    const bodNiks = new Set(bodEmployees.map((e) => e.nik));
+    const bodActiveEmployees = employees.filter((e) => e.isActive !== false && e.bodLevel === bodKey);
+    const bodCount = bodActiveEmployees.length;
 
-    const trainingHours = filteredLH.filter((lh) => bodNiks.has(lh.nik)).reduce((s, lh) => s + lh.totalHours, 0);
-    const selfHours = filteredSelfLearning.filter((sl) => bodNiks.has(sl.nik)).reduce((s, sl) => s + sl.hours, 0);
+    const trainingHours = filteredLH
+      .filter((lh) => getBodLevel(lh.nik, lh.bodLevel) === bodKey)
+      .reduce((s, lh) => s + lh.totalHours, 0);
+    const selfHours = filteredSelfLearning
+      .filter((sl) => getBodLevel(sl.nik, sl.bodLevel) === bodKey)
+      .reduce((s, sl) => s + sl.hours, 0);
 
     const totalHours = trainingHours + selfHours;
     const average = bodCount > 0 ? (totalHours / bodCount).toFixed(1) : "0.0";
@@ -188,23 +199,45 @@ export default function DashboardPage() {
       4: "bg-teal-500 text-white" // Teal/Toska
     };
 
-    return { label: bodKey, count: average, color: colorMap[level] };
+    return { 
+      label: bodKey, 
+      count: average, 
+      color: colorMap[level], 
+      totalHours: Number(totalHours.toFixed(1)), 
+      activeCount: bodCount 
+    };
   });
 
   const calculateCombinedBodAverage = (bodLevels: string[] | "ALL", label: string, color: string) => {
-    const bodEmployees = activeEmployees.filter((e) => 
-      bodLevels === "ALL" ? e.bodLevel?.startsWith("BOD-") : bodLevels.includes(e.bodLevel)
-    );
-    const bodCount = bodEmployees.length;
-    const bodNiks = new Set(bodEmployees.map((e) => e.nik));
+    const bodActiveEmployees = employees.filter((e) => {
+      if (e.isActive === false) return false;
+      const b = e.bodLevel || "";
+      return bodLevels === "ALL" ? b.startsWith("BOD-") : bodLevels.includes(b);
+    });
+    const bodCount = bodActiveEmployees.length;
 
-    const trainingHours = filteredLH.filter((lh) => bodNiks.has(lh.nik)).reduce((s, lh) => s + lh.totalHours, 0);
-    const selfHours = filteredSelfLearning.filter((sl) => bodNiks.has(sl.nik)).reduce((s, sl) => s + sl.hours, 0);
+    const matchesBod = (nik: string, fallbackBod?: string) => {
+      const b = getBodLevel(nik, fallbackBod);
+      return bodLevels === "ALL" ? b.startsWith("BOD-") : bodLevels.includes(b);
+    };
+
+    const trainingHours = filteredLH
+      .filter((lh) => matchesBod(lh.nik, lh.bodLevel))
+      .reduce((s, lh) => s + lh.totalHours, 0);
+    const selfHours = filteredSelfLearning
+      .filter((sl) => matchesBod(sl.nik, sl.bodLevel))
+      .reduce((s, sl) => s + sl.hours, 0);
 
     const totalHours = trainingHours + selfHours;
     const average = bodCount > 0 ? (totalHours / bodCount).toFixed(1) : "0.0";
     
-    return { label, count: average, color };
+    return { 
+      label, 
+      count: average, 
+      color, 
+      totalHours: Number(totalHours.toFixed(1)), 
+      activeCount: bodCount 
+    };
   };
 
   const bodCombinedAverages = [
@@ -472,7 +505,7 @@ export default function DashboardPage() {
               colorClass="text-sky-500"
               bgClass="bg-sky-50"
               borderClass="border-sky-500"
-              description="Berdasarkan filter saat ini"
+              description={`Dibagi ${totalActiveEmployees} karyawan aktif`}
               loading={loading}
             />
             <MetricCard
@@ -482,7 +515,7 @@ export default function DashboardPage() {
               colorClass="text-sky-500"
               bgClass="bg-sky-50"
               borderClass="border-sky-500"
-              description="Berdasarkan filter saat ini"
+              description="Total akumulasi (aktif & non-aktif)"
               loading={loading}
             />
 
@@ -504,7 +537,7 @@ export default function DashboardPage() {
               colorClass="text-emerald-500"
               bgClass="bg-emerald-50"
               borderClass="border-emerald-500"
-              description="Berdasarkan filter saat ini"
+              description={`Dibagi ${totalActiveEmployees} karyawan aktif`}
               loading={loading}
             />
             <MetricCard
@@ -514,7 +547,7 @@ export default function DashboardPage() {
               colorClass="text-emerald-500"
               bgClass="bg-emerald-50"
               borderClass="border-emerald-500"
-              description="Berdasarkan filter saat ini"
+              description="Total akumulasi (aktif & non-aktif)"
               loading={loading}
             />
           </div>
@@ -580,14 +613,17 @@ export default function DashboardPage() {
                 <CardTitle>Rata-rata Jam Belajar (BOD)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col sm:flex-row gap-4 items-center justify-center py-4 h-full sm:h-[180px]">
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-center py-2 min-h-[190px]">
                   {bodAverages.map((item, index) => (
-                    <div key={index} className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-border/50 bg-background/50 w-full h-full">
-                      <div className={`px-4 py-2 rounded-full font-bold text-sm text-center shadow-sm ${item.color}`}>
+                    <div key={index} className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-border/50 bg-background/50 w-full h-full text-center">
+                      <div className={`px-4 py-1.5 rounded-full font-bold text-sm text-center shadow-sm ${item.color}`}>
                         {item.label}
                       </div>
                       <div className="text-3xl font-black text-navy">{loading ? "—" : item.count}</div>
-                      <div className="text-xs text-text-secondary text-center">Jam/Karyawan</div>
+                      <div className="text-[11px] text-text-secondary uppercase tracking-wider font-medium">Jam/Karyawan Aktif</div>
+                      <div className="text-[11px] text-slate-500 font-medium bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs mt-1">
+                        Total: {item.totalHours} jam • {item.activeCount} orang aktif
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -599,14 +635,17 @@ export default function DashboardPage() {
                 <CardTitle>Rata-rata Jam Belajar (Gabungan BOD)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col sm:flex-row gap-4 items-center justify-center py-4 h-full sm:h-[180px]">
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-center py-2 min-h-[190px]">
                   {bodCombinedAverages.map((item, index) => (
-                    <div key={index} className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-border/50 bg-background/50 w-full h-full">
-                      <div className={`px-4 py-2 rounded-full font-bold text-sm text-center shadow-sm ${item.color}`}>
+                    <div key={index} className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-border/50 bg-background/50 w-full h-full text-center">
+                      <div className={`px-4 py-1.5 rounded-full font-bold text-sm text-center shadow-sm ${item.color}`}>
                         {item.label}
                       </div>
                       <div className="text-3xl font-black text-navy">{loading ? "—" : item.count}</div>
-                      <div className="text-xs text-text-secondary text-center">Jam/Karyawan</div>
+                      <div className="text-[11px] text-text-secondary uppercase tracking-wider font-medium">Jam/Karyawan Aktif</div>
+                      <div className="text-[11px] text-slate-500 font-medium bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs mt-1">
+                        Total: {item.totalHours} jam • {item.activeCount} orang aktif
+                      </div>
                     </div>
                   ))}
                 </div>
