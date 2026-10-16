@@ -19,9 +19,9 @@ export function SidebarNav() {
             <p className="text-xs font-semibold text-sky-light/70 uppercase tracking-wider px-2">Akademik</p>
           </div>
           <SidebarItem href="/training" icon={<BookOpen className="h-4 w-4" />} label="Manajemen Training" active={pathname === "/training" || (pathname.startsWith("/training/") && pathname !== "/training/tasks")} />
+          <SidebarItem href="/training/tasks" icon={<ListTodo className="h-4 w-4" />} label="Timeline Training" active={pathname === "/training/tasks"} />
           <SidebarItem href="/tasks" icon={<Columns3 className="h-4 w-4" />} label="Manajemen Tugas" active={pathname === "/tasks"} />
           <SidebarItem href="/tasks/timeline" icon={<CalendarRange className="h-4 w-4" />} label="Timeline Tugas" active={pathname === "/tasks/timeline"} />
-          <SidebarItem href="/training/tasks" icon={<ListTodo className="h-4 w-4" />} label="Task Training" active={pathname === "/training/tasks"} />
           <SidebarItem href="/calendar" icon={<Calendar className="h-4 w-4" />} label="Kalender Training" active={pathname === "/calendar"} />
           <SidebarItem href="/learning-hours" icon={<GraduationCap className="h-4 w-4" />} label="Learning Hours" active={pathname.startsWith("/learning-hours")} />
           <SidebarItem href="/training-history" icon={<History className="h-4 w-4" />} label="Riwayat Training" active={pathname === "/training-history"} />
