@@ -22,7 +22,7 @@ export async function PUT(
         bodLevel: bodLevel ?? "",
         year: year ?? "",
         platform: platform ?? "",
-        hours: parseFloat(hours) || 0,
+        hours: Number((parseFloat(hours) || 0).toFixed(2)),
       },
     });
 

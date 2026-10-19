@@ -53,6 +53,16 @@ interface YearFilterProps {
 
 const yearLabel = (y: string) => (y === "all" ? "semua tahun" : `tahun ${y}`);
 
+export const formatHours = (hours: number | string | undefined | null) => {
+  if (hours === undefined || hours === null || hours === "") return "0";
+  const num = typeof hours === "number" ? hours : parseFloat(String(hours));
+  if (isNaN(num)) return "0";
+  return Number(num.toFixed(2)).toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+};
+
 const EMPTY_SELF_FORM: Omit<SelfLearningEntry, "id"> = {
   nik: "", name: "", department: "", bodLevel: "", year: "", platform: "", hours: 0,
 };
@@ -82,7 +92,8 @@ function parseSelfLearningXLSX(buffer: ArrayBuffer): SelfLearningImportRow[] {
     const nik = String(row["NIK"] ?? "").trim();
     const year = String(row["Tahun"] ?? "").trim();
     const platform = String(row["Platform"] ?? "").trim();
-    const hours = parseFloat(String(row["Total Jam Belajar"] ?? "")) || 0;
+    const rawHours = parseFloat(String(row["Total Jam Belajar"] ?? "")) || 0;
+    const hours = Number(rawHours.toFixed(2));
     const VALID_PLATFORMS = ["LMS", "LinkedIn Learning"];
     const errors: string[] = [];
     if (!nik) errors.push("NIK wajib diisi");
@@ -215,6 +226,7 @@ function SelfLearningModal({
             <label className="text-sm font-medium text-text-primary">Total Jam Belajar (JPL)</label>
             <Input
               type="number"
+              step="any"
               min={0}
               value={data.hours || ""}
               onChange={(e) => set({ hours: parseFloat(e.target.value) || 0 })}
@@ -282,7 +294,7 @@ function TrainingHoursTab({ filterYear }: YearFilterProps) {
     if (filteredData.length === 0) { alert("Tidak ada data untuk dieksport"); return; }
     const exportData = filteredData.map((emp, idx) => ({
       "No": idx + 1, "NIK": emp.nik, "Nama Karyawan": emp.name,
-      "Divisi": emp.department, "Tahun": emp.year, "Total Jam Belajar": emp.totalHours,
+      "Divisi": emp.department, "Tahun": emp.year, "Total Jam Belajar": Number(Number(emp.totalHours).toFixed(2)),
     }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportData), "Training Hours");
@@ -321,7 +333,7 @@ function TrainingHoursTab({ filterYear }: YearFilterProps) {
             <GraduationCap className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-navy">{totalHours} Jam</div>
+            <div className="text-2xl font-bold text-navy">{formatHours(totalHours)} Jam</div>
             <p className="text-xs text-text-secondary mt-1">Seluruh partisipasi pelatihan {yearLabel(filterYear)}</p>
           </CardContent>
         </Card>
@@ -393,7 +405,7 @@ function TrainingHoursTab({ filterYear }: YearFilterProps) {
                   </TableCell>
                   <TableCell className="text-center text-text-secondary">{emp.year}</TableCell>
                   <TableCell className="text-center font-bold text-navy">
-                    {emp.totalHours} <span className="text-xs font-normal text-text-secondary">Jam</span>
+                    {formatHours(emp.totalHours)} <span className="text-xs font-normal text-text-secondary">Jam</span>
                   </TableCell>
                 </TableRow>
               ))
@@ -518,7 +530,7 @@ function SelfLearningTab({ filterYear }: YearFilterProps) {
     const exportData = filteredEntries.map((e, idx) => ({
       "No": idx + 1, "NIK": e.nik, "Nama Karyawan": e.name,
       "Divisi": e.department, "BOD Level": e.bodLevel, "Tahun": e.year,
-      "Platform": e.platform, "Total Jam Belajar": e.hours,
+      "Platform": e.platform, "Total Jam Belajar": Number(Number(e.hours).toFixed(2)),
     }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportData), "Self-Learning Hours");
@@ -749,7 +761,7 @@ function SelfLearningTab({ filterYear }: YearFilterProps) {
                           <TableCell className="text-sm text-center text-text-secondary">{row.year || "-"}</TableCell>
                           <TableCell className="text-sm text-text-secondary">{row.platform || "-"}</TableCell>
                           <TableCell className="text-center font-medium text-navy text-sm">
-                            {row.hours > 0 ? row.hours : <span className="text-destructive italic">0</span>}
+                            {row.hours > 0 ? formatHours(row.hours) : <span className="text-destructive italic">0</span>}
                           </TableCell>
                           <TableCell className="text-center">
                             {row._status === "baru" && <Badge className="bg-success/10 text-success border-success/20 text-xs">Baru</Badge>}
@@ -880,7 +892,7 @@ function SelfLearningTab({ filterYear }: YearFilterProps) {
             <GraduationCap className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-navy">{totalHours} Jam</div>
+            <div className="text-2xl font-bold text-navy">{formatHours(totalHours)} Jam</div>
             <p className="text-xs text-text-secondary mt-1">Akumulasi jam self-learning {yearLabel(filterYear)}</p>
           </CardContent>
         </Card>
@@ -957,7 +969,7 @@ function SelfLearningTab({ filterYear }: YearFilterProps) {
                   <TableCell className="text-center text-text-secondary text-sm">{entry.year || "-"}</TableCell>
                   <TableCell className="text-text-secondary text-sm">{entry.platform || "-"}</TableCell>
                   <TableCell className="text-center font-bold text-navy">
-                    {entry.hours} <span className="text-xs font-normal text-text-secondary">Jam</span>
+                    {formatHours(entry.hours)} <span className="text-xs font-normal text-text-secondary">Jam</span>
                   </TableCell>
                   <TableCell className="text-center">
                     <DropdownMenu>

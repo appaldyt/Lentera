@@ -50,11 +50,6 @@ function CustomOrgTooltip({ active, payload, label }: any) {
         <p className="text-text-secondary">
           Karyawan Aktif (Pembagi): <span className="font-medium text-navy">{data.totalCount} orang</span>
         </p>
-        {data.inactiveCount > 0 && (
-          <p className="text-amber-600 text-[11px] font-medium pt-0.5">
-            *Termasuk {data.inactiveCount} karyawan non-aktif ({data.inactiveHours} jam)
-          </p>
-        )}
       </div>
     );
   }

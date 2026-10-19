@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
         const year = e.year ?? "";
         const platform = e.platform ?? "";
-        const hours = parseFloat(e.hours) || 0;
+        const hours = Number((parseFloat(e.hours) || 0).toFixed(2));
 
         const existing = await prisma.selfLearning.findFirst({
           where: { nik: e.nik, year, platform },
