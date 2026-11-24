@@ -24,11 +24,7 @@ export default async function TrainingHistoryPage(props: {
   const month = typeof searchParams.month === "string" && searchParams.month !== "ALL" ? parseInt(searchParams.month) : null;
   const page = typeof searchParams.page === "string" ? Math.max(1, parseInt(searchParams.page) || 1) : 1;
 
-  const whereClause: any = {
-    training: {
-      status: "COMPLETED",
-    },
-  };
+  const whereClause: any = {};
 
   if (search) {
     whereClause.OR = [
@@ -94,7 +90,7 @@ export default async function TrainingHistoryPage(props: {
             <div>
               <CardTitle className="text-xl">Data Riwayat Training Karyawan</CardTitle>
               <CardDescription>
-                Daftar histori training yang telah diselesaikan (Completed) oleh karyawan.
+                Daftar histori dan data keikutsertaan training karyawan.
               </CardDescription>
             </div>
           </div>
@@ -111,14 +107,13 @@ export default async function TrainingHistoryPage(props: {
                 <TableHead>Tgl. Mulai</TableHead>
                 <TableHead>Tgl. Selesai</TableHead>
                 <TableHead className="text-center">Jam Belajar</TableHead>
-                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {historyData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                    Belum ada riwayat training yang berstatus Completed.
+                    Belum ada data riwayat training.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -143,11 +138,6 @@ export default async function TrainingHistoryPage(props: {
                     <TableCell>{formatDate(item.training.endDate)}</TableCell>
                     <TableCell className="text-center font-semibold text-navy">
                       {item.attendedHours} Jam
-                    </TableCell>
-                    <TableCell>
-                      <Badge className="bg-success text-white hover:bg-success/90">
-                        Selesai
-                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))

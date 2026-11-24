@@ -13,11 +13,7 @@ export async function GET(request: Request) {
     const year = yearStr && yearStr !== "ALL" ? parseInt(yearStr) : null;
     const month = monthStr && monthStr !== "ALL" ? parseInt(monthStr) : null;
 
-    const whereClause: any = {
-      training: {
-        status: "COMPLETED",
-      },
-    };
+    const whereClause: any = {};
 
     if (search) {
       whereClause.OR = [
@@ -107,7 +103,6 @@ export async function GET(request: Request) {
         "Tgl. Mulai": formatDate(item.training.startDate),
         "Tgl. Selesai": formatDate(item.training.endDate),
         "Jam Belajar": item.attendedHours,
-        "Status": "Selesai",
       }));
     }
 
